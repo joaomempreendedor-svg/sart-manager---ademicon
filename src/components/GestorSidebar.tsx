@@ -22,6 +22,7 @@ import {
   CheckSquare,
   ListTodo,
   FileSignature,
+  Target,
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -75,7 +76,8 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({
     { to: `${baseRoute}/feedbacks`, icon: Star, label: 'Feedbacks', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/processos`, icon: FileText, label: 'Processos', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/contratos`, icon: FileSignature, label: 'Contratos Assinados', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
-    { to: `${baseRoute}/daily-checklists`, icon: CheckSquare, label: 'Metas Diárias Secretaria', roles: ['GESTOR', 'ADMIN'], section: 'main' },
+    { to: `${baseRoute}/daily-checklists`, icon: CheckSquare, label: 'Checklists Secretaria', roles: ['GESTOR', 'ADMIN'], section: 'main' },
+    { to: `${baseRoute}/daily-metrics-config`, icon: Target, label: 'Métricas Diárias', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/onboarding-admin`, icon: Video, label: 'Onboarding', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
     { to: `${baseRoute}/form-cadastros`, icon: FileStack, label: 'Gerenciar Formulários', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
   ];

@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { GestorLayout } from '@/components/GestorLayout';
 import { ProtectedLayout } from '@/layouts/ProtectedLayout';
 import { SecretariaLayout } from '@/layouts/SecretariaLayout';
+import { ConsultorLayout } from '@/components/ConsultorLayout';
 
 import { Login } from '@/pages/Login';
 import { Register } from '@/pages/Register';
@@ -33,9 +34,18 @@ import { Processos } from '@/pages/gestor/Processos';
 import { TeamConfig } from '@/pages/TeamConfig';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
 import Contratos from '@/pages/gestor/Contratos';
+import DailyMetricsConfig from '@/pages/gestor/DailyMetricsConfig';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
+
+import ConsultorDashboard from '@/pages/consultor/Dashboard';
+import ConsultorCrm from '@/pages/consultor/Crm';
+import ConsultorColdCall from '@/pages/consultor/ColdCallPage';
+import ConsultorDailyChecklist from '@/pages/consultor/DailyChecklist';
+import ConsultorMaterials from '@/pages/Materials';
+import ConsultorSalesReports from '@/pages/consultor/ConsultorSalesReports';
+import DailyMetricsPage from '@/pages/consultor/DailyMetrics';
 
 const AppRoutes = () => {
   return (
@@ -48,11 +58,11 @@ const AppRoutes = () => {
       <Route path="/public-form" element={<PublicForm />} />
       <Route path="/public-process/:processId" element={<PublicProcessView />} />
 
-      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
+      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA', 'CONSULTOR']} />}>
         <Route path="/" element={<Home />} />
       </Route>
 
-      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
+      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN']} />}>
         <Route path="/gestor" element={<GestorLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="candidate/:id" element={<CandidateDetail />} />
@@ -62,6 +72,7 @@ const AppRoutes = () => {
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="daily-checklists" element={<DailyChecklistConfig />} />
+          <Route path="daily-metrics-config" element={<DailyMetricsConfig />} />
           <Route path="tasks" element={<GestorTasksPage />} />
           <Route path="hiring-dashboard" element={<Navigate to="../hiring-metrics" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
@@ -71,11 +82,12 @@ const AppRoutes = () => {
           <Route path="processos" element={<Processos />} />
           <Route path="contratos" element={<Contratos />} />
         </Route>
+      </Route>
 
+      <Route element={<ProtectedLayout allowedRoles={['SECRETARIA']} />}>
         <Route path="/secretaria" element={<SecretariaLayout />}>
           <Route path="dashboard" element={<SecretariaDashboard />} />
           <Route path="checklists" element={<SecretariaDailyChecklist />} />
-          <Route path="hiring-dashboard" element={<Navigate to="../hiring-metrics" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="hiring-metrics" element={<HiringMetrics />} />
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
@@ -83,10 +95,20 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
-      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA']} />}>
-        <Route path="/profile" element={<GestorLayout />}>
-          <Route index element={<Profile />} />
+      <Route element={<ProtectedLayout allowedRoles={['CONSULTOR']} />}>
+        <Route path="/consultor" element={<ConsultorLayout />}>
+            <Route path="dashboard" element={<ConsultorDashboard />} />
+            <Route path="crm" element={<ConsultorCrm />} />
+            <Route path="cold-call" element={<ConsultorColdCall />} />
+            <Route path="daily-checklist" element={<ConsultorDailyChecklist />} />
+            <Route path="daily-metrics" element={<DailyMetricsPage />} />
+            <Route path="materials" element={<ConsultorMaterials />} />
+            <Route path="sales-reports" element={<ConsultorSalesReports />} />
         </Route>
+      </Route>
+
+      <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA', 'CONSULTOR']} />}>
+        <Route path="/profile" element={<Profile />} />
       </Route>
     </Routes>
   );

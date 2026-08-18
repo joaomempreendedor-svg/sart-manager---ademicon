@@ -520,6 +520,17 @@ export interface MetricLog {
   created_at: string;
 }
 
+export interface DailyMetricConfig {
+  id: string;
+  user_id: string;
+  metric_key: string;
+  label: string;
+  type: 'number' | 'currency';
+  is_active: boolean;
+  order_index: number;
+  created_at: string;
+}
+
 export interface FinancialEntry {
   id: string;
   db_id?: string;
@@ -672,6 +683,7 @@ export interface AppContextType {
   weeklyTargetItems: WeeklyTargetItem[];
   weeklyTargetAssignments: WeeklyTargetAssignment[];
   metricLogs: MetricLog[];
+  dailyMetricsConfig: DailyMetricConfig[];
   supportMaterialsV2: SupportMaterialV2[];
   supportMaterialAssignments: SupportMaterialAssignment[];
   leadTasks: LeadTask[];
@@ -763,6 +775,10 @@ export interface AppContextType {
   addMetricLog: (log: Omit<MetricLog, 'id' | 'created_at'>) => Promise<MetricLog>;
   updateMetricLog: (id: string, updates: Partial<MetricLog>) => Promise<MetricLog>;
   deleteMetricLog: (id: string) => Promise<void>;
+  addDailyMetricConfig: (config: Omit<DailyMetricConfig, 'id' | 'user_id' | 'created_at'>) => Promise<DailyMetricConfig>;
+  updateDailyMetricConfig: (id: string, updates: Partial<DailyMetricConfig>) => Promise<DailyMetricConfig>;
+  deleteDailyMetricConfig: (id: string) => Promise<void>;
+  updateDailyMetricConfigOrder: (orderedConfigs: DailyMetricConfig[]) => Promise<void>;
   addSupportMaterialV2: (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => Promise<SupportMaterialV2>;
   updateSupportMaterialV2: (id: string, updates: Partial<SupportMaterialV2>, file?: File) => Promise<SupportMaterialV2>;
   deleteSupportMaterialV2: (id: string) => Promise<void>;

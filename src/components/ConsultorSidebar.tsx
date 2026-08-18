@@ -1,6 +1,6 @@
 import React, { Fragment, useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, DollarSign, PhoneCall } from 'lucide-react'; // NOVO: Importar PhoneCall
+import { LayoutDashboard, TrendingUp, LogOut, User as UserIcon, Sun, Moon, ListChecks, ChevronLeft, ChevronRight, Library, DollarSign, PhoneCall, Target } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -60,7 +60,7 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
             <TrendingUp className="w-5 h-5" />
             {!isSidebarCollapsed && <span>CRM</span>}
           </NavLink>
-          <NavLink to="/consultor/cold-call" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para Cold Call */}
+          <NavLink to="/consultor/cold-call" className={linkClass} onClick={toggleSidebar}>
             <PhoneCall className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Cold Call</span>}
           </NavLink>
@@ -68,11 +68,15 @@ export const ConsultorSidebar: React.FC<ConsultorSidebarProps> = ({ isSidebarOpe
             <ListChecks className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Checklist do Dia</span>}
           </NavLink>
+          <NavLink to="/consultor/daily-metrics" className={linkClass} onClick={toggleSidebar}> 
+            <Target className="w-5 h-5" />
+            {!isSidebarCollapsed && <span>Métricas Diárias</span>}
+          </NavLink>
           <NavLink to="/consultor/materials" className={linkClass} onClick={toggleSidebar}>
             <Library className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Materiais de Apoio</span>}
           </NavLink>
-          <NavLink to="/consultor/sales-reports" className={linkClass} onClick={toggleSidebar}> {/* NOVO: Link para o relatório de vendas */}
+          <NavLink to="/consultor/sales-reports" className={linkClass} onClick={toggleSidebar}>
             <DollarSign className="w-5 h-5" />
             {!isSidebarCollapsed && <span>Relatório de Vendas</span>}
           </NavLink>

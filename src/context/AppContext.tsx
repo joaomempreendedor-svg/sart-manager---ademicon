@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn, Contrato } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn, Contrato, DailyMetricConfig } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -78,6 +78,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [weeklyTargetItems, setWeeklyTargetItems] = useState<WeeklyTargetItem[]>([]);
   const [weeklyTargetAssignments, setWeeklyTargetAssignments] = useState<WeeklyTargetAssignment[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
+  const [dailyMetricsConfig, setDailyMetricsConfig] = useState<DailyMetricConfig[]>([]);
 
   const [supportMaterialsV2, setSupportMaterialsV2] = useState<SupportMaterialV2[]>([]);
   const [supportMaterialAssignments, setSupportMaterialAssignments] = useState<SupportMaterialAssignment[]>([]);
@@ -163,6 +164,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCrmPipelines([]); setCrmStages([]); setCrmFields([]); setCrmLeads([]); setCrmOwnerUserId(null);
     setDailyChecklists([]); setDailyChecklistItem([]); setDailyChecklistAssignments([]); setDailyChecklistCompletions([]);
     setWeeklyTargets([]); setWeeklyTargetItems([]); setWeeklyTargetAssignments([]); setMetricLogs([]);
+    setDailyMetricsConfig([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
     setColdCallLeads([]); setColdCallLogs([]); setProcesses([]); setContratos([]);
@@ -283,7 +285,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          processesRes, processAttachmentsRes, contratosRes
+          processesRes, processAttachmentsRes, contratosRes, dailyMetricsConfigRes
         ] = await Promise.all([
           safeFetch('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
           safeFetch('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
@@ -306,7 +308,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           safeFetch('team_members', { select: 'id, data, cpf, user_id', filters: { user_id: effectiveGestorId } }),
           safeFetch('processes', { filters: { user_id: effectiveGestorId } }),
           safeFetch('process_attachments'),
-          safeFetch('contratos', { orderBy: 'created_at', ascending: false })
+          safeFetch('contratos', { orderBy: 'created_at', ascending: false }),
+          safeFetch('daily_metrics_config', { orderBy: 'order_index' })
         ]);
 
         if (!candidatesRes.error) {
@@ -367,6 +370,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         if (!contratosRes.error) setContratos(contratosRes.data || []);
+        if (!dailyMetricsConfigRes.error) setDailyMetricsConfig(dailyMetricsConfigRes.data || []);
 
         refetchCommissions();
       } catch (error: any) {
@@ -918,6 +922,42 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     if (error) throw error; setMetricLogs(prev => prev.filter(l => l.id !== id));
   }, []);
 
+  const addDailyMetricConfig = useCallback(async (config: Omit<DailyMetricConfig, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error("User not authenticated.");
+    const { data, error } = await supabase.from('daily_metrics_config').insert({ ...config, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
+    if (error) throw error;
+    setDailyMetricsConfig(prev => [...prev, data].sort((a, b) => a.order_index - b.order_index));
+    return data;
+  }, [user]);
+
+  const updateDailyMetricConfig = useCallback(async (id: string, updates: Partial<DailyMetricConfig>) => {
+      const { data, error } = await supabase.from('daily_metrics_config').update(updates).eq('id', id).select().single();
+      if (error) throw error;
+      setDailyMetricsConfig(prev => prev.map(c => c.id === id ? data : c).sort((a, b) => a.order_index - b.order_index));
+      return data;
+  }, []);
+
+  const deleteDailyMetricConfig = useCallback(async (id: string) => {
+      const { error } = await supabase.from('daily_metrics_config').delete().eq('id', id);
+      if (error) throw error;
+      setDailyMetricsConfig(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const updateDailyMetricConfigOrder = useCallback(async (orderedConfigs: DailyMetricConfig[]) => {
+      const updates = orderedConfigs.map((config, index) =>
+        supabase.from('daily_metrics_config').update({ order_index: index }).eq('id', config.id)
+      );
+      const results = await Promise.all(updates);
+      const anyError = results.some(res => res.error);
+      if (anyError) {
+          toast.error("Erro ao reordenar métricas.");
+          const { data } = await supabase.from('daily_metrics_config').select('*').order('order_index');
+          setDailyMetricsConfig(data || []);
+      } else {
+          setDailyMetricsConfig(orderedConfigs);
+      }
+  }, []);
+
   const addSupportMaterialV2 = useCallback(async (material: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'>, file?: File) => {
     let content = material.content;
     if (file) {
@@ -1056,372 +1096,217 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
   }, [candidates, updateCandidate]);
 
   const updateFeedback = useCallback(async (personId: string, feedback: Feedback) => {
-    const candidate = candidates.find(c => c.id === personId || c.db_id === personId);
-    if (!candidate) throw new Error("Candidato não encontrado.");
-    const updatedFeedbacks = (candidate.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
-    await updateCandidate(candidate.id, { feedbacks: updatedFeedbacks });
-    return feedback;
-  }, [candidates, updateCandidate]);
+    const candidate = candidates.find(c => c.id === person<think>Initial files ranking:
 
-  const deleteFeedback = useCallback(async (personId: string, feedbackId: string) => {
-    const candidate = candidates.find(c => c.id === personId || c.db_id === personId);
-    if (!candidate) throw new Error("Candidato não encontrado.");
-    const updatedFeedbacks = (candidate.feedbacks || []).filter(f => f.id !== feedbackId);
-    await updateCandidate(candidate.id, { feedbacks: updatedFeedbacks });
-  }, [candidates, updateCandidate]);
+src/App.tsx: 0.98
 
-  const addTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Omit<Feedback, 'id'>) => {
-    const member = teamMembers.find(m => m.id === teamMemberId);
-    if (!member) throw new Error("Membro da equipe não encontrado.");
-    const newFeedback = { ...feedback, id: crypto.randomUUID() };
-    const updatedFeedbacks = [...(member.feedbacks || []), newFeedback];
-    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
-    return newFeedback;
-  }, [teamMembers]);
+src/pages/consultor/Dashboard.tsx: 0.96
 
-  const updateTeamMemberFeedback = useCallback(async (teamMemberId: string, feedback: Feedback) => {
-    const member = teamMembers.find(m => m.id === teamMemberId);
-    if (!member) throw new Error("Membro da equipe não encontrado.");
-    const updatedFeedbacks = (member.feedbacks || []).map(f => f.id === feedback.id ? feedback : f);
-    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
-    return feedback;
-  }, [teamMembers]);
+src/types.ts: 0.95
 
-  const deleteTeamMemberFeedback = useCallback(async (teamMemberId: string, feedbackId: string) => {
-    const member = teamMembers.find(m => m.id === teamMemberId);
-    if (!member) throw new Error("Membro da equipe não encontrado.");
-    const updatedFeedbacks = (member.feedbacks || []).filter(f => f.id !== feedbackId);
-    await updateTeamMember(teamMemberId, { feedbacks: updatedFeedbacks });
-  }, [teamMembers]);
+src/components/ConsultorSidebar.tsx: 0.95
 
-  const addTeamMember = useCallback(async (member: Omit<TeamMember, 'id'> & { email: string }) => {
-    const tempPassword = generateRandomPassword();
-    const roleForAuth = member.roles.includes('SECRETARIA') ? 'SECRETARIA' : member.roles.includes('GESTOR') ? 'GESTOR' : 'CONSULTOR';
-    const { data: edgeData, error: edgeError } = await supabase.functions.invoke('create-or-link-consultant', {
-      body: { email: member.email, name: member.name, tempPassword, login: member.cpf, role: roleForAuth }
-    });
-    if (edgeError) throw edgeError;
-    const authUserId = edgeData.authUserId;
-    const { data, error } = await supabase.from('team_members').insert({ user_id: JOAO_GESTOR_AUTH_ID, cpf: member.cpf, data: { ...member, id: authUserId, authUserId } }).select().single();
-    if (error) throw error;
-    const newMember = { ...member, id: data.id, db_id: data.id, authUserId, hasLogin: true, isLegacy: false };
-    setTeamMembers(prev => [...prev, newMember]);
-    return { success: true, member: newMember, tempPassword, wasExistingUser: edgeData.userExists };
-  }, []);
+src/components/GestorSidebar.tsx: 0.91
 
-  const updateTeamMember = useCallback(async (id: string, updates: Partial<TeamMember>) => {
-    const member = teamMembers.find(m => m.id === id);
-    if (!member) throw new Error("Membro não encontrado.");
-    const updatedData = { ...member, ...updates };
-    const { error } = await supabase.from('team_members').update({ cpf: updates.cpf || member.cpf, data: updatedData }).eq('id', id);
-    if (error) throw error;
-    setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
-    return { success: true };
-  }, [teamMembers]);
+src/pages/consultor/DailyChecklist.tsx: 0.90
 
-  const deleteTeamMember = useCallback(async (id: string) => {
-    const { error } = await supabase.from('team_members').delete().eq('id', id);
-    if (error) throw error;
-    setTeamMembers(prev => prev.filter(m => m.id !== id));
-  }, []);
+src/components/MetricCard.tsx: 0.90
 
-  const addTeamProductionGoal = useCallback(async (goal: Omit<TeamProductionGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    const { data, error } = await supabase.from('team_production_goals').insert({ ...goal, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-    if (error) throw error; setTeamProductionGoals(prev => [data, ...prev]); return data;
-  }, []);
+src/context/AppContext.tsx: 0.87
 
-  const updateTeamProductionGoal = useCallback(async (id: string, updates: Partial<TeamProductionGoal>) => {
-    const { data, error } = await supabase.from('team_production_goals').update(updates).eq('id', id).select().single();
-    if (error) throw error; setTeamProductionGoals(prev => prev.map(g => g.id === id ? data : g)); return data;
-  }, []);
+src/pages/secretaria/SecretariaDailyChecklist.tsx: 0.84
 
-  const deleteTeamProductionGoal = useCallback(async (id: string) => {
-    const { error } = await supabase.from('team_production_goals').delete().eq('id', id);
-    if (error) throw error; setTeamProductionGoals(prev => prev.filter(g => g.id !== id));
-  }, []);
+src/components/ConsultorLayout.tsx: 0.82
 
-  const addColdCallLead = useCallback(async (lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>) => {
-    const { data, error } = await supabase.from('cold_call_leads').insert({ ...lead, user_id: user!.id, current_stage: 'Base Fria' }).select().single();
-    if (error) throw error; setColdCallLeads(prev => [data, ...prev]); return data;
-  }, [user]);
+src/pages/Dashboard.tsx: 0.75
 
-  const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
-    const { data, error } = await supabase.from('cold_call_leads').update(updates).eq('id', id).select().single();
-    if (error) throw error; setColdCallLeads(prev => prev.map(l => l.id === id ? data : l)); return data;
-  }, []);
+src/pages/GoalsConfig.tsx: 0.71
 
-  const deleteColdCallLead = useCallback(async (id: string) => {
-    const { error } = await supabase.from('cold_call_leads').delete().eq('id', id);
-    if (error) throw error; setColdCallLeads(prev => prev.filter(l => l.id !== id));
-  }, []);
+src/layouts/ProtectedLayout.tsx: 0.71
 
-  const addColdCallLog = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }) => {
-    const duration_seconds = Math.round((new Date(log.end_time).getTime() - new Date(log.start_time).getTime()) / 1000);
-    const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: user!.id, duration_seconds }).select().single();
-    if (error) throw error; setColdCallLogs(prev => [data, ...prev]); return data;
-  }, [user]);
+src/layouts/SecretariaLayout.tsx: 0.68
 
-  const getColdCallMetrics = useCallback((consultantId: string) => {
-    const logs = coldCallLogs.filter(l => l.user_id === consultantId);
-    const totalCalls = logs.length;
-    const totalConversations = logs.filter(l => l.result === 'Conversou' || l.result === 'Demonstrou Interesse' || l.result === 'Agendar Reunião').length;
-    const totalMeetingsScheduled = logs.filter(l => l.result === 'Agendar Reunião').length;
-    const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
-    return { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate };
-  }, [coldCallLogs]);
+src/data/consultantGoals.ts: 0.59
 
-  const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
-    const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
-      body: { coldCallLeadId, meetingDate: meeting?.date, meetingTime: meeting?.time, meetingModality: meeting?.modality, meetingNotes: meeting?.notes }
-    });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
-    const { data: updatedLead } = await supabase.from('cold_call_leads').select('*').eq('id', coldCallLeadId).single();
-    if (updatedLead) setColdCallLeads(prev => prev.map(l => l.id === coldCallLeadId ? updatedLead : l));
-    const { data: newCrmLead } = await supabase.from('crm_leads').select('*').eq('id', data.crmLeadId).single();
-    if (newCrmLead) setCrmLeads(prev => [newCrmLead, ...prev]);
-    return { crmLeadId: data.crmLeadId };
-  }, []);
+supabase/functions/manage-daily-checklist-item/index.ts: 0.56
 
-  const hasPendingSecretariaTasks = useCallback((candidate: Candidate) => {
-    const progress = candidate.checklistProgress || {};
-    const secretariaItems = checklistStructure.flatMap(s => s.items).filter(i => i.responsibleRole === 'SECRETARIA');
-    return secretariaItems.some(item => progress[item.id] && !progress[item.id].completed);
-  }, [checklistStructure]);
+src/components/consultor/DailyChecklistDisplay.tsx: 0.50
 
-  const value: AppContextType = useMemo(() => ({
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-    checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
-    crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
-    dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
-    weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments,
-    leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, processes, contratos, theme, hiringPipelineColumns,
-    toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
-    addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), setCandidates,
-    toggleChecklistItem, setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (!candidate) return;
-      const currentProgress = candidate.checklistProgress || {};
-      const currentState = currentProgress[itemId] || { completed: false };
-      const newProgress = { ...currentProgress, [itemId]: { ...currentState, dueDate } };
-      await updateCandidate(candidateId, { checklistProgress: newProgress });
-    },
-    toggleConsultantGoal: (candidateId: string, goalId: string) => Promise.resolve(),
-    addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
-    addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem,
-    resetChecklistToDefault,
-    addGoalItem: (stageId: string, label: string) => {
-      const newStructure = consultantGoalsStructure.map(stage => stage.id === stageId ? { ...stage, items: [...stage.items, { id: crypto.randomUUID(), label }] } : stage);
-      setConsultantGoalsStructure(newStructure); updateConfig({ consultantGoalsStructure: newStructure });
-    },
-    updateGoalItem: (stageId: string, itemId: string, newLabel: string) => {
-      const newStructure = consultantGoalsStructure.map(stage => stage.id === stageId ? { ...stage, items: stage.items.map(item => item.id === itemId ? { ...item, label: newLabel } : item) } : stage);
-      setConsultantGoalsStructure(newStructure); updateConfig({ consultantGoalsStructure: newStructure });
-    },
-    deleteGoalItem: (stageId: string, itemId: string) => {
-      const newStructure = consultantGoalsStructure.map(stage => stage.id === stageId ? { ...stage, items: stage.items.filter(item => item.id !== itemId) } : stage);
-      setConsultantGoalsStructure(newStructure); updateConfig({ consultantGoalsStructure: newStructure });
-    },
-    moveGoalItem: (stageId: string, itemId: string, direction: 'up' | 'down') => {
-      const newStructure = consultantGoalsStructure.map(stage => {
-        if (stage.id === stageId) {
-          const index = stage.items.findIndex(i => i.id === itemId);
-          if (index === -1) return stage;
-          const newItems = [...stage.items];
-          const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex >= 0 && targetIndex < newItems.length) [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-          return { ...stage, items: newItems };
-        }
-        return stage;
-      });
-      setConsultantGoalsStructure(newStructure); updateConfig({ consultantGoalsStructure: newStructure });
-    },
-    resetGoalsToDefault: () => { setConsultantGoalsStructure(DEFAULT_GOALS); updateConfig({ consultantGoalsStructure: DEFAULT_GOALS }); },
-    updateInterviewSection: (sectionId: string, updates: Partial<InterviewSection>) => {
-      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, ...updates } : s);
-      setInterviewStructure(newStructure); updateConfig({ interviewStructure: newStructure });
-    },
-    addInterviewQuestion: (sectionId: string, text: string, points: number) => {
-      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: [...s.questions, { id: crypto.randomUUID(), text, points }] } : s);
-      setInterviewStructure(newStructure); updateConfig({ interviewStructure: newStructure });
-    },
-    updateInterviewQuestion: (sectionId: string, questionId: string, updates: Partial<InterviewQuestion>) => {
-      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.map(q => q.id === questionId ? { ...q, ...updates } : q) } : s);
-      setInterviewStructure(newStructure); updateConfig({ interviewStructure: newStructure });
-    },
-    deleteInterviewQuestion: (sectionId: string, questionId: string) => {
-      const newStructure = interviewStructure.map(s => s.id === sectionId ? { ...s, questions: s.questions.filter(q => q.id !== questionId) } : s);
-      setInterviewStructure(newStructure); updateConfig({ interviewStructure: newStructure });
-    },
-    moveInterviewQuestion: (sectionId: string, questionId: string, direction: 'up' | 'down') => {
-      const newStructure = interviewStructure.map(s => {
-        if (s.id === sectionId) {
-          const index = s.questions.findIndex(i => i.id === questionId);
-          if (index === -1) return s;
-          const newQuestions = [...s.questions];
-          const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex >= 0 && targetIndex < newQuestions.length) [newQuestions[index], newQuestions[targetIndex]] = [newQuestions[targetIndex], newQuestions[index]];
-          return { ...s, questions: newQuestions };
-        }
-        return s;
-      });
-      setInterviewStructure(newStructure); updateConfig({ interviewStructure: newStructure });
-    },
-    resetInterviewToDefault: () => { setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); updateConfig({ interviewStructure: INITIAL_INTERVIEW_STRUCTURE }); },
-    saveTemplate: (itemId: string, updates: Partial<CommunicationTemplate>) => {
-      const newTemplates = { ...templates, [itemId]: { ...templates[itemId], ...updates } };
-      setTemplates(newTemplates); updateConfig({ templates: newTemplates });
-    },
-    addOrigin: (newOrigin: string, type: 'sales' | 'hiring') => {
-      if (type === 'sales') { const newOrigins = [...salesOrigins, newOrigin]; setSalesOrigins(newOrigins); updateConfig({ salesOrigins: newOrigins }); }
-      else { const newOrigins = [...hiringOrigins, newOrigin]; setHiringOrigins(newOrigins); updateConfig({ hiringOrigins: newOrigins }); }
-    },
-    deleteOrigin: (originToDelete: string, type: 'sales' | 'hiring') => {
-      if (type === 'sales') { const newOrigins = salesOrigins.filter(o => o !== originToDelete); setSalesOrigins(newOrigins); updateConfig({ salesOrigins: newOrigins }); }
-      else { const newOrigins = hiringOrigins.filter(o => o !== originToDelete); setHiringOrigins(newOrigins); updateConfig({ hiringOrigins: newOrigins }); }
-    },
-    resetOriginsToDefault: () => { setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins }); },
-    addPV: (newPV: string) => { const newPvsList = [...pvs, newPV]; setPvs(newPvsList); updateConfig({ pvs: newPvsList }); },
-    addCommission: async (commission: any) => {
-      const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single();
-      if (error) throw error; refetchCommissions(); return { success: true };
-    },
-    updateCommission: async (id: string, updates: Partial<Commission>) => {
-      const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
-      if (error) throw error; refetchCommissions();
-    },
-    deleteCommission: async (id: string) => { const { error } = await supabase.from('commissions').delete().eq('id', id); if (error) throw error; refetchCommissions(); },
-    updateInstallmentStatus: async (commissionDbId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => {
-      const current = commissions.find(c => c.db_id === commissionDbId);
-      if (!current) throw new Error('Comissão não encontrada');
-      const key = installmentNumber.toString();
-      const details = { ...(current.installmentDetails || {}) };
-      const prev = details[key] || { status: 'Pendente' as InstallmentStatus };
-      const updatedInfo: InstallmentInfo = { ...prev, status: newStatus };
-      if (newStatus === 'Pago') {
-        const effectiveDate = paidDate || new Date().toISOString().split('T')[0];
-        updatedInfo.paidDate = effectiveDate;
-        updatedInfo.competenceMonth = calculateCompetenceMonth(effectiveDate);
-      } else {
-        delete updatedInfo.paidDate;
-        delete updatedInfo.competenceMonth;
+src/pages/gestor/GestorTasksPage.tsx: 0.47
+
+src/components/GestorLayout.tsx: 0.44
+
+src/data/checklistData.ts: 0.44
+
+src/pages/Home.tsx: 0.32
+
+src/components/ui/input.tsx: 0.32
+
+src/lib/supabase.ts: 0.27
+
+src/pages/gestor/DailyChecklistMonitoring.tsx: 0.27
+
+src/pages/secretaria/SecretariaDashboard.tsx: 0.27
+
+src/pages/gestor/DailyChecklistConfig.tsx: 0.25
+
+src/context/AuthContext.tsx: 0.22
+
+src/components/Header.tsx: 0.22
+
+src/integrations/supabase/client.ts: 0.18
+
+package.json: 0.16
+
+src/components/ui/dialog.tsx: 0.13
+
+src/data/commissionData.ts: 0.13
+
+README.md: 0.09
+
+src/components/crm/TopSellersChart.tsx: 0.09
+
+src/components/crm/ScheduleMeetingModal.tsx: 0.08
+
+src/utils/dateUtils.ts: 0.08
+
+metadata.json: 0.08
+
+src/components/ui/button.tsx: 0.07
+
+src/components/gestor/ConsultantContributions.tsx: 0.06
+
+public/sounds/celebration.mp3: 0.05
+
+src/components/ui/label.tsx: 0.05
+
+vercel.json: 0.04</think><think>Re-ranking the files. Please wait a moment...
+
+Reasoning: undefined
+
+</think><dyad-codebase-context files="src/types.ts,src/context/AppContext.tsx,src/components/GestorSidebar.tsx,src/components/ConsultorSidebar.tsx,src/App.tsx"></dyad-codebase-context><think>dyad-token-savings?original-tokens=427961.25&smart-context-tokens=35595.75</think>Com certeza! Vou continuar de onde parei.
+
+Agora que a estrutura básica está pronta, vou criar as páginas para que você possa configurar as métricas e para que seus consultores possam preenchê-las. Também vou adicionar os links nos menus para facilitar o acesso.
+
+Aqui estão os arquivos que vou criar e modificar:
+
+1.  **`src/pages/gestor/DailyMetricsConfig.tsx`**: Uma nova página para você, gestor, configurar as métricas diárias.
+2.  **`src/components/gestor/DailyMetricConfigModal.tsx`**: O modal que será usado na página de configuração para adicionar ou editar uma métrica.
+3.  **`src/pages/consultor/DailyMetrics.tsx`**: A nova página para os consultores registrarem suas métricas diárias.
+4.  **`src/App.tsx`**: Vou adicionar as rotas para as novas páginas.
+5.  **`src/components/GestorSidebar.tsx`** e **`src/components/ConsultorSidebar.tsx`**: Adicionarei os links de navegação nos menus laterais.
+
+Vamos lá!
+
+<dyad-write path="src/pages/gestor/DailyMetricsConfig.tsx" description="Criando a página de configuração de métricas diárias para o gestor.">
+import React, { useState } from 'react';
+import { useApp } from '@/context/AppContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PlusCircle, Edit, Trash2, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DailyMetricConfig } from '@/types';
+import { DailyMetricConfigModal } from '@/components/gestor/DailyMetricConfigModal';
+import toast from 'react-hot-toast';
+
+const DailyMetricsConfig = () => {
+  const { dailyMetricsConfig, updateDailyMetricConfigOrder, deleteDailyMetricConfig } = useApp();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<DailyMetricConfig | null>(null);
+
+  const handleOnDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const items = Array.from(dailyMetricsConfig);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    updateDailyMetricConfigOrder(items);
+    toast.success("Ordem das métricas atualizada.");
+  };
+
+  const handleAddNew = () => {
+    setEditingConfig(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (config: DailyMetricConfig) => {
+    setEditingConfig(config);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir esta métrica? Esta ação não pode ser desfeita.')) {
+      try {
+        await deleteDailyMetricConfig(id);
+        toast.success("Métrica excluída com sucesso.");
+      } catch (error) {
+        toast.error("Erro ao excluir a métrica.");
+        console.error(error);
       }
-      const newDetails = { ...details, [key]: updatedInfo };
-      const updatedCommission: Commission = { ...current, installmentDetails: newDetails, status: getOverallStatus(newDetails) };
-      const { db_id, criado_em, ...dataToSave } = updatedCommission as any;
-      const { error } = await supabase.from('commissions').update({ data: dataToSave }).eq('id', commissionDbId);
-      if (error) throw error;
-      setCommissions(prev => prev.map(c => (c.db_id === commissionDbId ? { ...updatedCommission } : c)));
-      toast.success(`Parcela ${installmentNumber} marcada como ${newStatus}.`);
-    },
-    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
-    addOnlineOnboardingSession, deleteOnlineOnboardingSession, addVideoToTemplate, deleteVideoFromTemplate,
-    addCrmPipeline: async (name: string) => {
-      const { data, error } = await supabase.from('crm_pipelines').insert({ user_id: JOAO_GESTOR_AUTH_ID, name }).select().single();
-      if (error) throw error; setCrmPipelines(prev => [...prev, data]); return data;
-    },
-    updateCrmPipeline: async (id: string, updates: Partial<CrmPipeline>) => {
-      const { data, error } = await supabase.from('crm_pipelines').update(updates).eq('id', id).select().single();
-      if (error) throw error; setCrmPipelines(prev => prev.map(p => p.id === id ? data : p)); return data;
-    },
-    deleteCrmPipeline: async (id: string) => {
-      const { error } = await supabase.from('crm_pipelines').delete().eq('id', id);
-      if (error) throw error; setCrmPipelines(prev => prev.filter(p => p.id !== id));
-    },
-    addCrmStage: async (stage: Omit<CrmStage, 'id' | 'user_id' | 'created_at'>) => {
-      const { data, error } = await supabase.from('crm_stages').insert({ ...stage, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-      if (error) throw error; setCrmStages(prev => [...prev, data]); return data;
-    },
-    updateCrmStage: async (id: string, updates: Partial<CrmStage>) => {
-      const { data, error } = await supabase.from('crm_stages').update(updates).eq('id', id).select().single();
-      if (error) throw error; setCrmStages(prev => prev.map(s => s.id === id ? data : s)); return data;
-    },
-    updateCrmStageOrder: async (orderedStages: CrmStage[]) => {
-      const updates = orderedStages.map((stage, index) => supabase.from('crm_stages').update({ order_index: index }).eq('id', stage.id));
-      await Promise.all(updates);
-      const { data } = await supabase.from('crm_stages').select('*').eq('user_id', JOAO_GESTOR_AUTH_ID).order('order_index');
-      setCrmStages(data || []);
-    },
-    deleteCrmStage: async (id: string) => {
-      const { error } = await supabase.from('crm_stages').delete().eq('id', id);
-      if (error) throw error; setCrmStages(prev => prev.filter(s => s.id !== id));
-    },
-    addCrmField: async (field: Omit<CrmField, 'id' | 'user_id' | 'created_at'>) => {
-      const { data, error } = await supabase.from('crm_fields').insert({ ...field, user_id: JOAO_GESTOR_AUTH_ID }).select().single();
-      if (error) throw error; setCrmFields(prev => [...prev, data]); return data;
-    },
-    updateCrmField: async (id: string, updates: Partial<CrmField>) => {
-      const { data, error } = await supabase.from('crm_fields').update(updates).eq('id', id).select().single();
-      if (error) throw error; setCrmFields(prev => prev.map(f => f.id === id ? data : f)); return data;
-    },
-    addCrmLead, updateCrmLead, deleteCrmLead,
-    addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
-    addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-    assignDailyChecklistToConsultant, unassignDailyChecklistFromConsultant, toggleDailyChecklistCompletion,
-    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
-    addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
-    assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
-    addMetricLog, updateMetricLog, deleteMetricLog,
-    addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2, assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
-    addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
-    addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
-    updateFormCadastro, deleteFormCadastro, getFormFilesForSubmission: (submissionId: string) => formFiles.filter(f => f.submission_id === submissionId),
-    addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-    addTeamMember, updateTeamMember, deleteTeamMember,
-    addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
-    hasPendingSecretariaTasks,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
-    createCrmLeadFromColdCall,
-    addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
-    addContrato, deleteContrato,
-    addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
-    resetHiringPipelineColumnsToDefault,
-  }), [
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
-    checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
-    crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
-    dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
-    weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, supportMaterialsV2, supportMaterialAssignments,
-    leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, processes, contratos, theme, hiringPipelineColumns,
-    toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
-    addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem,
-    addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
-    addChecklistItem, updateChecklistItem, deleteChecklistItem, moveChecklistItem,
-    resetChecklistToDefault,
-    addDailyChecklist, updateDailyChecklist, deleteDailyChecklist,
-    addDailyChecklistItem, updateDailyChecklistItem, deleteDailyChecklistItem, moveDailyChecklistItem,
-    addWeeklyTarget, updateWeeklyTarget, deleteWeeklyTarget,
-    addWeeklyTargetItem, updateWeeklyTargetItem, deleteWeeklyTargetItem, updateWeeklyTargetItemOrder,
-    assignWeeklyTargetToConsultant, unassignWeeklyTargetFromConsultant,
-    addMetricLog, updateMetricLog, deleteMetricLog,
-    addSupportMaterialV2, updateSupportMaterialV2, deleteSupportMaterialV2, assignSupportMaterialToConsultant, unassignSupportMaterialFromConsultant,
-    addLeadTask, updateLeadTask, deleteLeadTask, toggleLeadTaskCompletion, updateLeadMeetingInvitationStatus,
-    addGestorTask, updateGestorTask, deleteGestorTask, toggleGestorTaskCompletion,
-    addFinancialEntry, updateFinancialEntry, deleteFinancialEntry,
-    updateFormCadastro, deleteFormCadastro,
-    addFeedback, updateFeedback, deleteFeedback, addTeamMemberFeedback, updateTeamMemberFeedback, deleteTeamMemberFeedback,
-    addTeamMember, updateTeamMember, deleteTeamMember,
-    addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
-    addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
-    hasPendingSecretariaTasks,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
-    createCrmLeadFromColdCall,
-    addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
-    addContrato, deleteContrato,
-    addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
-    resetHiringPipelineColumnsToDefault,
-  ]);
+    }
+  };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <div className="container mx-auto p-4 md:p-6 lg:p-8">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Configuração de Métricas Diárias</CardTitle>
+          <Button onClick={handleAddNew}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Adicionar Métrica
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Defina as métricas que os consultores devem preencher diariamente. Arraste para reordenar.
+          </p>
+          <DragDropContext onDragEnd={handleOnDragEnd}>
+            <Droppable droppableId="metrics">
+              {(provided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                  {dailyMetricsConfig.map((config, index) => (
+                    <Draggable key={config.id} draggableId={config.id} index={index}>
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className="flex items-center p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700"
+                        >
+                          <GripVertical className="h-5 w-5 text-gray-400 mr-3" />
+                          <div className="flex-grow">
+                            <p className="font-medium text-gray-800 dark:text-gray-200">{config.label}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Chave: {config.metric_key} | Tipo: {config.type === 'currency' ? 'Moeda (R$)' : 'Número'}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(config)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(config.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </CardContent>
+      </Card>
+      <DailyMetricConfigModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        config={editingConfig}
+      />
+    </div>
+  );
 };
 
-export const useAppContext = () => {
-  const context = useContext(AppContext);
-  if (context === undefined) throw new Error('useAppContext must be usado dentro de um AppProvider');
-  return context;
-};
-
-export const useApp = useAppContext;
+export default DailyMetricsConfig;
