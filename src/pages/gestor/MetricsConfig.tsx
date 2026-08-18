@@ -226,7 +226,7 @@ const MetricsConfig = () => {
                           <div className="flex-grow">
                             <p className="font-medium text-gray-800 dark:text-gray-200">{config.label}</p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {config.type === 'currency' ? 'Moeda' : 'Número'} · Meta diária: {formatTarget(config)}
+                              {config.type === 'currency' ? 'Moeda' : 'Número'} · Meta diária: {formatTarget(config)} · Meta semanal: {formatTarget({ ...config, target_value: config.weekly_target_value })}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2">

@@ -16,6 +16,7 @@ const formSchema = z.object({
   metric_key: z.string().min(3, 'A chave deve ter pelo menos 3 caracteres.').regex(/^[a-z0-9_]+$/, 'A chave só pode conter letras minúsculas, números e underscores.'),
   type: z.enum(['number', 'currency']),
   target_value: z.coerce.number().min(0, 'A meta não pode ser negativa.'),
+  weekly_target_value: z.coerce.number().min(0, 'A meta semanal não pode ser negativa.'),
 });
 
 interface DailyMetricConfigModalProps {
@@ -34,6 +35,7 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
       metric_key: '',
       type: 'number',
       target_value: 0,
+      weekly_target_value: 0,
     }
   });
 
@@ -60,6 +62,7 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
             metric_key: config.metric_key,
             type: config.type,
             target_value: config.type === 'currency' ? config.target_value / 100 : config.target_value,
+            weekly_target_value: config.type === 'currency' ? config.weekly_target_value / 100 : config.weekly_target_value,
           });
         } else {
           reset({
@@ -67,6 +70,7 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
             metric_key: '',
             type: 'number',
             target_value: 0,
+            weekly_target_value: 0,
           });
         }
     }
@@ -77,6 +81,7 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
       const payload = {
         ...values,
         target_value: values.type === 'currency' ? Math.round(values.target_value * 100) : Math.round(values.target_value),
+        weekly_target_value: values.type === 'currency' ? Math.round(values.weekly_target_value * 100) : Math.round(values.weekly_target_value),
       };
 
       if (config) {
@@ -144,8 +149,23 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
               {...register('target_value')}
               placeholder={watch('type') === 'currency' ? 'Ex: 50000,00' : 'Ex: 5'}
             />
-            <p className="text-xs text-gray-500 mt-1">Usada no dashboard público para calcular o progresso da equipe.</p>
+            <p className="text-xs text-gray-500 mt-1">Usada na visão diária do dashboard.</p>
             {errors.target_value && <p className="text-red-500 text-sm mt-1">{errors.target_value.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="weekly_target_value">
+              Meta semanal por consultor {watch('type') === 'currency' ? '(R$)' : ''}
+            </Label>
+            <Input
+              id="weekly_target_value"
+              type="number"
+              min="0"
+              step={watch('type') === 'currency' ? '0.01' : '1'}
+              {...register('weekly_target_value')}
+              placeholder={watch('type') === 'currency' ? 'Ex: 250000,00' : 'Ex: 25'}
+            />
+            <p className="text-xs text-gray-500 mt-1">Usada na visão semanal do dashboard.</p>
+            {errors.weekly_target_value && <p className="text-red-500 text-sm mt-1">{errors.weekly_target_value.message}</p>}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>

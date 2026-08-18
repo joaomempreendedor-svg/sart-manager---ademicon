@@ -526,6 +526,7 @@ export interface DailyMetricConfig {
   label: string;
   type: 'number' | 'currency';
   target_value: number;
+  weekly_target_value: number;
   is_active: boolean;
   order_index: number;
   created_at: string;

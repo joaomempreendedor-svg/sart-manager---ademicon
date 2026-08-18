@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, Send, TrendingUp, UserRound } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, Send, Sparkles, Target, TrendingUp, Trophy, UserRound } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -26,11 +26,33 @@ interface PublicMetricEntry {
 }
 
 type ViewMode = 'form' | 'dashboard';
+type PeriodMode = 'daily' | 'weekly';
 
 const getToday = () => {
   const now = new Date();
   const offset = now.getTimezoneOffset();
   return new Date(now.getTime() - offset * 60_000).toISOString().split('T')[0];
+};
+
+const getISOWeekValue = (date = new Date()) => {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNumber = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - dayNumber);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+  return `${target.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+};
+
+const getWeekRange = (weekValue: string) => {
+  const normalizedWeek = /^\d{4}-W\d{2}$/.test(weekValue) ? weekValue : getISOWeekValue();
+  const [year, week] = normalizedWeek.split('-W').map(Number);
+  const januaryFourth = new Date(Date.UTC(year, 0, 4));
+  const januaryFourthDay = januaryFourth.getUTCDay() || 7;
+  const monday = new Date(januaryFourth);
+  monday.setUTCDate(januaryFourth.getUTCDate() - januaryFourthDay + 1 + (week - 1) * 7);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return { start: monday.toISOString().split('T')[0], end: sunday.toISOString().split('T')[0] };
 };
 
 const formatValue = (value: number, type: DailyMetricConfig['type']) => {
@@ -48,11 +70,13 @@ const parseInputValue = (value: string, type: DailyMetricConfig['type']) => {
 const PublicDailyMetrics = () => {
   const { ownerId } = useParams<{ ownerId: string }>();
   const [view, setView] = useState<ViewMode>('form');
+  const [period, setPeriod] = useState<PeriodMode>('daily');
   const [consultants, setConsultants] = useState<PublicMetricConsultant[]>([]);
   const [metrics, setMetrics] = useState<DailyMetricConfig[]>([]);
   const [entries, setEntries] = useState<PublicMetricEntry[]>([]);
   const [selectedConsultantId, setSelectedConsultantId] = useState('');
   const [selectedDate, setSelectedDate] = useState(getToday());
+  const [selectedWeek, setSelectedWeek] = useState(getISOWeekValue());
   const [values, setValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,10 +114,14 @@ const PublicDailyMetrics = () => {
     setMetrics(loadedMetrics);
 
     if (loadedMetrics.length > 0) {
+      const range = period === 'daily'
+        ? { start: selectedDate, end: selectedDate }
+        : getWeekRange(selectedWeek);
       const { data, error } = await supabase
         .from('public_metric_entries')
         .select('*')
-        .eq('entry_date', selectedDate)
+        .gte('entry_date', range.start)
+        .lte('entry_date', range.end)
         .in('metric_config_id', loadedMetrics.map(metric => metric.id));
 
       if (!error) setEntries(data || []);
@@ -103,7 +131,7 @@ const PublicDailyMetrics = () => {
 
     setIsLoading(false);
     setIsRefreshing(false);
-  }, [ownerId, selectedDate]);
+  }, [ownerId, period, selectedDate, selectedWeek]);
 
   useEffect(() => {
     loadPublicData();
@@ -128,12 +156,20 @@ const PublicDailyMetrics = () => {
     const total = entries
       .filter(entry => entry.metric_config_id === metric.id)
       .reduce((sum, entry) => sum + Number(entry.value), 0);
-    const teamTarget = Number(metric.target_value || 0) * consultants.length;
-    const progress = teamTarget > 0 ? Math.min(100, Math.round((total / teamTarget) * 100)) : 0;
-    return { metric, total, teamTarget, progress };
-  }), [metrics, entries, consultants.length]);
+    const targetPerConsultant = period === 'weekly'
+      ? Number(metric.weekly_target_value || 0)
+      : Number(metric.target_value || 0);
+    const teamTarget = targetPerConsultant * consultants.length;
+    const progress = teamTarget > 0 ? Math.round((total / teamTarget) * 100) : 0;
+    const remaining = Math.max(0, teamTarget - total);
+    return { metric, total, teamTarget, progress, remaining };
+  }), [metrics, entries, consultants.length, period]);
 
   const submittedConsultants = useMemo(() => new Set(entries.map(entry => entry.consultant_id)).size, [entries]);
+  const selectedWeekRange = useMemo(() => getWeekRange(selectedWeek), [selectedWeek]);
+  const periodLabel = period === 'daily'
+    ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-BR')
+    : `${new Date(`${selectedWeekRange.start}T12:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${selectedWeekRange.end}T12:00:00`).toLocaleDateString('pt-BR')}`;
 
   const handleSave = async () => {
     if (!selectedConsultantId) {
@@ -192,7 +228,7 @@ const PublicDailyMetrics = () => {
           </div>
           <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
             <button
-              onClick={() => setView('form')}
+              onClick={() => { setView('form'); setPeriod('daily'); }}
               className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'form' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500 dark:text-slate-400'}`}
             >
               <ClipboardCheck className="h-4 w-4" /> Preencher
@@ -208,13 +244,27 @@ const PublicDailyMetrics = () => {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:py-8">
-        <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-            <CalendarDays className="h-4 w-4 text-brand-600" /> Data dos resultados
+        <div className="flex flex-col gap-4 rounded-2xl border bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <CalendarDays className="h-4 w-4 text-brand-600" />
+              {view === 'form' ? 'Data dos resultados' : 'Período do dashboard'}
+            </div>
+            {view === 'dashboard' && <p className="mt-1 text-xs text-slate-500">Visualizando {periodLabel}</p>}
           </div>
-          <div className="flex gap-2">
-            <Input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} className="w-auto" />
-            <Button variant="outline" size="icon" onClick={() => loadPublicData(true)} disabled={isRefreshing}>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {view === 'dashboard' && (
+              <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
+                <button onClick={() => setPeriod('daily')} className={`rounded-md px-4 py-2 text-sm font-medium transition ${period === 'daily' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500'}`}>Dia</button>
+                <button onClick={() => setPeriod('weekly')} className={`rounded-md px-4 py-2 text-sm font-medium transition ${period === 'weekly' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500'}`}>Semana</button>
+              </div>
+            )}
+            {period === 'weekly' && view === 'dashboard' ? (
+              <Input type="week" value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} className="w-full sm:w-auto" />
+            ) : (
+              <Input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} className="w-full sm:w-auto" />
+            )}
+            <Button variant="outline" size="icon" onClick={() => loadPublicData(true)} disabled={isRefreshing} className="shrink-0">
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
           </div>
@@ -284,53 +334,109 @@ const PublicDailyMetrics = () => {
           </Card>
         ) : (
           <div className="space-y-6">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-violet-600 px-6 py-7 text-white shadow-xl shadow-brand-600/15">
+              <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10" />
+              <div className="absolute -bottom-16 right-24 h-36 w-36 rounded-full bg-white/5" />
+              <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/80">
+                    <Sparkles className="h-4 w-4" /> Desempenho {period === 'weekly' ? 'semanal' : 'diário'}
+                  </div>
+                  <h2 className="text-2xl font-bold sm:text-3xl">Progresso da equipe</h2>
+                  <p className="mt-1 text-sm text-white/75">{periodLabel}</p>
+                </div>
+                <div className="flex items-center gap-3 rounded-xl bg-white/15 px-4 py-3 backdrop-blur">
+                  <Trophy className="h-7 w-7 text-amber-300" />
+                  <div><p className="text-xs text-white/70">Metas atingidas</p><p className="text-xl font-bold">{metricSummaries.filter(item => item.teamTarget > 0 && item.progress >= 100).length} de {metrics.length}</p></div>
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-3">
-              <Card>
+              <Card className="border-0 shadow-md">
                 <CardContent className="flex items-center gap-4 p-5">
-                  <div className="rounded-lg bg-blue-100 p-3 text-blue-600 dark:bg-blue-950 dark:text-blue-300"><UserRound className="h-5 w-5" /></div>
+                  <div className="rounded-xl bg-blue-100 p-3 text-blue-600 dark:bg-blue-950 dark:text-blue-300"><UserRound className="h-5 w-5" /></div>
                   <div><p className="text-sm text-slate-500">Equipe</p><p className="text-2xl font-bold">{consultants.length}</p></div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-0 shadow-md">
                 <CardContent className="flex items-center gap-4 p-5">
-                  <div className="rounded-lg bg-emerald-100 p-3 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300"><CheckCircle2 className="h-5 w-5" /></div>
-                  <div><p className="text-sm text-slate-500">Responderam</p><p className="text-2xl font-bold">{submittedConsultants}</p></div>
+                  <div className="rounded-xl bg-emerald-100 p-3 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300"><CheckCircle2 className="h-5 w-5" /></div>
+                  <div><p className="text-sm text-slate-500">{period === 'weekly' ? 'Participaram' : 'Responderam'}</p><p className="text-2xl font-bold">{submittedConsultants}</p></div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-0 shadow-md">
                 <CardContent className="flex items-center gap-4 p-5">
-                  <div className="rounded-lg bg-violet-100 p-3 text-violet-600 dark:bg-violet-950 dark:text-violet-300"><BarChart3 className="h-5 w-5" /></div>
+                  <div className="rounded-xl bg-violet-100 p-3 text-violet-600 dark:bg-violet-950 dark:text-violet-300"><BarChart3 className="h-5 w-5" /></div>
                   <div><p className="text-sm text-slate-500">Métricas</p><p className="text-2xl font-bold">{metrics.length}</p></div>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {metricSummaries.map(({ metric, total, teamTarget, progress }) => (
-                <Card key={metric.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div><CardTitle className="text-base">{metric.label}</CardTitle><CardDescription>Total da equipe no dia</CardDescription></div>
-                      <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300">{progress}%</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-3 flex items-end justify-between gap-3">
-                      <strong className="text-2xl text-slate-900 dark:text-white">{formatValue(total, metric.type)}</strong>
-                      <span className="text-xs text-slate-500">Meta da equipe: {formatValue(teamTarget, metric.type)}</span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                      <div className={`h-full rounded-full transition-all ${progress >= 100 ? 'bg-emerald-500' : 'bg-brand-600'}`} style={{ width: `${progress}%` }} />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="grid gap-5 md:grid-cols-2">
+              {metricSummaries.map(({ metric, total, teamTarget, progress, remaining }) => {
+                const hasTarget = teamTarget > 0;
+                const reached = hasTarget && progress >= 100;
+                const exceeded = Math.max(0, total - teamTarget);
+                return (
+                  <Card key={metric.id} className={`overflow-hidden border-0 shadow-lg ${reached ? 'ring-1 ring-emerald-300 dark:ring-emerald-800' : 'ring-1 ring-slate-200 dark:ring-slate-800'}`}>
+                    <div className={`h-1.5 ${reached ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-brand-500 to-violet-500'}`} />
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`rounded-xl p-2.5 ${reached ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300'}`}>
+                            {reached ? <Trophy className="h-5 w-5" /> : <Target className="h-5 w-5" />}
+                          </div>
+                          <div>
+                            <CardTitle className="text-base">{metric.label}</CardTitle>
+                            <CardDescription>Meta {period === 'weekly' ? 'semanal' : 'diária'} da equipe</CardDescription>
+                          </div>
+                        </div>
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${reached ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
+                          {progress}%
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Realizado</p>
+                          <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">{formatValue(total, metric.type)}</p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Meta</p>
+                          <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">{formatValue(teamTarget, metric.type)}</p>
+                        </div>
+                      </div>
+
+                      <div className={`rounded-xl px-4 py-3 ${reached ? 'bg-emerald-50 dark:bg-emerald-950/50' : hasTarget ? 'bg-amber-50 dark:bg-amber-950/40' : 'bg-slate-50 dark:bg-slate-800/70'}`}>
+                        <p className={`text-xs font-semibold uppercase tracking-wide ${reached ? 'text-emerald-600 dark:text-emerald-400' : hasTarget ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}>
+                          {!hasTarget ? 'Meta não configurada' : reached ? 'Meta atingida' : 'Quanto falta'}
+                        </p>
+                        <p className={`mt-0.5 text-2xl font-black ${reached ? 'text-emerald-700 dark:text-emerald-300' : hasTarget ? 'text-amber-700 dark:text-amber-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                          {!hasTarget ? '—' : reached ? (exceeded > 0 ? `+ ${formatValue(exceeded, metric.type)}` : 'Concluída!') : formatValue(remaining, metric.type)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {!hasTarget ? `Defina a meta ${period === 'weekly' ? 'semanal' : 'diária'} na configuração` : reached ? (exceeded > 0 ? 'acima da meta da equipe' : 'objetivo alcançado pela equipe') : 'para a equipe alcançar o objetivo'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <div className="mb-2 flex justify-between text-xs text-slate-500"><span>Progresso</span><span>{Math.min(100, progress)}%</span></div>
+                        <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                          <div className={`h-full rounded-full transition-all duration-700 ${reached ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-brand-500 to-violet-500'}`} style={{ width: `${Math.min(100, progress)}%` }} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
-            <Card>
+            <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="text-lg">Resultado por consultor</CardTitle>
-                <CardDescription>Detalhamento dos valores informados em {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-BR')}.</CardDescription>
+                <CardDescription>Detalhamento dos valores informados no período de {periodLabel}.</CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
@@ -342,11 +448,12 @@ const PublicDailyMetrics = () => {
                   </thead>
                   <tbody>
                     {consultants.map(consultant => (
-                      <tr key={consultant.id} className="border-b last:border-0 dark:border-slate-800">
+                      <tr key={consultant.id} className="border-b transition hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
                         <td className="py-4 pr-4 font-medium">{consultant.name}</td>
                         {metrics.map(metric => {
-                          const entry = entries.find(item => item.consultant_id === consultant.id && item.metric_config_id === metric.id);
-                          return <td key={metric.id} className="px-3 py-4 text-right">{entry ? formatValue(Number(entry.value), metric.type) : '—'}</td>;
+                          const consultantEntries = entries.filter(item => item.consultant_id === consultant.id && item.metric_config_id === metric.id);
+                          const consultantTotal = consultantEntries.reduce((sum, entry) => sum + Number(entry.value), 0);
+                          return <td key={metric.id} className="px-3 py-4 text-right font-medium">{consultantEntries.length > 0 ? formatValue(consultantTotal, metric.type) : '—'}</td>;
                         })}
                       </tr>
                     ))}
