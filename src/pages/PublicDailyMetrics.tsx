@@ -156,14 +156,13 @@ const PublicDailyMetrics = () => {
     const total = entries
       .filter(entry => entry.metric_config_id === metric.id)
       .reduce((sum, entry) => sum + Number(entry.value), 0);
-    const targetPerConsultant = period === 'weekly'
+    const teamTarget = period === 'weekly'
       ? Number(metric.weekly_target_value || 0)
       : Number(metric.target_value || 0);
-    const teamTarget = targetPerConsultant * consultants.length;
     const progress = teamTarget > 0 ? Math.round((total / teamTarget) * 100) : 0;
     const remaining = Math.max(0, teamTarget - total);
     return { metric, total, teamTarget, progress, remaining };
-  }), [metrics, entries, consultants.length, period]);
+  }), [metrics, entries, period]);
 
   const submittedConsultants = useMemo(() => new Set(entries.map(entry => entry.consultant_id)).size, [entries]);
   const selectedWeekRange = useMemo(() => getWeekRange(selectedWeek), [selectedWeek]);
@@ -320,7 +319,7 @@ const PublicDailyMetrics = () => {
                       />
                     </div>
                     {metric.target_value > 0 && (
-                      <p className="text-xs text-slate-500">Meta diária: {formatValue(metric.target_value, metric.type)}</p>
+                      <p className="text-xs text-slate-500">Meta diária da equipe: {formatValue(metric.target_value, metric.type)}</p>
                     )}
                   </div>
                 ))}
@@ -373,59 +372,54 @@ const PublicDailyMetrics = () => {
               </Card>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {metricSummaries.map(({ metric, total, teamTarget, progress, remaining }) => {
                 const hasTarget = teamTarget > 0;
                 const reached = hasTarget && progress >= 100;
                 const exceeded = Math.max(0, total - teamTarget);
+                const balanceLabel = !hasTarget ? 'Sem meta' : reached ? 'Superou' : 'Falta';
+                const balanceValue = !hasTarget
+                  ? '—'
+                  : reached
+                    ? (exceeded > 0 ? `+${formatValue(exceeded, metric.type)}` : 'Atingida')
+                    : formatValue(remaining, metric.type);
+
                 return (
-                  <Card key={metric.id} className={`overflow-hidden border-0 shadow-lg ${reached ? 'ring-1 ring-emerald-300 dark:ring-emerald-800' : 'ring-1 ring-slate-200 dark:ring-slate-800'}`}>
-                    <div className={`h-1.5 ${reached ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-brand-500 to-violet-500'}`} />
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`rounded-xl p-2.5 ${reached ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300'}`}>
-                            {reached ? <Trophy className="h-5 w-5" /> : <Target className="h-5 w-5" />}
+                  <Card key={metric.id} className={`relative overflow-hidden border-0 shadow-md ring-1 ${reached ? 'ring-emerald-300 dark:ring-emerald-800' : 'ring-slate-200 dark:ring-slate-800'}`}>
+                    <div className={`absolute inset-y-0 left-0 w-1 ${reached ? 'bg-emerald-500' : 'bg-brand-600'}`} />
+                    <CardContent className="p-4 pl-5">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className={`shrink-0 rounded-lg p-2 ${reached ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300'}`}>
+                            {reached ? <Trophy className="h-4 w-4" /> : <Target className="h-4 w-4" />}
                           </div>
-                          <div>
-                            <CardTitle className="text-base">{metric.label}</CardTitle>
-                            <CardDescription>Meta {period === 'weekly' ? 'semanal' : 'diária'} da equipe</CardDescription>
+                          <div className="min-w-0">
+                            <h3 className="truncate text-sm font-bold text-slate-900 dark:text-white">{metric.label}</h3>
+                            <p className="text-[11px] text-slate-500">Meta {period === 'weekly' ? 'semanal' : 'diária'} da equipe</p>
                           </div>
                         </div>
-                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${reached ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${reached ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
                           {progress}%
                         </span>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
-                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Realizado</p>
-                          <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">{formatValue(total, metric.type)}</p>
+
+                      <div className="grid grid-cols-3 divide-x rounded-lg bg-slate-50 px-1 py-2 dark:divide-slate-700 dark:bg-slate-800/70">
+                        <div className="min-w-0 px-2">
+                          <p className="text-[10px] font-semibold uppercase text-slate-400">Feito</p>
+                          <p className="truncate text-sm font-bold text-slate-800 dark:text-white" title={formatValue(total, metric.type)}>{formatValue(total, metric.type)}</p>
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
-                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Meta</p>
-                          <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">{formatValue(teamTarget, metric.type)}</p>
+                        <div className="min-w-0 px-2">
+                          <p className="text-[10px] font-semibold uppercase text-slate-400">Meta</p>
+                          <p className="truncate text-sm font-bold text-slate-800 dark:text-white" title={formatValue(teamTarget, metric.type)}>{formatValue(teamTarget, metric.type)}</p>
+                        </div>
+                        <div className="min-w-0 px-2">
+                          <p className={`text-[10px] font-semibold uppercase ${reached ? 'text-emerald-500' : hasTarget ? 'text-amber-500' : 'text-slate-400'}`}>{balanceLabel}</p>
+                          <p className={`truncate text-sm font-black ${reached ? 'text-emerald-600 dark:text-emerald-300' : hasTarget ? 'text-amber-600 dark:text-amber-300' : 'text-slate-500'}`} title={balanceValue}>{balanceValue}</p>
                         </div>
                       </div>
 
-                      <div className={`rounded-xl px-4 py-3 ${reached ? 'bg-emerald-50 dark:bg-emerald-950/50' : hasTarget ? 'bg-amber-50 dark:bg-amber-950/40' : 'bg-slate-50 dark:bg-slate-800/70'}`}>
-                        <p className={`text-xs font-semibold uppercase tracking-wide ${reached ? 'text-emerald-600 dark:text-emerald-400' : hasTarget ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}>
-                          {!hasTarget ? 'Meta não configurada' : reached ? 'Meta atingida' : 'Quanto falta'}
-                        </p>
-                        <p className={`mt-0.5 text-2xl font-black ${reached ? 'text-emerald-700 dark:text-emerald-300' : hasTarget ? 'text-amber-700 dark:text-amber-300' : 'text-slate-600 dark:text-slate-300'}`}>
-                          {!hasTarget ? '—' : reached ? (exceeded > 0 ? `+ ${formatValue(exceeded, metric.type)}` : 'Concluída!') : formatValue(remaining, metric.type)}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {!hasTarget ? `Defina a meta ${period === 'weekly' ? 'semanal' : 'diária'} na configuração` : reached ? (exceeded > 0 ? 'acima da meta da equipe' : 'objetivo alcançado pela equipe') : 'para a equipe alcançar o objetivo'}
-                        </p>
-                      </div>
-
-                      <div>
-                        <div className="mb-2 flex justify-between text-xs text-slate-500"><span>Progresso</span><span>{Math.min(100, progress)}%</span></div>
-                        <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                          <div className={`h-full rounded-full transition-all duration-700 ${reached ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-brand-500 to-violet-500'}`} style={{ width: `${Math.min(100, progress)}%` }} />
-                        </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className={`h-full rounded-full transition-all duration-700 ${reached ? 'bg-emerald-500' : 'bg-gradient-to-r from-brand-500 to-violet-500'}`} style={{ width: `${Math.min(100, progress)}%` }} />
                       </div>
                     </CardContent>
                   </Card>

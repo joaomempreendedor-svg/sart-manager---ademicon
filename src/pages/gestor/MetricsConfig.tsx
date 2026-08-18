@@ -201,8 +201,8 @@ const MetricsConfig = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-xl">Métricas e metas diárias</CardTitle>
-            <CardDescription>Defina os campos do formulário e a meta diária por consultor.</CardDescription>
+            <CardTitle className="text-xl">Métricas e metas da equipe</CardTitle>
+            <CardDescription>Defina os campos que cada consultor preencherá e os objetivos totais da equipe.</CardDescription>
           </div>
           <Button onClick={handleAddNew}>
             <PlusCircle className="mr-2 h-4 w-4" /> Adicionar métrica

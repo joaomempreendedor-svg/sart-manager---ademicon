@@ -139,7 +139,7 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
           </div>
           <div>
             <Label htmlFor="target_value">
-              Meta diária por consultor {watch('type') === 'currency' ? '(R$)' : ''}
+              Meta diária da equipe {watch('type') === 'currency' ? '(R$)' : ''}
             </Label>
             <Input
               id="target_value"
@@ -147,14 +147,14 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
               min="0"
               step={watch('type') === 'currency' ? '0.01' : '1'}
               {...register('target_value')}
-              placeholder={watch('type') === 'currency' ? 'Ex: 50000,00' : 'Ex: 5'}
+              placeholder={watch('type') === 'currency' ? 'Ex: 50000,00' : 'Ex: 20'}
             />
-            <p className="text-xs text-gray-500 mt-1">Usada na visão diária do dashboard.</p>
+            <p className="text-xs text-gray-500 mt-1">É o objetivo total da equipe; cada consultor informa sua contribuição.</p>
             {errors.target_value && <p className="text-red-500 text-sm mt-1">{errors.target_value.message}</p>}
           </div>
           <div>
             <Label htmlFor="weekly_target_value">
-              Meta semanal por consultor {watch('type') === 'currency' ? '(R$)' : ''}
+              Meta semanal da equipe {watch('type') === 'currency' ? '(R$)' : ''}
             </Label>
             <Input
               id="weekly_target_value"
@@ -162,9 +162,9 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
               min="0"
               step={watch('type') === 'currency' ? '0.01' : '1'}
               {...register('weekly_target_value')}
-              placeholder={watch('type') === 'currency' ? 'Ex: 250000,00' : 'Ex: 25'}
+              placeholder={watch('type') === 'currency' ? 'Ex: 250000,00' : 'Ex: 100'}
             />
-            <p className="text-xs text-gray-500 mt-1">Usada na visão semanal do dashboard.</p>
+            <p className="text-xs text-gray-500 mt-1">É o objetivo total da equipe para a semana.</p>
             {errors.weekly_target_value && <p className="text-red-500 text-sm mt-1">{errors.weekly_target_value.message}</p>}
           </div>
           <DialogFooter>
