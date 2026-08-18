@@ -34,7 +34,7 @@ import { Processos } from '@/pages/gestor/Processos';
 import { TeamConfig } from '@/pages/TeamConfig';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
 import Contratos from '@/pages/gestor/Contratos';
-import DailyMetricsConfig from '@/pages/gestor/DailyMetricsConfig';
+import DailyMetricsConfig from '@/pages/gestor/MetricsConfig';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
