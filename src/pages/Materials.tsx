@@ -94,12 +94,13 @@ export const Materials = () => {
 
     setIsSubmitting(true);
     try {
-      const newMaterialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at' | 'is_active'> = {
+      const newMaterialData: Omit<SupportMaterialV2, 'id' | 'user_id' | 'created_at'> = {
         title: titleInput.trim(),
         description: descriptionInput.trim() || undefined,
         category: categoryInput.trim() || 'Geral',
         content_type: contentTypeInput,
         content: contentInput.trim(),
+        is_active: true,
       };
 
       await addSupportMaterialV2(newMaterialData, selectedFile || undefined);
@@ -167,7 +168,7 @@ export const Materials = () => {
     }
   };
 
-  const allConsultants = useMemo(() => teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('Prévia') || m.roles.includes('Autorizado'))), [teamMembers]);
+  const allConsultants = useMemo(() => teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO'))), [teamMembers]);
 
   const filteredMaterials = useMemo(() => {
     let materialsToDisplay = supportMaterialsV2;
@@ -505,3 +506,5 @@ export const Materials = () => {
     </div>
   );
 };
+
+export default Materials;
