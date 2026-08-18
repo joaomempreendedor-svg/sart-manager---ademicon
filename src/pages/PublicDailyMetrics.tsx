@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { DailyMetricConfig } from '@/types';
+import { formatBRLFromCents, formatBRLInput, parseBRLInputToCents } from '@/utils/currencyUtils';
 
 interface PublicMetricConsultant {
   id: string;
@@ -63,8 +64,8 @@ const formatValue = (value: number, type: DailyMetricConfig['type']) => {
 };
 
 const parseInputValue = (value: string, type: DailyMetricConfig['type']) => {
-  const numericValue = Number(value.replace(',', '.')) || 0;
-  return type === 'currency' ? Math.round(numericValue * 100) : Math.round(numericValue);
+  if (type === 'currency') return parseBRLInputToCents(value);
+  return Math.round(Number(value) || 0);
 };
 
 const PublicDailyMetrics = () => {
@@ -144,7 +145,7 @@ const PublicDailyMetrics = () => {
       if (!entry) {
         existingValues[metric.id] = '';
       } else {
-        existingValues[metric.id] = metric.type === 'currency' ? String(entry.value / 100) : String(entry.value);
+        existingValues[metric.id] = metric.type === 'currency' ? formatBRLFromCents(entry.value) : String(entry.value);
       }
     });
     setValues(existingValues);
@@ -305,17 +306,18 @@ const PublicDailyMetrics = () => {
                   <div key={metric.id} className="space-y-2">
                     <Label htmlFor={metric.id}>{metric.label}</Label>
                     <div className="relative">
-                      {metric.type === 'currency' && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">R$</span>}
                       <Input
                         id={metric.id}
-                        type="number"
-                        min="0"
-                        step={metric.type === 'currency' ? '0.01' : '1'}
-                        inputMode={metric.type === 'currency' ? 'decimal' : 'numeric'}
+                        type={metric.type === 'currency' ? 'text' : 'number'}
+                        min={metric.type === 'currency' ? undefined : '0'}
+                        step={metric.type === 'currency' ? undefined : '1'}
+                        inputMode={metric.type === 'currency' ? 'numeric' : 'numeric'}
                         value={values[metric.id] || ''}
-                        onChange={event => setValues(prev => ({ ...prev, [metric.id]: event.target.value }))}
-                        className={metric.type === 'currency' ? 'pl-10' : ''}
-                        placeholder="0"
+                        onChange={event => setValues(prev => ({
+                          ...prev,
+                          [metric.id]: metric.type === 'currency' ? formatBRLInput(event.target.value) : event.target.value,
+                        }))}
+                        placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
                       />
                     </div>
                     {metric.target_value > 0 && (

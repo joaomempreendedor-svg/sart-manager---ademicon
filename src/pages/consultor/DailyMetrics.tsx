@@ -11,6 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
+import { formatBRLFromCents, formatBRLInput, parseBRLInputToCents } from '@/utils/currencyUtils';
 import toast from 'react-hot-toast';
 import { MetricLog } from '@/types';
 
@@ -32,7 +33,7 @@ const DailyMetricsPage = () => {
     dailyMetricsConfig.forEach(config => {
       const log = dailyLogs.find(l => l.metric_key === config.metric_key);
       if (log) {
-        newValues[config.metric_key] = config.type === 'currency' ? (log.value / 100).toFixed(2).replace('.', ',') : String(log.value);
+        newValues[config.metric_key] = config.type === 'currency' ? formatBRLFromCents(log.value) : String(log.value);
       } else {
         newValues[config.metric_key] = '';
       }
@@ -48,13 +49,12 @@ const DailyMetricsPage = () => {
 
     let numericValue: number;
     if (config.type === 'currency') {
-      numericValue = Math.round(parseFloat(value.replace(/\./g, '').replace(',', '.')) * 100);
+      numericValue = parseBRLInputToCents(value);
     } else {
       numericValue = parseInt(value, 10);
     }
 
     if (isNaN(numericValue)) {
-      // Could implement deletion here if needed
       return;
     }
 
@@ -82,8 +82,10 @@ const DailyMetricsPage = () => {
   }, 1000);
 
   const handleValueChange = (metricKey: string, value: string) => {
-    setMetricValues(prev => ({ ...prev, [metricKey]: value }));
-    debouncedSave(metricKey, value);
+    const config = dailyMetricsConfig.find(item => item.metric_key === metricKey);
+    const formattedValue = config?.type === 'currency' ? formatBRLInput(value) : value;
+    setMetricValues(prev => ({ ...prev, [metricKey]: formattedValue }));
+    debouncedSave(metricKey, formattedValue);
   };
 
   return (
@@ -110,7 +112,7 @@ const DailyMetricsPage = () => {
                   mode="single"
                   selected={selectedDate}
                   onSelect={(date) => date && setSelectedDate(date)}
-                  initialFocus
+                  autoFocus
                   locale={ptBR}
                 />
               </PopoverContent>
@@ -125,7 +127,9 @@ const DailyMetricsPage = () => {
                   <Label htmlFor={config.metric_key}>{config.label}</Label>
                   <Input
                     id={config.metric_key}
-                    type="text"
+                    type={config.type === 'currency' ? 'text' : 'number'}
+                    min={config.type === 'currency' ? undefined : '0'}
+                    inputMode="numeric"
                     value={metricValues[config.metric_key] || ''}
                     onChange={(e) => handleValueChange(config.metric_key, e.target.value)}
                     placeholder={config.type === 'currency' ? 'R$ 0,00' : '0'}

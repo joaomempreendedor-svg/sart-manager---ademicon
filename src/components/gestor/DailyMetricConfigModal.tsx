@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useApp } from '@/context/AppContext';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatBRLFromCents, parseBRLInputToCents } from '@/utils/currencyUtils';
 import toast from 'react-hot-toast';
 
 const formSchema = z.object({
@@ -28,7 +29,7 @@ interface DailyMetricConfigModalProps {
 export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ isOpen, onClose, config }) => {
   const { addDailyMetricConfig, updateDailyMetricConfig, dailyMetricsConfig } = useApp();
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<z.infer<typeof formSchema>>({
+  const { control, register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       label: '',
@@ -141,14 +142,24 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
             <Label htmlFor="target_value">
               Meta diária da equipe {watch('type') === 'currency' ? '(R$)' : ''}
             </Label>
-            <Input
-              id="target_value"
-              type="number"
-              min="0"
-              step={watch('type') === 'currency' ? '0.01' : '1'}
-              {...register('target_value')}
-              placeholder={watch('type') === 'currency' ? 'Ex: 50000,00' : 'Ex: 20'}
-            />
+            {watch('type') === 'currency' ? (
+              <Controller
+                name="target_value"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="target_value"
+                    type="text"
+                    inputMode="numeric"
+                    value={formatBRLFromCents(Math.round(Number(field.value || 0) * 100))}
+                    onChange={event => field.onChange(parseBRLInputToCents(event.target.value) / 100)}
+                    placeholder="R$ 0,00"
+                  />
+                )}
+              />
+            ) : (
+              <Input id="target_value" type="number" min="0" step="1" {...register('target_value')} placeholder="Ex: 20" />
+            )}
             <p className="text-xs text-gray-500 mt-1">É o objetivo total da equipe; cada consultor informa sua contribuição.</p>
             {errors.target_value && <p className="text-red-500 text-sm mt-1">{errors.target_value.message}</p>}
           </div>
@@ -156,14 +167,24 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
             <Label htmlFor="weekly_target_value">
               Meta semanal da equipe {watch('type') === 'currency' ? '(R$)' : ''}
             </Label>
-            <Input
-              id="weekly_target_value"
-              type="number"
-              min="0"
-              step={watch('type') === 'currency' ? '0.01' : '1'}
-              {...register('weekly_target_value')}
-              placeholder={watch('type') === 'currency' ? 'Ex: 250000,00' : 'Ex: 100'}
-            />
+            {watch('type') === 'currency' ? (
+              <Controller
+                name="weekly_target_value"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="weekly_target_value"
+                    type="text"
+                    inputMode="numeric"
+                    value={formatBRLFromCents(Math.round(Number(field.value || 0) * 100))}
+                    onChange={event => field.onChange(parseBRLInputToCents(event.target.value) / 100)}
+                    placeholder="R$ 0,00"
+                  />
+                )}
+              />
+            ) : (
+              <Input id="weekly_target_value" type="number" min="0" step="1" {...register('weekly_target_value')} placeholder="Ex: 100" />
+            )}
             <p className="text-xs text-gray-500 mt-1">É o objetivo total da equipe para a semana.</p>
             {errors.weekly_target_value && <p className="text-red-500 text-sm mt-1">{errors.weekly_target_value.message}</p>}
           </div>
