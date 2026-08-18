@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { AppProvider } from '@/context/AppContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
+import ToastProvider from '@/components/ToastProvider';
 
 import { GestorLayout } from '@/components/GestorLayout';
 import { ProtectedLayout } from '@/layouts/ProtectedLayout';
@@ -18,6 +19,7 @@ import { Home } from '@/pages/Home';
 import { PendingApproval } from '@/pages/PendingApproval';
 import { PublicForm } from '@/pages/PublicForm';
 import { PublicProcessView } from '@/pages/PublicProcessView';
+import PublicDailyMetrics from '@/pages/PublicDailyMetrics';
 
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
@@ -57,6 +59,7 @@ const AppRoutes = () => {
       <Route path="/pending-approval" element={<PendingApproval />} />
       <Route path="/public-form" element={<PublicForm />} />
       <Route path="/public-process/:processId" element={<PublicProcessView />} />
+      <Route path="/metricas/:ownerId" element={<PublicDailyMetrics />} />
 
       <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA', 'CONSULTOR']} />}>
         <Route path="/" element={<Home />} />
@@ -120,6 +123,7 @@ const App = () => {
       <AuthProvider>
         <AppProvider>
           <Toaster />
+          <ToastProvider />
           <AppRoutes />
         </AppProvider>
       </AuthProvider>

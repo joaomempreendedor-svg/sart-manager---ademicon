@@ -15,6 +15,7 @@ const formSchema = z.object({
   label: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres.'),
   metric_key: z.string().min(3, 'A chave deve ter pelo menos 3 caracteres.').regex(/^[a-z0-9_]+$/, 'A chave só pode conter letras minúsculas, números e underscores.'),
   type: z.enum(['number', 'currency']),
+  target_value: z.coerce.number().min(0, 'A meta não pode ser negativa.'),
 });
 
 interface DailyMetricConfigModalProps {
@@ -32,6 +33,7 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
       label: '',
       metric_key: '',
       type: 'number',
+      target_value: 0,
     }
   });
 
@@ -57,12 +59,14 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
             label: config.label,
             metric_key: config.metric_key,
             type: config.type,
+            target_value: config.type === 'currency' ? config.target_value / 100 : config.target_value,
           });
         } else {
           reset({
             label: '',
             metric_key: '',
             type: 'number',
+            target_value: 0,
           });
         }
     }
@@ -70,8 +74,13 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      const payload = {
+        ...values,
+        target_value: values.type === 'currency' ? Math.round(values.target_value * 100) : Math.round(values.target_value),
+      };
+
       if (config) {
-        await updateDailyMetricConfig(config.id, values);
+        await updateDailyMetricConfig(config.id, payload);
         toast.success('Métrica atualizada com sucesso!');
       } else {
         if (dailyMetricsConfig.some(c => c.metric_key === values.metric_key)) {
@@ -79,7 +88,7 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
             return;
         }
         const order_index = dailyMetricsConfig.length;
-        await addDailyMetricConfig({ ...values, order_index });
+        await addDailyMetricConfig({ ...payload, order_index, is_active: true });
         toast.success('Métrica adicionada com sucesso!');
       }
       onClose();
@@ -122,6 +131,21 @@ export const DailyMetricConfigModal: React.FC<DailyMetricConfigModalProps> = ({ 
                 </SelectContent>
             </Select>
             {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="target_value">
+              Meta diária por consultor {watch('type') === 'currency' ? '(R$)' : ''}
+            </Label>
+            <Input
+              id="target_value"
+              type="number"
+              min="0"
+              step={watch('type') === 'currency' ? '0.01' : '1'}
+              {...register('target_value')}
+              placeholder={watch('type') === 'currency' ? 'Ex: 50000,00' : 'Ex: 5'}
+            />
+            <p className="text-xs text-gray-500 mt-1">Usada no dashboard público para calcular o progresso da equipe.</p>
+            {errors.target_value && <p className="text-red-500 text-sm mt-1">{errors.target_value.message}</p>}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>

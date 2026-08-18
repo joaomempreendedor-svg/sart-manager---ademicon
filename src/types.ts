@@ -118,8 +118,7 @@ export interface Candidate {
   documentationSentDate?: string;
   documentationNotSentDate?: string;
   previewRegisteredDate?: string;
-  previewRegisteredDate?: string;
-previewRectifiedDate?: string;
+  previewRectifiedDate?: string;
   awaitingPreviewDate?: string;
   onboardingReleasedDate?: string;
   onboardingFinishedDate?: string;
@@ -526,6 +525,7 @@ export interface DailyMetricConfig {
   metric_key: string;
   label: string;
   type: 'number' | 'currency';
+  target_value: number;
   is_active: boolean;
   order_index: number;
   created_at: string;
