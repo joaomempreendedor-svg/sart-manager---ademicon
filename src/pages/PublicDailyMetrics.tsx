@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, Send, Sparkles, Target, TrendingUp, Trophy, UserRound } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Edit3, Loader2, Moon, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -8,9 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DailyMetricConfig } from '@/types';
 import { formatBRLFromCents, formatBRLInput, parseBRLInputToCents } from '@/utils/currencyUtils';
+import { EditMetricEntryModal } from '@/components/gestor/EditMetricEntryModal';
 
 interface PublicMetricConsultant {
   id: string;
@@ -70,6 +73,9 @@ const parseInputValue = (value: string, type: DailyMetricConfig['type']) => {
 
 const PublicDailyMetrics = () => {
   const { ownerId } = useParams<{ ownerId: string }>();
+  const { user } = useAuth();
+  const { theme, toggleTheme } = useApp();
+  const isManager = Boolean(user && user.id === ownerId && (user.role === 'GESTOR' || user.role === 'ADMIN'));
   const [view, setView] = useState<ViewMode>('form');
   const [period, setPeriod] = useState<PeriodMode>('daily');
   const [consultants, setConsultants] = useState<PublicMetricConsultant[]>([]);
@@ -82,6 +88,9 @@ const PublicDailyMetrics = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingConsultantId, setEditingConsultantId] = useState('');
+  const [editingConsultantName, setEditingConsultantName] = useState('');
 
   const loadPublicData = useCallback(async (showRefresh = false) => {
     if (!ownerId) return;
@@ -205,6 +214,51 @@ const PublicDailyMetrics = () => {
     setView('dashboard');
   };
 
+  const handleManagerEdit = (consultantId: string, consultantName: string) => {
+    setEditingConsultantId(consultantId);
+    setEditingConsultantName(consultantName);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEditedEntries = async (updatedEntries: { metric_config_id: string; value: number }[]) => {
+    const payload = updatedEntries.map(entry => ({
+      consultant_id: editingConsultantId,
+      metric_config_id: entry.metric_config_id,
+      entry_date: selectedDate,
+      value: entry.value,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('public_metric_entries')
+      .upsert(payload, { onConflict: 'consultant_id,metric_config_id,entry_date' });
+
+    if (error) {
+      throw error;
+    }
+
+    await loadPublicData();
+  };
+
+  const handleManagerDelete = async (consultant: PublicMetricConsultant) => {
+    if (!window.confirm(`Excluir todos os resultados de ${consultant.name} em ${new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-BR')}?`)) return;
+
+    const { error } = await supabase
+      .from('public_metric_entries')
+      .delete()
+      .eq('consultant_id', consultant.id)
+      .eq('entry_date', selectedDate)
+      .in('metric_config_id', metrics.map(metric => metric.id));
+
+    if (error) {
+      toast.error('Não foi possível excluir os resultados.');
+      return;
+    }
+
+    toast.success(`Resultados de ${consultant.name} excluídos.`);
+    await loadPublicData();
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
@@ -226,19 +280,29 @@ const PublicDailyMetrics = () => {
               <p className="text-sm text-slate-500 dark:text-slate-400">Lançamento e acompanhamento da equipe</p>
             </div>
           </div>
-          <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
-            <button
-              onClick={() => { setView('form'); setPeriod('daily'); }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'form' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500 dark:text-slate-400'}`}
-            >
-              <ClipboardCheck className="h-4 w-4" /> Preencher
-            </button>
-            <button
-              onClick={() => setView('dashboard')}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'dashboard' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500 dark:text-slate-400'}`}
-            >
-              <BarChart3 className="h-4 w-4" /> Dashboard
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isManager && (
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                <ShieldCheck className="h-4 w-4" /> Modo gestor
+              </span>
+            )}
+            <Button variant="outline" size="icon" onClick={toggleTheme} title={theme === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}>
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
+              <button
+                onClick={() => { setView('form'); setPeriod('daily'); }}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'form' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500 dark:text-slate-400'}`}
+              >
+                <ClipboardCheck className="h-4 w-4" /> Preencher
+              </button>
+              <button
+                onClick={() => setView('dashboard')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'dashboard' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500 dark:text-slate-400'}`}
+              >
+                <BarChart3 className="h-4 w-4" /> Dashboard
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -432,7 +496,10 @@ const PublicDailyMetrics = () => {
             <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle className="text-lg">Resultado por consultor</CardTitle>
-                <CardDescription>Detalhamento dos valores informados no período de {periodLabel}.</CardDescription>
+                <CardDescription>
+                  Detalhamento dos valores informados no período de {periodLabel}.
+                  {isManager && period === 'weekly' && ' Selecione a visão diária para editar ou excluir lançamentos.'}
+                </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
@@ -440,19 +507,36 @@ const PublicDailyMetrics = () => {
                     <tr className="border-b text-left text-slate-500 dark:border-slate-800">
                       <th className="pb-3 pr-4 font-medium">Consultor</th>
                       {metrics.map(metric => <th key={metric.id} className="px-3 pb-3 text-right font-medium">{metric.label}</th>)}
+                      {isManager && period === 'daily' && <th className="pb-3 pl-4 text-right font-medium">Ações</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {consultants.map(consultant => (
-                      <tr key={consultant.id} className="border-b transition hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
-                        <td className="py-4 pr-4 font-medium">{consultant.name}</td>
-                        {metrics.map(metric => {
-                          const consultantEntries = entries.filter(item => item.consultant_id === consultant.id && item.metric_config_id === metric.id);
-                          const consultantTotal = consultantEntries.reduce((sum, entry) => sum + Number(entry.value), 0);
-                          return <td key={metric.id} className="px-3 py-4 text-right font-medium">{consultantEntries.length > 0 ? formatValue(consultantTotal, metric.type) : '—'}</td>;
-                        })}
-                      </tr>
-                    ))}
+                    {consultants.map(consultant => {
+                      const consultantEntries = entries.filter(item => item.consultant_id === consultant.id);
+                      const hasEntries = consultantEntries.length > 0;
+                      return (
+                        <tr key={consultant.id} className="border-b transition hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                          <td className="py-4 pr-4 font-medium">{consultant.name}</td>
+                          {metrics.map(metric => {
+                            const metricEntries = consultantEntries.filter(item => item.metric_config_id === metric.id);
+                            const consultantTotal = metricEntries.reduce((sum, entry) => sum + Number(entry.value), 0);
+                            return <td key={metric.id} className="px-3 py-4 text-right font-medium">{metricEntries.length > 0 ? formatValue(consultantTotal, metric.type) : '—'}</td>;
+                          })}
+                          {isManager && period === 'daily' && (
+                            <td className="py-3 pl-4">
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" disabled={!hasEntries} onClick={() => handleManagerEdit(consultant.id, consultant.name)} title="Editar lançamento">
+                                  <Edit3 className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" disabled={!hasEntries} onClick={() => handleManagerDelete(consultant)} className="text-red-500 hover:text-red-600" title="Excluir lançamento">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </CardContent>
@@ -460,6 +544,17 @@ const PublicDailyMetrics = () => {
           </div>
         )}
       </main>
+
+      <EditMetricEntryModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        consultantId={editingConsultantId}
+        consultantName={editingConsultantName}
+        entryDate={selectedDate}
+        metrics={metrics}
+        entries={entries}
+        onSave={handleSaveEditedEntries}
+      />
     </div>
   );
 };
