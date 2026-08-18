@@ -26,12 +26,14 @@ export const DailyChecklist = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Minhas Metas Diárias</h1>
         <p className="text-gray-500 dark:text-gray-400">Acompanhe suas tarefas e metas do dia.</p>
       </div>
-      <DailyChecklistDisplay 
-        user={user} 
-        isDataLoading={isDataLoading} 
+      <DailyChecklistDisplay
+        user={user}
+        isDataLoading={isDataLoading}
         highlightedItemId={highlightedItemId} // Passar para o componente de exibição
         highlightedDate={highlightedDate} // Passar para o componente de exibição
       />
     </div>
   );
 };
+
+export default DailyChecklist;
