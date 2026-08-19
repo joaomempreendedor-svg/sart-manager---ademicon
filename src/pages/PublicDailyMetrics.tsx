@@ -441,7 +441,7 @@ const PublicDailyMetrics = () => {
               </Card>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {metricSummaries.map(({ metric, total, teamTarget, progress, remaining }) => {
                 const hasTarget = teamTarget > 0;
                 const reached = hasTarget && progress >= 100;
@@ -472,18 +472,18 @@ const PublicDailyMetrics = () => {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
-                        <div className="text-center">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Feito</p>
-                          <p className="mt-0.5 text-base font-bold text-slate-800 dark:text-white">{formatValue(total, metric.type)}</p>
+                      <div className="space-y-2.5 rounded-xl bg-slate-50 p-4 dark:bg-slate-800/70">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Feito</p>
+                          <p className="text-base font-bold text-slate-800 dark:text-white">{formatValue(total, metric.type)}</p>
                         </div>
-                        <div className="text-center">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Meta</p>
-                          <p className="mt-0.5 text-base font-bold text-slate-800 dark:text-white">{formatValue(teamTarget, metric.type)}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meta</p>
+                          <p className="text-base font-bold text-slate-800 dark:text-white">{formatValue(teamTarget, metric.type)}</p>
                         </div>
-                        <div className="text-center">
-                          <p className={`text-[10px] font-semibold uppercase tracking-wider ${reached ? 'text-emerald-500' : hasTarget ? 'text-amber-500' : 'text-slate-400'}`}>{balanceLabel}</p>
-                          <p className={`mt-0.5 text-base font-black ${reached ? 'text-emerald-600 dark:text-emerald-300' : hasTarget ? 'text-amber-600 dark:text-amber-300' : 'text-slate-500'}`}>{balanceValue}</p>
+                        <div className="flex items-center justify-between">
+                          <p className={`text-xs font-semibold uppercase tracking-wider ${reached ? 'text-emerald-500' : hasTarget ? 'text-amber-500' : 'text-slate-400'}`}>{balanceLabel}</p>
+                          <p className={`text-base font-black ${reached ? 'text-emerald-600 dark:text-emerald-300' : hasTarget ? 'text-amber-600 dark:text-amber-300' : 'text-slate-500'}`}>{balanceValue}</p>
                         </div>
                       </div>
 
