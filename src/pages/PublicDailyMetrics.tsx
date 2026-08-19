@@ -399,46 +399,49 @@ const PublicDailyMetrics = () => {
           </Card>
         ) : (
           <div className="space-y-6">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-violet-600 px-6 py-7 text-white shadow-xl shadow-brand-600/15">
-              <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10" />
-              <div className="absolute -bottom-16 right-24 h-36 w-36 rounded-full bg-white/5" />
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-violet-600 px-8 py-8 text-white shadow-xl shadow-brand-600/20">
+              <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/10" />
+              <div className="absolute -bottom-16 right-24 h-40 w-40 rounded-full bg-white/5" />
               <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/80">
                     <Sparkles className="h-4 w-4" /> Desempenho {period === 'weekly' ? 'semanal' : 'diário'}
                   </div>
-                  <h2 className="text-2xl font-bold sm:text-3xl">Progresso da equipe</h2>
-                  <p className="mt-1 text-sm text-white/75">{periodLabel}</p>
+                  <h2 className="text-3xl font-bold sm:text-4xl">Progresso da equipe</h2>
+                  <p className="mt-2 text-sm text-white/75">{periodLabel}</p>
                 </div>
-                <div className="flex items-center gap-3 rounded-xl bg-white/15 px-4 py-3 backdrop-blur">
-                  <Trophy className="h-7 w-7 text-amber-300" />
-                  <div><p className="text-xs text-white/70">Metas atingidas</p><p className="text-xl font-bold">{metricSummaries.filter(item => item.teamTarget > 0 && item.progress >= 100).length} de {metrics.length}</p></div>
+                <div className="flex items-center gap-4 rounded-2xl bg-white/15 px-6 py-4 backdrop-blur">
+                  <Trophy className="h-8 w-8 text-amber-300" />
+                  <div>
+                    <p className="text-xs text-white/70">Metas atingidas</p>
+                    <p className="text-2xl font-bold">{metricSummaries.filter(item => item.teamTarget > 0 && item.progress >= 100).length} de {metrics.length}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
-              <Card className="border-0 shadow-md">
-                <CardContent className="flex items-center gap-4 p-5">
-                  <div className="rounded-xl bg-blue-100 p-3 text-blue-600 dark:bg-blue-950 dark:text-blue-300"><UserRound className="h-5 w-5" /></div>
-                  <div><p className="text-sm text-slate-500">Equipe</p><p className="text-2xl font-bold">{consultants.length}</p></div>
+              <Card className="border-0 shadow-md transition-shadow hover:shadow-lg">
+                <CardContent className="flex items-center gap-4 p-6">
+                  <div className="rounded-xl bg-blue-100 p-3.5 text-blue-600 dark:bg-blue-950 dark:text-blue-300"><UserRound className="h-6 w-6" /></div>
+                  <div><p className="text-sm text-slate-500">Equipe</p><p className="text-3xl font-bold">{consultants.length}</p></div>
                 </CardContent>
               </Card>
-              <Card className="border-0 shadow-md">
-                <CardContent className="flex items-center gap-4 p-5">
-                  <div className="rounded-xl bg-emerald-100 p-3 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300"><CheckCircle2 className="h-5 w-5" /></div>
-                  <div><p className="text-sm text-slate-500">{period === 'weekly' ? 'Participaram' : 'Responderam'}</p><p className="text-2xl font-bold">{submittedConsultants}</p></div>
+              <Card className="border-0 shadow-md transition-shadow hover:shadow-lg">
+                <CardContent className="flex items-center gap-4 p-6">
+                  <div className="rounded-xl bg-emerald-100 p-3.5 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300"><CheckCircle2 className="h-6 w-6" /></div>
+                  <div><p className="text-sm text-slate-500">{period === 'weekly' ? 'Participaram' : 'Responderam'}</p><p className="text-3xl font-bold">{submittedConsultants}</p></div>
                 </CardContent>
               </Card>
-              <Card className="border-0 shadow-md">
-                <CardContent className="flex items-center gap-4 p-5">
-                  <div className="rounded-xl bg-violet-100 p-3 text-violet-600 dark:bg-violet-950 dark:text-violet-300"><BarChart3 className="h-5 w-5" /></div>
-                  <div><p className="text-sm text-slate-500">Métricas</p><p className="text-2xl font-bold">{metrics.length}</p></div>
+              <Card className="border-0 shadow-md transition-shadow hover:shadow-lg">
+                <CardContent className="flex items-center gap-4 p-6">
+                  <div className="rounded-xl bg-violet-100 p-3.5 text-violet-600 dark:bg-violet-950 dark:text-violet-300"><BarChart3 className="h-6 w-6" /></div>
+                  <div><p className="text-sm text-slate-500">Métricas</p><p className="text-3xl font-bold">{metrics.length}</p></div>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {metricSummaries.map(({ metric, total, teamTarget, progress, remaining }) => {
                 const hasTarget = teamTarget > 0;
                 const reached = hasTarget && progress >= 100;
@@ -451,41 +454,41 @@ const PublicDailyMetrics = () => {
                     : formatValue(remaining, metric.type);
 
                 return (
-                  <Card key={metric.id} className={`relative overflow-hidden border-0 shadow-md ring-1 ${reached ? 'ring-emerald-300 dark:ring-emerald-800' : 'ring-slate-200 dark:ring-slate-800'}`}>
-                    <div className={`absolute inset-y-0 left-0 w-1 ${reached ? 'bg-emerald-500' : 'bg-brand-600'}`} />
-                    <CardContent className="p-4 pl-5">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <div className={`shrink-0 rounded-lg p-2 ${reached ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300'}`}>
-                            {reached ? <Trophy className="h-4 w-4" /> : <Target className="h-4 w-4" />}
+                  <Card key={metric.id} className={`relative overflow-hidden border-0 shadow-lg ring-1 transition-all hover:shadow-xl ${reached ? 'ring-emerald-300 dark:ring-emerald-800' : 'ring-slate-200 dark:ring-slate-800'}`}>
+                    <div className={`absolute inset-y-0 left-0 w-1.5 ${reached ? 'bg-emerald-500' : 'bg-gradient-to-b from-brand-500 to-violet-500'}`} />
+                    <CardContent className="p-5 pl-6">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`shrink-0 rounded-xl p-2.5 ${reached ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300'}`}>
+                            {reached ? <Trophy className="h-5 w-5" /> : <Target className="h-5 w-5" />}
                           </div>
-                          <div className="min-w-0">
-                            <h3 className="truncate text-sm font-bold text-slate-900 dark:text-white">{metric.label}</h3>
-                            <p className="text-[11px] text-slate-500">Meta {period === 'weekly' ? 'semanal' : 'diária'} da equipe</p>
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{metric.label}</h3>
+                            <p className="text-xs text-slate-500">Meta {period === 'weekly' ? 'semanal' : 'diária'} da equipe</p>
                           </div>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${reached ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
+                        <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-bold ${reached ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
                           {progress}%
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-3 divide-x rounded-lg bg-slate-50 px-1 py-2 dark:divide-slate-700 dark:bg-slate-800/70">
-                        <div className="min-w-0 px-2">
-                          <p className="text-[10px] font-semibold uppercase text-slate-400">Feito</p>
-                          <p className="truncate text-sm font-bold text-slate-800 dark:text-white" title={formatValue(total, metric.type)}>{formatValue(total, metric.type)}</p>
+                      <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/70">
+                        <div className="text-center">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Feito</p>
+                          <p className="mt-0.5 text-base font-bold text-slate-800 dark:text-white">{formatValue(total, metric.type)}</p>
                         </div>
-                        <div className="min-w-0 px-2">
-                          <p className="text-[10px] font-semibold uppercase text-slate-400">Meta</p>
-                          <p className="truncate text-sm font-bold text-slate-800 dark:text-white" title={formatValue(teamTarget, metric.type)}>{formatValue(teamTarget, metric.type)}</p>
+                        <div className="text-center">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Meta</p>
+                          <p className="mt-0.5 text-base font-bold text-slate-800 dark:text-white">{formatValue(teamTarget, metric.type)}</p>
                         </div>
-                        <div className="min-w-0 px-2">
-                          <p className={`text-[10px] font-semibold uppercase ${reached ? 'text-emerald-500' : hasTarget ? 'text-amber-500' : 'text-slate-400'}`}>{balanceLabel}</p>
-                          <p className={`truncate text-sm font-black ${reached ? 'text-emerald-600 dark:text-emerald-300' : hasTarget ? 'text-amber-600 dark:text-amber-300' : 'text-slate-500'}`} title={balanceValue}>{balanceValue}</p>
+                        <div className="text-center">
+                          <p className={`text-[10px] font-semibold uppercase tracking-wider ${reached ? 'text-emerald-500' : hasTarget ? 'text-amber-500' : 'text-slate-400'}`}>{balanceLabel}</p>
+                          <p className={`mt-0.5 text-base font-black ${reached ? 'text-emerald-600 dark:text-emerald-300' : hasTarget ? 'text-amber-600 dark:text-amber-300' : 'text-slate-500'}`}>{balanceValue}</p>
                         </div>
                       </div>
 
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                        <div className={`h-full rounded-full transition-all duration-700 ${reached ? 'bg-emerald-500' : 'bg-gradient-to-r from-brand-500 to-violet-500'}`} style={{ width: `${Math.min(100, progress)}%` }} />
+                      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className={`h-full rounded-full transition-all duration-700 ease-out ${reached ? 'bg-emerald-500' : 'bg-gradient-to-r from-brand-500 to-violet-500'}`} style={{ width: `${Math.min(100, progress)}%` }} />
                       </div>
                     </CardContent>
                   </Card>
@@ -505,9 +508,9 @@ const PublicDailyMetrics = () => {
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b text-left text-slate-500 dark:border-slate-800">
-                      <th className="pb-3 pr-4 font-medium">Consultor</th>
-                      {metrics.map(metric => <th key={metric.id} className="px-3 pb-3 text-right font-medium">{metric.label}</th>)}
-                      {isManager && period === 'daily' && <th className="pb-3 pl-4 text-right font-medium">Ações</th>}
+                      <th className="pb-3 pr-4 font-semibold">Consultor</th>
+                      {metrics.map(metric => <th key={metric.id} className="px-4 pb-3 text-right font-semibold">{metric.label}</th>)}
+                      {isManager && period === 'daily' && <th className="pb-3 pl-4 text-right font-semibold">Ações</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -515,12 +518,12 @@ const PublicDailyMetrics = () => {
                       const consultantEntries = entries.filter(item => item.consultant_id === consultant.id);
                       const hasEntries = consultantEntries.length > 0;
                       return (
-                        <tr key={consultant.id} className="border-b transition hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                        <tr key={consultant.id} className="border-b transition-colors hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
                           <td className="py-4 pr-4 font-medium">{consultant.name}</td>
                           {metrics.map(metric => {
                             const metricEntries = consultantEntries.filter(item => item.metric_config_id === metric.id);
                             const consultantTotal = metricEntries.reduce((sum, entry) => sum + Number(entry.value), 0);
-                            return <td key={metric.id} className="px-3 py-4 text-right font-medium">{metricEntries.length > 0 ? formatValue(consultantTotal, metric.type) : '—'}</td>;
+                            return <td key={metric.id} className="px-4 py-4 text-right font-semibold">{metricEntries.length > 0 ? formatValue(consultantTotal, metric.type) : '—'}</td>;
                           })}
                           {isManager && period === 'daily' && (
                             <td className="py-3 pl-4">
