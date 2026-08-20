@@ -282,39 +282,39 @@ const PublicCommissionConference = () => {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
-            <div className="p-2 bg-blue-50 rounded-lg"><Home className="w-5 h-5 text-blue-600" /></div>
-            <div>
-              <p className="text-sm text-gray-500">Total Vendas</p>
-              <p className="text-xl font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'consultant').length}</p>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
+            <div className="p-2 bg-blue-50 rounded-lg shrink-0"><Home className="w-5 h-5 text-blue-600" /></div>
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500 truncate">Total Vendas</p>
+              <p className="text-lg font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'consultant').length}</p>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
-            <div className="p-2 bg-yellow-50 rounded-lg"><Crown className="w-5 h-5 text-yellow-600" /></div>
-            <div>
-              <p className="text-sm text-gray-500">Vendas como Anjo</p>
-              <p className="text-xl font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'angel').length}</p>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
+            <div className="p-2 bg-yellow-50 rounded-lg shrink-0"><Crown className="w-5 h-5 text-yellow-600" /></div>
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500 truncate">Vendas como Anjo</p>
+              <p className="text-lg font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'angel').length}</p>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
-            <div className="p-2 bg-purple-50 rounded-lg"><DollarSign className="w-5 h-5 text-purple-600" /></div>
-            <div>
-              <p className="text-sm text-gray-500">Volume de Vendas</p>
-              <p className="text-xl font-bold text-purple-700">{formatCurrency(stats.totalVolume)}</p>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
+            <div className="p-2 bg-purple-50 rounded-lg shrink-0"><DollarSign className="w-5 h-5 text-purple-600" /></div>
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500 truncate">Volume de Vendas</p>
+              <p className="text-lg font-bold text-purple-700 break-all leading-tight">{formatCurrency(stats.totalVolume)}</p>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
-            <div className="p-2 bg-green-50 rounded-lg"><CheckCircle2 className="w-5 h-5 text-green-600" /></div>
-            <div>
-              <p className="text-sm text-gray-500">Recebido</p>
-              <p className="text-xl font-bold text-green-700">{formatCurrency(stats.totalPaid)}</p>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
+            <div className="p-2 bg-green-50 rounded-lg shrink-0"><CheckCircle2 className="w-5 h-5 text-green-600" /></div>
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500 truncate">Recebido</p>
+              <p className="text-lg font-bold text-green-700 break-all leading-tight">{formatCurrency(stats.totalPaid)}</p>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
-            <div className="p-2 bg-yellow-50 rounded-lg"><Calendar className="w-5 h-5 text-yellow-600" /></div>
-            <div>
-              <p className="text-sm text-gray-500">A Receber</p>
-              <p className="text-xl font-bold text-yellow-700">{formatCurrency(stats.totalPending)}</p>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
+            <div className="p-2 bg-yellow-50 rounded-lg shrink-0"><Calendar className="w-5 h-5 text-yellow-600" /></div>
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500 truncate">A Receber</p>
+              <p className="text-lg font-bold text-yellow-700 break-all leading-tight">{formatCurrency(stats.totalPending)}</p>
             </div>
           </div>
         </div>
