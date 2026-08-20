@@ -195,8 +195,10 @@ const PublicCommissionConference = () => {
     let totalPending = 0;
     let totalPaidInstallments = 0;
     let totalInstallmentsCount = 0;
+    let totalVolume = 0;
 
     allCommissions.forEach(c => {
+      totalVolume += c.value || 0;
       Object.entries(c.installmentDetails).forEach(([num, info]) => {
         totalInstallmentsCount++;
         const values = getInstallmentValues(c, parseInt(num));
@@ -210,7 +212,7 @@ const PublicCommissionConference = () => {
       });
     });
 
-    return { totalPaid, totalPending, totalPaidInstallments, totalInstallmentsCount };
+    return { totalPaid, totalPending, totalPaidInstallments, totalInstallmentsCount, totalVolume };
   }, [allCommissions]);
 
   const displayCommissions = useMemo(() => {
@@ -264,7 +266,7 @@ const PublicCommissionConference = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
             <div className="p-2 bg-blue-50 rounded-lg"><Home className="w-5 h-5 text-blue-600" /></div>
             <div>
@@ -277,6 +279,13 @@ const PublicCommissionConference = () => {
             <div>
               <p className="text-sm text-gray-500">Vendas como Anjo</p>
               <p className="text-xl font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'angel').length}</p>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
+            <div className="p-2 bg-purple-50 rounded-lg"><DollarSign className="w-5 h-5 text-purple-600" /></div>
+            <div>
+              <p className="text-sm text-gray-500">Volume de Vendas</p>
+              <p className="text-xl font-bold text-purple-700">{formatCurrency(stats.totalVolume)}</p>
             </div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
