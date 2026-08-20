@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport, CutoffPeriod } from '@/types';
 import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp, Settings2, AlertTriangle, Link, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -164,7 +163,6 @@ export const Commissions = () => {
   const [showCutoffManager, setShowCutoffManager] = useState(false);
   const [newPeriod, setNewPeriod] = useState<Omit<CutoffPeriod, 'id' | 'db_id'>>(emptyPeriod);
   const [editingPeriod, setEditingPeriod] = useState<CutoffPeriod | null>(null);
-  const [consultantNames, setConsultantNames] = useState<string[]>([]);
   const [cutoffError, setCutoffError] = useState<string | null>(null);
 
   const calculateCompetenceMonth = useMemo(() => (paidDate: string): string => {
@@ -238,18 +236,12 @@ export const Commissions = () => {
     setQuickPayInstallment('');
   }, [activeTab]);
 
-  useEffect(() => {
-    if (activeTab !== 'links' || !user) return;
-    const load = async () => {
-      const { data } = await supabase
-        .from('public_metric_consultants')
-        .select('name')
-        .eq('user_id', user.id)
-        .order('order_index');
-      setConsultantNames((data || []).map(d => d.name));
-    };
-    load();
-  }, [activeTab, user]);
+  const consultantNames = useMemo(() => {
+    return teamMembers
+      .filter(m => m.roles?.includes('CONSULTOR') && m.isActive)
+      .map(m => m.name)
+      .sort();
+  }, [teamMembers]);
 
   const getCommissionConferenceUrl = (name: string) => {
     if (!user) return '';
