@@ -284,16 +284,6 @@ export const Commissions = () => {
     const key = `${consultantName}-${competenceMonth}`;
     setUploadingReceipt(key);
 
-    const { data: buckets } = await supabase.storage.listBuckets();
-    if (!buckets?.some(b => b.name === 'payment-receipts')) {
-      const { error: createErr } = await supabase.storage.createBucket('payment-receipts', { public: true, fileSizeLimit: 5242880 });
-      if (createErr) {
-        toast.error(`Erro ao criar bucket: ${createErr.message}. Crie manualmente no Supabase: Storage > New bucket > payment-receipts > Public`);
-        setUploadingReceipt(null);
-        return;
-      }
-    }
-
     const ext = file.name.split('.').pop();
     const filePath = `${user.id}/${consultantName}/${competenceMonth}.${ext}`;
 
