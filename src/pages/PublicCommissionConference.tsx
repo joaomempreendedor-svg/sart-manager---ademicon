@@ -513,18 +513,13 @@ const PublicCommissionConference = () => {
                           <p className="text-xs text-gray-500">{data.details.length} parcela{data.details.length !== 1 ? 's' : ''}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-6">
                         <div className="text-right">
                           <p className="text-xs text-green-600">Recebido</p>
                           <p className="font-bold text-green-700">{formatCurrency(data.paid)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-yellow-600">Pendente</p>
-                          <p className="font-bold text-yellow-700">{formatCurrency(data.pending)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-red-600">Atraso</p>
-                          <p className="font-bold text-red-700">{formatCurrency(data.delayed)}</p>
+                          {data.paid > 0 && (
+                            <p className="text-[10px] text-green-600 font-medium">Esse valor será pago até o dia 05</p>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-gray-500">Total</p>
