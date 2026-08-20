@@ -1,20 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, Crown, DollarSign, Home, Loader2, Moon, Sun, User } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, Crown, DollarSign, Filter, Home, Loader2, Moon, Sun, TrendingUp, User } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Commission, InstallmentInfo } from '@/types';
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-};
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 const getInstallmentValues = (commission: Commission, installment: number) => {
   const credit = commission.value;
   const taxRate = commission.taxRate || 0;
   const taxMultiplier = 1 - (taxRate / 100);
   const hasAngel = !!commission.angelName;
-
   let consRate = 0, manRate = 0, angelRate = 0;
 
   if (commission.customRules && commission.customRules.length > 0) {
@@ -28,7 +26,6 @@ const getInstallmentValues = (commission: Commission, installment: number) => {
     const manRules = hasAngel
       ? { p1_10: 0.000194, p11_13: 0.000356 }
       : { p1_10: 0.000322, p11_13: 0.000593 };
-
     if (installment <= 10) {
       consRate = 0.001288; manRate = manRules.p1_10;
       if (hasAngel) angelRate = 0.0001288;
@@ -78,17 +75,25 @@ const rowBgColor: Record<string, string> = {
   'Cancelado': 'bg-gray-50',
 };
 
+type RoleType = 'consultant' | 'angel';
+
+interface CommissionWithRole extends Commission {
+  myRole: RoleType;
+  myValue: number;
+}
+
 const PublicCommissionConference = () => {
   const { ownerId, consultantName } = useParams<{ ownerId: string; consultantName: string }>();
   const { theme, toggleTheme } = useApp();
-  const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [allCommissions, setAllCommissions] = useState<CommissionWithRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'vendas' | 'proventos'>('vendas');
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   const loadData = useCallback(async () => {
     if (!ownerId || !consultantName) return;
     setIsLoading(true);
-
     const decodedName = decodeURIComponent(consultantName);
 
     const { data, error } = await supabase
@@ -103,24 +108,77 @@ const PublicCommissionConference = () => {
       return;
     }
 
-    const all = (data || []).map(item => {
+    const results: CommissionWithRole[] = [];
+
+    (data || []).forEach(item => {
       const commission = item.data as Commission;
       if (!commission.installmentDetails) {
         const details: Record<string, InstallmentInfo> = {};
         for (let i = 1; i <= 15; i++) details[i.toString()] = { status: 'Pendente' };
         commission.installmentDetails = details;
       }
-      return { ...commission, db_id: item.id, criado_em: item.created_at } as Commission;
+
+      const full = { ...commission, db_id: item.id, criado_em: item.created_at } as Commission;
+
+      if (commission.consultant === decodedName) {
+        results.push({ ...full, myRole: 'consultant', myValue: commission.consultantValue || 0 });
+      }
+
+      if (commission.angelName === decodedName) {
+        results.push({ ...full, myRole: 'angel', myValue: commission.angelValue || 0 });
+      }
     });
 
-    const filtered = all.filter(c => c.consultant === decodedName);
-    setCommissions(filtered);
+    setAllCommissions(results);
     setIsLoading(false);
   }, [ownerId, consultantName]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const decodedName = consultantName ? decodeURIComponent(consultantName) : '';
+
+  const uniqueMonths = useMemo(() => {
+    const months = new Set<string>();
+    allCommissions.forEach(c => {
+      Object.values(c.installmentDetails).forEach(info => {
+        if (info.competenceMonth) months.add(info.competenceMonth);
+      });
+    });
+    return Array.from(months).sort();
+  }, [allCommissions]);
+
+  const monthlyForecast = useMemo(() => {
+    const monthMap: Record<string, { paid: number; pending: number; details: { client: string; installment: number; value: number; status: string; role: RoleType }[] }> = {};
+
+    allCommissions.forEach(c => {
+      Object.entries(c.installmentDetails).forEach(([num, info]) => {
+        const installmentInfo = info as InstallmentInfo;
+        const month = installmentInfo.competenceMonth || 'sem-competencia';
+        if (!monthMap[month]) monthMap[month] = { paid: 0, pending: 0, details: [] };
+
+        const values = getInstallmentValues(c, parseInt(num));
+        const myVal = c.myRole === 'angel' ? values.angel : values.cons;
+
+        if (installmentInfo.status === 'Pago') {
+          monthMap[month].paid += myVal;
+        } else if (installmentInfo.status === 'Pendente' || installmentInfo.status === 'Atraso') {
+          monthMap[month].pending += myVal;
+        }
+
+        if (!selectedMonth || month === selectedMonth) {
+          monthMap[month].details.push({
+            client: c.clientName,
+            installment: parseInt(num),
+            value: myVal,
+            status: installmentInfo.status || 'Pendente',
+            role: c.myRole,
+          });
+        }
+      });
+    });
+
+    return monthMap;
+  }, [allCommissions, selectedMonth]);
 
   const stats = useMemo(() => {
     let totalPaid = 0;
@@ -128,22 +186,33 @@ const PublicCommissionConference = () => {
     let totalPaidInstallments = 0;
     let totalInstallmentsCount = 0;
 
-    commissions.forEach(c => {
+    allCommissions.forEach(c => {
       Object.entries(c.installmentDetails).forEach(([num, info]) => {
         totalInstallmentsCount++;
+        const values = getInstallmentValues(c, parseInt(num));
+        const myVal = c.myRole === 'angel' ? values.angel : values.cons;
         if (info.status === 'Pago') {
           totalPaidInstallments++;
-          totalPaid += getInstallmentValues(c, parseInt(num)).cons;
+          totalPaid += myVal;
         } else if (info.status === 'Pendente' || info.status === 'Atraso') {
-          totalPending += getInstallmentValues(c, parseInt(num)).cons;
+          totalPending += myVal;
         }
       });
     });
 
     return { totalPaid, totalPending, totalPaidInstallments, totalInstallmentsCount };
-  }, [commissions]);
+  }, [allCommissions]);
 
-  const decodedName = consultantName ? decodeURIComponent(consultantName) : '';
+  const displayCommissions = useMemo(() => {
+    if (!selectedMonth) return allCommissions;
+    return allCommissions.filter(c => {
+      return Object.values(c.installmentDetails).some(
+        info => (info as InstallmentInfo).competenceMonth === selectedMonth
+      );
+    });
+  }, [allCommissions, selectedMonth]);
+
+  const filteredMonthData = selectedMonth ? monthlyForecast[selectedMonth] : null;
 
   if (isLoading) {
     return (
@@ -166,11 +235,7 @@ const PublicCommissionConference = () => {
               <p className="text-sm text-slate-500 dark:text-slate-400">{decodedName}</p>
             </div>
           </div>
-          <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-medium transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
-          >
+          <button onClick={toggleTheme} title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'} className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-medium transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
         </div>
@@ -185,7 +250,7 @@ const PublicCommissionConference = () => {
               <User className="h-4 w-4" /> Consultor
             </div>
             <h2 className="text-3xl font-bold sm:text-4xl">{decodedName}</h2>
-            <p className="mt-2 text-sm text-white/75">{commissions.length} venda{commissions.length !== 1 ? 's' : ''} registrada{commissions.length !== 1 ? 's' : ''}</p>
+            <p className="mt-2 text-sm text-white/75">{allCommissions.length} registro{allCommissions.length !== 1 ? 's' : ''} (vendas + anjo)</p>
           </div>
         </div>
 
@@ -193,28 +258,28 @@ const PublicCommissionConference = () => {
           <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
             <div className="p-2 bg-blue-50 rounded-lg"><Home className="w-5 h-5 text-blue-600" /></div>
             <div>
-              <p className="text-sm text-gray-500">Total de Vendas</p>
-              <p className="text-xl font-bold text-gray-900">{commissions.length}</p>
+              <p className="text-sm text-gray-500">Total Vendas</p>
+              <p className="text-xl font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'consultant').length}</p>
             </div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
-            <div className="p-2 bg-violet-50 rounded-lg"><DollarSign className="w-5 h-5 text-violet-600" /></div>
+            <div className="p-2 bg-yellow-50 rounded-lg"><Crown className="w-5 h-5 text-yellow-600" /></div>
             <div>
-              <p className="text-sm text-gray-500">Crédito Total</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(commissions.reduce((s, c) => s + c.value, 0))}</p>
+              <p className="text-sm text-gray-500">Vendas como Anjo</p>
+              <p className="text-xl font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'angel').length}</p>
             </div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
             <div className="p-2 bg-green-50 rounded-lg"><CheckCircle2 className="w-5 h-5 text-green-600" /></div>
             <div>
-              <p className="text-sm text-gray-500">Recebido (Consultor)</p>
+              <p className="text-sm text-gray-500">Recebido</p>
               <p className="text-xl font-bold text-green-700">{formatCurrency(stats.totalPaid)}</p>
             </div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
             <div className="p-2 bg-yellow-50 rounded-lg"><Calendar className="w-5 h-5 text-yellow-600" /></div>
             <div>
-              <p className="text-sm text-gray-500">A Receber (Consultor)</p>
+              <p className="text-sm text-gray-500">A Receber</p>
               <p className="text-xl font-bold text-yellow-700">{formatCurrency(stats.totalPending)}</p>
             </div>
           </div>
@@ -226,128 +291,240 @@ const PublicCommissionConference = () => {
             <p className="text-sm font-bold text-gray-900">{stats.totalPaidInstallments}/{stats.totalInstallmentsCount} parcelas ({stats.totalInstallmentsCount > 0 ? Math.round((stats.totalPaidInstallments / stats.totalInstallmentsCount) * 100) : 0}%)</p>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
-            <div
-              className={`h-3 rounded-full transition-all duration-500 ${stats.totalPaidInstallments === stats.totalInstallmentsCount ? 'bg-green-500' : stats.totalPaidInstallments / stats.totalInstallmentsCount > 0.5 ? 'bg-blue-500' : 'bg-yellow-500'}`}
-              style={{ width: `${stats.totalInstallmentsCount > 0 ? (stats.totalPaidInstallments / stats.totalInstallmentsCount) * 100 : 0}%` }}
-            />
+            <div className={`h-3 rounded-full transition-all duration-500 ${stats.totalPaidInstallments === stats.totalInstallmentsCount ? 'bg-green-500' : stats.totalPaidInstallments / stats.totalInstallmentsCount > 0.5 ? 'bg-blue-500' : 'bg-yellow-500'}`} style={{ width: `${stats.totalInstallmentsCount > 0 ? (stats.totalPaidInstallments / stats.totalInstallmentsCount) * 100 : 0}%` }} />
           </div>
         </div>
 
-        {commissions.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm py-16 text-center">
-            <ClipboardCheck className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-            <h2 className="text-lg font-semibold text-gray-900">Nenhuma venda encontrada</h2>
-            <p className="mt-1 text-sm text-gray-500">Não há comissões registradas para este consultor.</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex rounded-lg bg-gray-100 p-1">
+            <button onClick={() => setViewMode('vendas')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${viewMode === 'vendas' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <Home className="h-4 w-4" /> Vendas
+            </button>
+            <button onClick={() => setViewMode('proventos')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${viewMode === 'proventos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <TrendingUp className="h-4 w-4" /> Proventos por Mês
+            </button>
           </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                  <tr>
-                    <th className="px-4 py-3">Data</th>
-                    <th className="px-4 py-3">Cliente / Produto</th>
-                    <th className="px-4 py-3">Valor do Crédito</th>
-                    <th className="px-4 py-3">Progresso & Status</th>
-                    <th className="px-4 py-3 text-right">Meu Valor</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {commissions.map(c => {
-                    const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
-                    const status = getOverallStatus(c.installmentDetails);
-                    const isExpanded = expandedRow === c.db_id;
-                    const progressPercent = (paidCount / 15) * 100;
-                    const progressColor = progressPercent === 100 ? 'bg-green-500' : progressPercent > 50 ? 'bg-blue-500' : 'bg-yellow-500';
+          {viewMode === 'vendas' && (
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-400" />
+              <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                <option value="">Todos os meses</option>
+                {uniqueMonths.map(m => {
+                  const [y, mo] = m.split('-');
+                  const label = new Date(parseInt(y), parseInt(mo) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                  return <option key={m} value={m}>{label}</option>;
+                })}
+              </select>
+            </div>
+          )}
+        </div>
 
-                    return (
-                      <React.Fragment key={c.db_id}>
-                        <tr className={`${rowBgColor[status]} hover:bg-gray-50 transition`}>
-                          <td className="px-4 py-3">
-                            <div className="text-sm font-medium text-gray-900">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-bold text-gray-900 flex items-center">
-                              {c.clientName}
-                              {c.angelName && <Crown className="ml-2 h-3.5 w-3.5 text-yellow-500" />}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="text-base font-bold text-gray-900">{formatCurrency(c.value)}</div>
-                            <div className="text-xs text-gray-500">PV: {c.pv}</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>{status}</span>
-                            <div className="mt-2">
-                              <div className="flex justify-between text-xs text-gray-500 mb-1">
-                                <span>{paidCount}/15</span>
-                                <span>{Math.round(progressPercent)}%</span>
+        {viewMode === 'vendas' ? (
+          displayCommissions.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm py-16 text-center">
+              <ClipboardCheck className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+              <h2 className="text-lg font-semibold text-gray-900">Nenhuma venda encontrada</h2>
+              <p className="mt-1 text-sm text-gray-500">Não há comissões registradas para este consultor.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Função</th>
+                      <th className="px-4 py-3">Data</th>
+                      <th className="px-4 py-3">Cliente / Produto</th>
+                      <th className="px-4 py-3">Valor do Crédito</th>
+                      <th className="px-4 py-3">Progresso & Status</th>
+                      <th className="px-4 py-3 text-right">Meu Valor</th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {displayCommissions.map(c => {
+                      const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
+                      const status = getOverallStatus(c.installmentDetails);
+                      const isExpanded = expandedRow === c.db_id;
+                      const progressPercent = (paidCount / 15) * 100;
+                      const progressColor = progressPercent === 100 ? 'bg-green-500' : progressPercent > 50 ? 'bg-blue-500' : 'bg-yellow-500';
+
+                      let myPaid = 0;
+                      Object.entries(c.installmentDetails).forEach(([num, info]) => {
+                        if (info.status === 'Pago') {
+                          const v = getInstallmentValues(c, parseInt(num));
+                          myPaid += c.myRole === 'angel' ? v.angel : v.cons;
+                        }
+                      });
+
+                      return (
+                        <React.Fragment key={`${c.db_id}-${c.myRole}`}>
+                          <tr className={`${rowBgColor[status]} hover:bg-gray-50 transition`}>
+                            <td className="px-4 py-3">
+                              {c.myRole === 'angel' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                  <Crown className="h-3 w-3" /> Anjo
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                  <User className="h-3 w-3" /> Consultor
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-sm font-medium text-gray-900">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-gray-900 flex items-center">
+                                {c.clientName}
+                                {c.angelName && c.myRole === 'angel' && <span className="ml-2 text-xs text-yellow-600">(sua comissão)</span>}
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                <div className={`h-1.5 rounded-full ${progressColor}`} style={{ width: `${progressPercent}%` }} />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(c.consultantValue)}</td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => setExpandedRow(isExpanded ? null : c.db_id!)}
-                              className="p-2 rounded-md hover:bg-gray-100 text-gray-500"
-                            >
-                              <ChevronDown className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                            </button>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr className={rowBgColor[status]}>
-                            <td colSpan={6} className="p-4">
-                              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                {Object.entries(c.installmentDetails).map(([num, info]) => {
-                                  const installmentInfo = info as InstallmentInfo;
-                                  const statusValue = installmentInfo?.status || 'Pendente';
-                                  const values = getInstallmentValues(c, parseInt(num));
-                                  return (
-                                    <div key={num} className="text-center p-2 rounded-md border bg-white">
-                                      <div className="text-xs text-gray-400">
-                                        Parcela {num}
-                                        {installmentInfo.competenceMonth && (
-                                          <div className="text-[10px] text-purple-600 font-semibold">
-                                            Comp: {installmentInfo.competenceMonth.slice(5, 7)}/{installmentInfo.competenceMonth.slice(2, 4)}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border ${getInstallmentStatusColor(statusValue)}`}>
-                                        {statusValue}
-                                      </div>
-                                      {statusValue === 'Pago' && (
-                                        <div className="mt-2 text-xs space-y-1 text-left text-gray-600">
-                                          <div className="flex justify-between"><span>Consultor:</span> <span className="font-medium text-gray-800">{formatCurrency(values.cons)}</span></div>
-                                          <div className="flex justify-between"><span>Gestor:</span> <span className="font-medium text-gray-800">{formatCurrency(values.man)}</span></div>
-                                          {c.angelName && <div className="flex justify-between"><span>Anjo:</span> <span className="font-medium text-gray-800">{formatCurrency(values.angel)}</span></div>}
-                                        </div>
-                                      )}
-                                      {statusValue !== 'Pago' && (
-                                        <div className="mt-2 text-xs text-left text-gray-500">
-                                          <div className="flex justify-between"><span>Consultor:</span> <span className="font-medium">{formatCurrency(values.cons)}</span></div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
+                              <div className="text-xs text-gray-500">
+                                {c.group}/{c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span>
+                                {c.myRole === 'consultant' && <span className="ml-2 text-gray-400">· {c.consultant}</span>}
+                                {c.myRole === 'angel' && <span className="ml-2 text-yellow-600">· Anjo: {c.angelName}</span>}
                               </div>
                             </td>
+                            <td className="px-4 py-3">
+                              <div className="text-base font-bold text-gray-900">{formatCurrency(c.value)}</div>
+                              <div className="text-xs text-gray-500">PV: {c.pv}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>{status}</span>
+                              <div className="mt-2">
+                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                  <span>{paidCount}/15</span><span>{Math.round(progressPercent)}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div className={`h-1.5 rounded-full ${progressColor}`} style={{ width: `${progressPercent}%` }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="font-bold text-gray-900">{formatCurrency(c.myValue)}</div>
+                              <div className="text-xs text-green-600">Recebido: {formatCurrency(myPaid)}</div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button onClick={() => setExpandedRow(isExpanded ? null : c.db_id!)} className="p-2 rounded-md hover:bg-gray-100 text-gray-500">
+                                <ChevronDown className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              </button>
+                            </td>
                           </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          {isExpanded && (
+                            <tr className={rowBgColor[status]}>
+                              <td colSpan={7} className="p-4">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                  {Object.entries(c.installmentDetails).map(([num, info]) => {
+                                    const installmentInfo = info as InstallmentInfo;
+                                    const statusValue = installmentInfo?.status || 'Pendente';
+                                    const values = getInstallmentValues(c, parseInt(num));
+                                    const myVal = c.myRole === 'angel' ? values.angel : values.cons;
+                                    return (
+                                      <div key={num} className="text-center p-2 rounded-md border bg-white">
+                                        <div className="text-xs text-gray-400">
+                                          Parcela {num}
+                                          {installmentInfo.competenceMonth && (
+                                            <div className="text-[10px] text-purple-600 font-semibold">
+                                              Comp: {installmentInfo.competenceMonth.slice(5, 7)}/{installmentInfo.competenceMonth.slice(2, 4)}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border ${getInstallmentStatusColor(statusValue)}`}>
+                                          {statusValue}
+                                        </div>
+                                        <div className="mt-2 text-xs space-y-1 text-left text-gray-600">
+                                          <div className="flex justify-between">
+                                            <span>{c.myRole === 'angel' ? 'Anjo:' : 'Consultor:'}</span>
+                                            <span className="font-medium text-gray-800">{formatCurrency(myVal)}</span>
+                                          </div>
+                                          {c.myRole === 'consultant' && (
+                                            <>
+                                              <div className="flex justify-between"><span>Gestor:</span> <span className="font-medium text-gray-800">{formatCurrency(values.man)}</span></div>
+                                              {c.angelName && <div className="flex justify-between"><span>Anjo:</span> <span className="font-medium text-gray-800">{formatCurrency(values.angel)}</span></div>}
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
+          )
+        ) : (
+          <div className="space-y-3">
+            {uniqueMonths.length === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm py-16 text-center">
+                <Calendar className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+                <h2 className="text-lg font-semibold text-gray-900">Nenhum mês com competência</h2>
+                <p className="mt-1 text-sm text-gray-500">Aguarde o gestor registrar os pagamentos.</p>
+              </div>
+            ) : (
+              uniqueMonths.map(month => {
+                const data = monthlyForecast[month];
+                const [y, mo] = month.split('-');
+                const label = month === 'sem-competencia' ? 'Sem competência' : new Date(parseInt(y), parseInt(mo) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                const total = data.paid + data.pending;
+                const isSelected = selectedMonth === month;
+
+                return (
+                  <div key={month} className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${isSelected ? 'ring-2 ring-emerald-500' : ''}`}>
+                    <div className="cursor-pointer p-5 flex items-center justify-between" onClick={() => setSelectedMonth(isSelected ? '' : month)}>
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-emerald-50">
+                          <Calendar className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 capitalize">{label}</h3>
+                          <p className="text-xs text-gray-500">{data.details.length} parcela{data.details.length !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-xs text-green-600">Recebido</p>
+                          <p className="font-bold text-green-700">{formatCurrency(data.paid)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-yellow-600">A Receber</p>
+                          <p className="font-bold text-yellow-700">{formatCurrency(data.pending)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Total</p>
+                          <p className="font-bold text-gray-900">{formatCurrency(total)}</p>
+                        </div>
+                        <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${isSelected ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="border-t bg-gray-50 p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                          {data.details.map((d, i) => (
+                            <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-white">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{d.client}</p>
+                                <p className="text-xs text-gray-500">Parcela {d.installment} · {d.role === 'angel' ? '👑 Anjo' : '👤 Consultor'}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-gray-900">{formatCurrency(d.value)}</p>
+                                <span className={`text-xs font-semibold ${d.status === 'Pago' ? 'text-green-600' : d.status === 'Atraso' ? 'text-red-600' : 'text-yellow-600'}`}>{d.status}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </main>

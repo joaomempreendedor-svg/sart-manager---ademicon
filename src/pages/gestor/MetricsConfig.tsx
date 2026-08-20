@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Edit, ExternalLink, GripVertical, PlusCircle, Trash2, UserPlus, Users } from 'lucide-react';
+import { Copy, Edit, ExternalLink, GripVertical, PlusCircle, Trash2, UserPlus, Users, Crown } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import toast from 'react-hot-toast';
 
@@ -35,6 +35,7 @@ const MetricsConfig = () => {
   const [consultants, setConsultants] = useState<PublicMetricConsultant[]>([]);
   const [consultantName, setConsultantName] = useState('');
   const [isAddingConsultant, setIsAddingConsultant] = useState(false);
+  const [angelNames, setAngelNames] = useState<string[]>([]);
 
   const publicUrl = useMemo(() => {
     if (!user) return '';
@@ -59,6 +60,28 @@ const MetricsConfig = () => {
     };
 
     loadConsultants();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadAngelNames = async () => {
+      const { data, error } = await supabase
+        .from('commissions')
+        .select('data')
+        .eq('user_id', user.id);
+
+      if (error || !data) return;
+
+      const names = new Set<string>();
+      data.forEach(item => {
+        const commission = item.data as { angelName?: string };
+        if (commission.angelName) names.add(commission.angelName);
+      });
+      setAngelNames(Array.from(names).sort());
+    };
+
+    loadAngelNames();
   }, [user]);
 
   const handleOnDragEnd = (result: DropResult) => {
@@ -217,6 +240,36 @@ const MetricsConfig = () => {
           )}
         </CardContent>
       </Card>
+
+      {angelNames.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Crown className="h-5 w-5 text-yellow-600" /> Anjos (parceiros)
+            </CardTitle>
+            <CardDescription>Links de conferência de comissões para parceiros anjos.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {angelNames.map(name => (
+                <div key={name} className="flex flex-col rounded-lg border bg-yellow-50 px-4 py-3 dark:bg-yellow-950/20">
+                  <div className="flex items-center gap-2">
+                    <Crown className="h-3 w-3 text-yellow-600" />
+                    <span className="font-medium">{name}</span>
+                  </div>
+                  <button
+                    onClick={() => handleCopyCommissionLink(name)}
+                    className="mt-2 text-left text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium truncate"
+                    title="Copiar link de conferência de comissões"
+                  >
+                    📋 Copiar link de comissões
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
