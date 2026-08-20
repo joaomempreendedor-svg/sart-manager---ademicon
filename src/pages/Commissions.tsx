@@ -292,26 +292,40 @@ export const Commissions = () => {
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
-      toast.error('Erro ao enviar comprovante.');
+      toast.error(`Erro ao enviar: ${uploadError.message}`);
       setUploadingReceipt(null);
       return;
     }
 
-    const { error: dbError } = await supabase.from('payment_receipts').upsert({
+    await supabase.from('payment_receipts')
+      .delete()
+      .eq('gestor_id', user.id)
+      .eq('consultant_name', consultantName)
+      .eq('competence_month', competenceMonth);
+
+    const { error: dbError } = await supabase.from('payment_receipts').insert({
       gestor_id: user.id,
       consultant_name: consultantName,
       competence_month: competenceMonth,
       file_path: filePath,
       file_name: file.name,
-    }, { onConflict: 'gestor_id,consultant_name,competence_month' });
+    });
 
     if (dbError) {
-      toast.error('Erro ao salvar comprovante.');
+      toast.error(`Erro ao salvar: ${dbError.message}`);
     } else {
       toast.success(`Comprovante de ${consultantName} salvo!`);
       loadReceipts();
     }
     setUploadingReceipt(null);
+  };
+
+  const handleDeleteReceipt = async (receipt: { id: string; file_path: string }) => {
+    if (!window.confirm('Excluir este comprovante?')) return;
+    await supabase.storage.from('payment-receipts').remove([receipt.file_path]);
+    await supabase.from('payment_receipts').delete().eq('id', receipt.id);
+    toast.success('Comprovante excluído.');
+    loadReceipts();
   };
 
   const getReceiptUrl = (filePath: string) => {
@@ -1748,6 +1762,14 @@ export const Commissions = () => {
                               <a href={getReceiptUrl(receipt.file_path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800">
                                 <Eye className="h-3.5 w-3.5" /> Ver
                               </a>
+                            )}
+                            {receipt && (
+                              <button
+                                onClick={() => handleDeleteReceipt(receipt)}
+                                className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             )}
                             <input
                               type="file"

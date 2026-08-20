@@ -16,11 +16,26 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('payment-receipts', 'paym
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. Policies de acesso (storage)
-CREATE POLICY "Allow public read access" ON storage.objects
-  FOR SELECT USING (bucket_id = 'payment-receipts');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read access' AND tablename = 'objects') THEN
+    CREATE POLICY "Allow public read access" ON storage.objects
+      FOR SELECT USING (bucket_id = 'payment-receipts');
+  END IF;
+END $$;
 
-CREATE POLICY "Allow authenticated insert" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'payment-receipts' AND auth.role() = 'authenticated');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all access' AND tablename = 'objects') THEN
+    CREATE POLICY "Allow all access" ON storage.objects
+      FOR ALL USING (bucket_id = 'payment-receipts');
+  END IF;
+END $$;
 
-CREATE POLICY "Allow gestor delete" ON storage.objects
-  FOR DELETE USING (bucket_id = 'payment-receipts');
+-- 4. Enable RLS
+ALTER TABLE payment_receipts ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on payment_receipts') THEN
+    CREATE POLICY "Allow all on payment_receipts" ON payment_receipts
+      FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
