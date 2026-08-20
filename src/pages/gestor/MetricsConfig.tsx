@@ -133,6 +133,17 @@ const MetricsConfig = () => {
     toast.success('Link público copiado!');
   };
 
+  const getCommissionConferenceUrl = (consultantName: string) => {
+    if (!user) return '';
+    return `${window.location.origin}${window.location.pathname}#/comissoes/${user.id}/${encodeURIComponent(consultantName)}`;
+  };
+
+  const handleCopyCommissionLink = async (consultantName: string) => {
+    const url = getCommissionConferenceUrl(consultantName);
+    await navigator.clipboard.writeText(url);
+    toast.success(`Link de conferência de ${consultantName} copiado!`);
+  };
+
   return (
     <div className="container mx-auto space-y-6 p-4 md:p-6 lg:p-8">
       <Card className="border-brand-200 bg-gradient-to-br from-brand-50 to-white dark:border-brand-900 dark:from-brand-950/30 dark:to-slate-900">
@@ -186,11 +197,20 @@ const MetricsConfig = () => {
           ) : (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {consultants.map(consultant => (
-                <div key={consultant.id} className="flex items-center justify-between rounded-lg border bg-gray-50 px-4 py-3 dark:bg-slate-800">
-                  <span className="font-medium">{consultant.name}</span>
-                  <Button variant="ghost" size="icon" onClick={() => handleRemoveConsultant(consultant)} className="text-red-500 hover:text-red-600">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div key={consultant.id} className="flex flex-col rounded-lg border bg-gray-50 px-4 py-3 dark:bg-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{consultant.name}</span>
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveConsultant(consultant)} className="text-red-500 hover:text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <button
+                    onClick={() => handleCopyCommissionLink(consultant.name)}
+                    className="mt-2 text-left text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium truncate"
+                    title="Copiar link de conferência de comissões"
+                  >
+                    📋 Copiar link de comissões
+                  </button>
                 </div>
               ))}
             </div>

@@ -20,6 +20,7 @@ import { PendingApproval } from '@/pages/PendingApproval';
 import { PublicForm } from '@/pages/PublicForm';
 import { PublicProcessView } from '@/pages/PublicProcessView';
 import PublicDailyMetrics from '@/pages/PublicDailyMetrics';
+import PublicCommissionConference from '@/pages/PublicCommissionConference';
 
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
@@ -60,6 +61,7 @@ const AppRoutes = () => {
       <Route path="/public-form" element={<PublicForm />} />
       <Route path="/public-process/:processId" element={<PublicProcessView />} />
       <Route path="/metricas/:ownerId" element={<PublicDailyMetrics />} />
+      <Route path="/comissoes/:ownerId/:consultantName" element={<PublicCommissionConference />} />
 
       <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA', 'CONSULTOR']} />}>
         <Route path="/" element={<Home />} />
