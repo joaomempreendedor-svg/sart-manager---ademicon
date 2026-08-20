@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport, CutoffPeriod } from '@/types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp, Settings2, AlertTriangle, Link, Copy } from 'lucide-react';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp, Settings2, AlertTriangle, Link, Copy, Upload, Paperclip, Eye } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { EditCommissionModal } from '@/components/EditCommissionModal';
@@ -262,6 +263,77 @@ export const Commissions = () => {
     commissions.forEach(c => { if (c.angelName) names.add(c.angelName); });
     return Array.from(names).sort();
   }, [commissions]);
+
+  const [receipts, setReceipts] = useState<{ id: string; consultant_name: string; competence_month: string; file_path: string; file_name: string }[]>([]);
+  const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const loadReceipts = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('payment_receipts')
+      .select('id, consultant_name, competence_month, file_path, file_name')
+      .eq('gestor_id', user.id);
+    setReceipts(data || []);
+  };
+
+  useEffect(() => { loadReceipts(); }, [user]);
+
+  const handleUploadReceipt = async (consultantName: string, competenceMonth: string, file: File) => {
+    if (!user) return;
+    const key = `${consultantName}-${competenceMonth}`;
+    setUploadingReceipt(key);
+
+    const ext = file.name.split('.').pop();
+    const filePath = `${user.id}/${consultantName}/${competenceMonth}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('payment-receipts')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error('Erro ao enviar comprovante.');
+      setUploadingReceipt(null);
+      return;
+    }
+
+    const { error: dbError } = await supabase.from('payment_receipts').upsert({
+      gestor_id: user.id,
+      consultant_name: consultantName,
+      competence_month: competenceMonth,
+      file_path: filePath,
+      file_name: file.name,
+    }, { onConflict: 'gestor_id,consultant_name,competence_month' });
+
+    if (dbError) {
+      toast.error('Erro ao salvar comprovante.');
+    } else {
+      toast.success(`Comprovante de ${consultantName} salvo!`);
+      loadReceipts();
+    }
+    setUploadingReceipt(null);
+  };
+
+  const getReceiptUrl = (filePath: string) => {
+    const { data } = supabase.storage.from('payment-receipts').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const getReceiptFor = (consultantName: string, competenceMonth: string) => {
+    return receipts.find(r => r.consultant_name === consultantName && r.competence_month === competenceMonth);
+  };
+
+  const reportConsultantSummary = useMemo(() => {
+    if (!reportData) return [];
+    const map = new Map<string, { name: string; total: number }>();
+    reportData.detailedInstallments.forEach(item => {
+      const name = item.commission.consultant;
+      const existing = map.get(name) || { name, total: 0 };
+      existing.total += item.values.cons;
+      map.set(name, existing);
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [reportData]);
 
   const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 
@@ -1656,6 +1728,53 @@ export const Commissions = () => {
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg"><div className="text-sm text-yellow-600 dark:text-yellow-300">Anjos</div><div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{formatCurrency(reportData.totalCommissions.angel)}</div></div>
                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg"><div className="text-sm text-purple-600 dark:text-purple-300">Total do Mês</div><div className="text-2xl font-bold text-purple-900 dark:text-purple-100">{formatCurrency(reportData.totalCommissions.total)}</div></div>
               </div>
+
+              {reportConsultantSummary.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Comprovantes de Pagamento</h4>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {reportConsultantSummary.map(cs => {
+                      const receipt = getReceiptFor(cs.name, reportData.month);
+                      const uploadKey = `${cs.name}-${reportData.month}`;
+                      const isUploading = uploadingReceipt === uploadKey;
+                      return (
+                        <div key={cs.name} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-white truncate">{cs.name}</p>
+                            <p className="text-xs text-gray-500">{formatCurrency(cs.total)}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {receipt && (
+                              <a href={getReceiptUrl(receipt.file_path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800">
+                                <Eye className="h-3.5 w-3.5" /> Ver
+                              </a>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              className="hidden"
+                              ref={el => { fileInputRefs.current[uploadKey] = el; }}
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadReceipt(cs.name, reportData.month, file);
+                                e.target.value = '';
+                              }}
+                            />
+                            <button
+                              onClick={() => fileInputRefs.current[uploadKey]?.click()}
+                              disabled={isUploading}
+                              className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                            >
+                              {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                              {receipt ? 'Trocar' : 'Anexar'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <hr className="my-6 border-gray-200 dark:border-slate-700" />
 

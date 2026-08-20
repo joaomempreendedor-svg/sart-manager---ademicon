@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, Crown, DollarSign, Filter, Home, Loader2, Moon, Sun, TrendingUp, User } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, Crown, DollarSign, Filter, Home, Loader2, Moon, Sun, TrendingUp, User, Paperclip } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -91,6 +91,7 @@ const PublicCommissionConference = () => {
   const [viewMode, setViewMode] = useState<'vendas' | 'proventos'>('vendas');
   const [selectedMonth, setSelectedMonth] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [receipts, setReceipts] = useState<{ consultant_name: string; competence_month: string; file_path: string; file_name: string }[]>([]);
 
   const loadData = useCallback(async () => {
     if (!ownerId || !consultantName) return;
@@ -140,12 +141,29 @@ const PublicCommissionConference = () => {
 
     setAllCommissions(results);
     setDisplayName(matchedName);
+
+    const { data: receiptsData } = await supabase
+      .from('payment_receipts')
+      .select('consultant_name, competence_month, file_path, file_name')
+      .eq('gestor_id', ownerId)
+      .eq('consultant_name', matchedName);
+    setReceipts(receiptsData || []);
+
     setIsLoading(false);
   }, [ownerId, consultantName]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const decodedName = displayName || (consultantName ? decodeURIComponent(consultantName) : '');
+
+  const getReceiptUrl = (filePath: string) => {
+    const { data } = supabase.storage.from('payment-receipts').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const getReceiptForMonth = (month: string) => {
+    return receipts.find(r => r.competence_month === month);
+  };
 
   const uniqueMonths = useMemo(() => {
     const months = new Set<string>();
@@ -547,6 +565,21 @@ const PublicCommissionConference = () => {
                             </div>
                           ))}
                         </div>
+                        {(() => {
+                          const receipt = getReceiptForMonth(month);
+                          if (!receipt) return null;
+                          return (
+                            <a
+                              href={getReceiptUrl(receipt.file_path)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 hover:bg-green-100 transition"
+                            >
+                              <Paperclip className="h-4 w-4" />
+                              Ver comprovante de pagamento
+                            </a>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
