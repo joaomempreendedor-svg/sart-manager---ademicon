@@ -158,20 +158,22 @@ const PublicCommissionConference = () => {
   }, [allCommissions]);
 
   const monthlyForecast = useMemo(() => {
-    const monthMap: Record<string, { paid: number; pending: number; details: { client: string; installment: number; value: number; status: string; role: RoleType }[] }> = {};
+    const monthMap: Record<string, { paid: number; pending: number; delayed: number; details: { client: string; installment: number; value: number; status: string; role: RoleType }[] }> = {};
 
     allCommissions.forEach(c => {
       Object.entries(c.installmentDetails).forEach(([num, info]) => {
         const installmentInfo = info as InstallmentInfo;
         const month = installmentInfo.competenceMonth || 'sem-competencia';
-        if (!monthMap[month]) monthMap[month] = { paid: 0, pending: 0, details: [] };
+        if (!monthMap[month]) monthMap[month] = { paid: 0, pending: 0, delayed: 0, details: [] };
 
         const values = getInstallmentValues(c, parseInt(num));
         const myVal = c.myRole === 'angel' ? values.angel : values.cons;
 
         if (installmentInfo.status === 'Pago') {
           monthMap[month].paid += myVal;
-        } else if (installmentInfo.status === 'Pendente' || installmentInfo.status === 'Atraso') {
+        } else if (installmentInfo.status === 'Atraso') {
+          monthMap[month].delayed += myVal;
+        } else {
           monthMap[month].pending += myVal;
         }
 
@@ -496,7 +498,7 @@ const PublicCommissionConference = () => {
                 const data = monthlyForecast[month];
                 const [y, mo] = month.split('-');
                 const label = month === 'sem-competencia' ? 'Sem competência' : new Date(parseInt(y), parseInt(mo) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                const total = data.paid + data.pending;
+                const total = data.paid + data.pending + data.delayed;
                 const isSelected = selectedMonth === month;
 
                 return (
@@ -511,14 +513,18 @@ const PublicCommissionConference = () => {
                           <p className="text-xs text-gray-500">{data.details.length} parcela{data.details.length !== 1 ? 's' : ''}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-xs text-green-600">Recebido</p>
                           <p className="font-bold text-green-700">{formatCurrency(data.paid)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-yellow-600">A Receber</p>
+                          <p className="text-xs text-yellow-600">Pendente</p>
                           <p className="font-bold text-yellow-700">{formatCurrency(data.pending)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-red-600">Atraso</p>
+                          <p className="font-bold text-red-700">{formatCurrency(data.delayed)}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-gray-500">Total</p>
