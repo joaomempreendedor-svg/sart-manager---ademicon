@@ -442,6 +442,11 @@ const PublicCommissionConference = () => {
                                         <div className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border ${getInstallmentStatusColor(statusValue)}`}>
                                           {statusValue}
                                         </div>
+                                        {statusValue === 'Pago' && (
+                                          <div className="mt-1 text-[10px] font-semibold text-green-700">
+                                            Receber até dia 05
+                                          </div>
+                                        )}
                                         <div className="mt-2 text-xs space-y-1 text-left text-gray-600">
                                           <div className="flex justify-between">
                                             <span>{c.myRole === 'angel' ? 'Anjo:' : 'Consultor:'}</span>
@@ -525,6 +530,9 @@ const PublicCommissionConference = () => {
                               <div className="text-right">
                                 <p className="font-bold text-gray-900">{formatCurrency(d.value)}</p>
                                 <span className={`text-xs font-semibold ${d.status === 'Pago' ? 'text-green-600' : d.status === 'Atraso' ? 'text-red-600' : 'text-yellow-600'}`}>{d.status}</span>
+                                {d.status === 'Pago' && (
+                                  <p className="text-[10px] font-semibold text-green-700">Receber até dia 05</p>
+                                )}
                               </div>
                             </div>
                           ))}
