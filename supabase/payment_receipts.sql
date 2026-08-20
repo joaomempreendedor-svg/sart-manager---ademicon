@@ -1,41 +1,34 @@
--- Execute no Supabase SQL Editor antes de usar a funcionalidade
+-- Execute no Supabase SQL Editor
 
--- 1. Criar tabela de comprovantes
+-- 1. Criar tabela (se não existir)
 CREATE TABLE IF NOT EXISTS payment_receipts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   gestor_id TEXT NOT NULL,
   consultant_name TEXT NOT NULL,
   competence_month TEXT NOT NULL,
-  file_path TEXT NOT NULL,
+  file_data TEXT NOT NULL,
   file_name TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Criar bucket de storage para comprovantes
-INSERT INTO storage.buckets (id, name, public) VALUES ('payment-receipts', 'payment-receipts', true)
-ON CONFLICT (id) DO NOTHING;
-
--- 3. Policies de acesso (storage)
+-- 2. Adicionar coluna file_data se a tabela já existia sem ela
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read access' AND tablename = 'objects') THEN
-    CREATE POLICY "Allow public read access" ON storage.objects
-      FOR SELECT USING (bucket_id = 'payment-receipts');
-  END IF;
+  ALTER TABLE payment_receipts ADD COLUMN file_data TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
+-- 3. Remover coluna file_path se existir (opcional, ignora erro)
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all access' AND tablename = 'objects') THEN
-    CREATE POLICY "Allow all access" ON storage.objects
-      FOR ALL USING (bucket_id = 'payment-receipts');
-  END IF;
+  ALTER TABLE payment_receipts DROP COLUMN IF EXISTS file_path;
+EXCEPTION WHEN others THEN NULL;
 END $$;
 
--- 4. Enable RLS
+-- 4. RLS
 ALTER TABLE payment_receipts ENABLE ROW LEVEL SECURITY;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on payment_receipts') THEN
-    CREATE POLICY "Allow all on payment_receipts" ON payment_receipts
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all receipts') THEN
+    CREATE POLICY "Allow all receipts" ON payment_receipts
       FOR ALL USING (true) WITH CHECK (true);
   END IF;
 END $$;

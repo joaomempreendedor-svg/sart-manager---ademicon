@@ -91,7 +91,7 @@ const PublicCommissionConference = () => {
   const [viewMode, setViewMode] = useState<'vendas' | 'proventos'>('vendas');
   const [selectedMonth, setSelectedMonth] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [receipts, setReceipts] = useState<{ consultant_name: string; competence_month: string; file_path: string; file_name: string }[]>([]);
+  const [receipts, setReceipts] = useState<{ consultant_name: string; competence_month: string; file_data: string; file_name: string }[]>([]);
 
   const loadData = useCallback(async () => {
     if (!ownerId || !consultantName) return;
@@ -144,7 +144,7 @@ const PublicCommissionConference = () => {
 
     const { data: receiptsData } = await supabase
       .from('payment_receipts')
-      .select('consultant_name, competence_month, file_path, file_name')
+      .select('consultant_name, competence_month, file_data, file_name')
       .eq('gestor_id', ownerId)
       .eq('consultant_name', matchedName);
     setReceipts(receiptsData || []);
@@ -155,11 +155,6 @@ const PublicCommissionConference = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   const decodedName = displayName || (consultantName ? decodeURIComponent(consultantName) : '');
-
-  const getReceiptUrl = (filePath: string) => {
-    const { data } = supabase.storage.from('payment-receipts').getPublicUrl(filePath);
-    return data.publicUrl;
-  };
 
   const getReceiptForMonth = (month: string) => {
     return receipts.find(r => r.competence_month === month);
@@ -570,7 +565,7 @@ const PublicCommissionConference = () => {
                           if (!receipt) return null;
                           return (
                             <a
-                              href={getReceiptUrl(receipt.file_path)}
+                              href={receipt.file_data}
                               target="_blank"
                               rel="noreferrer"
                               className="mt-3 inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 hover:bg-green-100 transition"
