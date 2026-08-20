@@ -93,10 +93,9 @@ const PublicCommissionConference = () => {
 
     const { data, error } = await supabase
       .from('commissions')
-      .select('*')
+      .select('id, data, created_at')
       .eq('user_id', ownerId)
-      .eq('consultant', decodedName)
-      .order('date', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Erro ao carregar comissões:', error);
@@ -104,14 +103,18 @@ const PublicCommissionConference = () => {
       return;
     }
 
-    const normalized = (data || []).map(row => ({
-      ...row,
-      db_id: row.id,
-      installmentDetails: (row.installment_details || {}) as Record<string, InstallmentInfo>,
-      customRules: (row.custom_rules || []) as any[],
-    })) as Commission[];
+    const all = (data || []).map(item => {
+      const commission = item.data as Commission;
+      if (!commission.installmentDetails) {
+        const details: Record<string, InstallmentInfo> = {};
+        for (let i = 1; i <= 15; i++) details[i.toString()] = { status: 'Pendente' };
+        commission.installmentDetails = details;
+      }
+      return { ...commission, db_id: item.id, criado_em: item.created_at } as Commission;
+    });
 
-    setCommissions(normalized);
+    const filtered = all.filter(c => c.consultant === decodedName);
+    setCommissions(filtered);
     setIsLoading(false);
   }, [ownerId, consultantName]);
 
