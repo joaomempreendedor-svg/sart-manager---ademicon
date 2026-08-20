@@ -284,6 +284,12 @@ export const Commissions = () => {
     const key = `${consultantName}-${competenceMonth}`;
     setUploadingReceipt(key);
 
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(b => b.name === 'payment-receipts');
+    if (!bucketExists) {
+      await supabase.storage.createBucket('payment-receipts', { public: true });
+    }
+
     const ext = file.name.split('.').pop();
     const filePath = `${user.id}/${consultantName}/${competenceMonth}.${ext}`;
 
