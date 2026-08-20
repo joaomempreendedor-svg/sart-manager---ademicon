@@ -292,6 +292,7 @@ export const Commissions = () => {
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
+      console.error('Storage upload error:', uploadError);
       toast.error(`Erro ao enviar: ${uploadError.message}`);
       setUploadingReceipt(null);
       return;
