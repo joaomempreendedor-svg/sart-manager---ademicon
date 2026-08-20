@@ -237,11 +237,14 @@ export const Commissions = () => {
   }, [activeTab]);
 
   const consultantNames = useMemo(() => {
-    return teamMembers
-      .filter(m => m.roles?.includes('CONSULTOR') && m.isActive)
-      .map(m => m.name)
-      .sort();
-  }, [teamMembers]);
+    const fromCommissions = new Set<string>();
+    commissions.forEach(c => { if (c.consultant) fromCommissions.add(c.consultant); });
+    const fromTeam = teamMembers
+      .filter(m => m.isActive && !m.roles?.includes('ANJO') && !m.roles?.includes('SECRETARIA'))
+      .map(m => m.name);
+    const all = new Set([...fromCommissions, ...fromTeam]);
+    return Array.from(all).sort();
+  }, [commissions, teamMembers]);
 
   const getCommissionConferenceUrl = (name: string) => {
     if (!user) return '';
