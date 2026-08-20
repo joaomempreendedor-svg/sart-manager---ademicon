@@ -1,7 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Commission, CommissionStatus, CommissionRule, InstallmentStatus, InstallmentInfo, CommissionReport, CutoffPeriod } from '@/types';
-import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp, Settings2, AlertTriangle } from 'lucide-react';
+import { Trash2, Search, DollarSign, Calendar, Calculator, Save, Table as TableIcon, Car, Home, ChevronDown, MapPin, Percent, Filter, XCircle, Crown, Plus, Wand2, Loader2, FileText, Download, CheckCircle2 as MarkAllPaidIcon, Edit2, CalendarCheck, TrendingUp, Settings2, AlertTriangle, Link, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { EditCommissionModal } from '@/components/EditCommissionModal';
@@ -76,6 +78,7 @@ interface DetailedInstallment {
 }
 
 export const Commissions = () => {
+  const { user } = useAuth();
   const {
     commissions,
     addCommission,
@@ -91,7 +94,7 @@ export const Commissions = () => {
     deleteCutoffPeriod,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'calculator' | 'history' | 'reports'>('calculator');
+  const [activeTab, setActiveTab] = useState<'calculator' | 'history' | 'reports' | 'links'>('calculator');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAngelMode, setIsAngelMode] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -161,6 +164,7 @@ export const Commissions = () => {
   const [showCutoffManager, setShowCutoffManager] = useState(false);
   const [newPeriod, setNewPeriod] = useState<Omit<CutoffPeriod, 'id' | 'db_id'>>(emptyPeriod);
   const [editingPeriod, setEditingPeriod] = useState<CutoffPeriod | null>(null);
+  const [consultantNames, setConsultantNames] = useState<string[]>([]);
   const [cutoffError, setCutoffError] = useState<string | null>(null);
 
   const calculateCompetenceMonth = useMemo(() => (paidDate: string): string => {
@@ -233,6 +237,36 @@ export const Commissions = () => {
     setQuickPayCommission(null);
     setQuickPayInstallment('');
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'links' || !user) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from('public_metric_consultants')
+        .select('name')
+        .eq('user_id', user.id)
+        .order('order_index');
+      setConsultantNames((data || []).map(d => d.name));
+    };
+    load();
+  }, [activeTab, user]);
+
+  const getCommissionConferenceUrl = (name: string) => {
+    if (!user) return '';
+    return `${window.location.origin}${window.location.pathname}#/comissoes/${user.id}/${encodeURIComponent(name)}`;
+  };
+
+  const handleCopyLink = async (name: string) => {
+    const url = getCommissionConferenceUrl(name);
+    await navigator.clipboard.writeText(url);
+    toast.success(`Link de ${name} copiado!`);
+  };
+
+  const angelNames = useMemo(() => {
+    const names = new Set<string>();
+    commissions.forEach(c => { if (c.angelName) names.add(c.angelName); });
+    return Array.from(names).sort();
+  }, [commissions]);
 
   const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 
@@ -946,6 +980,7 @@ export const Commissions = () => {
           <button onClick={() => setActiveTab('calculator')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'calculator' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Calculator className="w-4 h-4 mr-2" />Simulador</button>
           <button onClick={() => setActiveTab('history')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'history' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><TableIcon className="w-4 h-4 mr-2" />Histórico</button>
           <button onClick={() => setActiveTab('reports')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'reports' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><FileText className="w-4 h-4 mr-2" />Relatórios</button>
+          <button onClick={() => setActiveTab('links')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'links' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Link className="w-4 h-4 mr-2" />Links</button>
         </div>
       </div>
 
@@ -1670,6 +1705,53 @@ export const Commissions = () => {
               <button onClick={handleExportToExcel} className="mt-6 flex items-center text-purple-600 dark:text-purple-400 font-medium hover:text-purple-700 dark:hover:text-purple-300"><Download className="w-4 h-4 mr-2" />Exportar para Excel</button>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'links' && (
+        <div key="links-tab-content" className="space-y-6 animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+            <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">Links de Conferência de Comissões</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Copie o link e envie para o consultor ou anjo conferir suas comissões. Não é necessário login.</p>
+
+            {consultantNames.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">Consultores</h3>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {consultantNames.map(name => (
+                    <div key={name} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 px-4 py-3">
+                      <span className="font-medium text-gray-900 dark:text-white">{name}</span>
+                      <button onClick={() => handleCopyLink(name)} className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                        <Copy className="h-3.5 w-3.5" /> Copiar link
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {angelNames.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">Anjos</h3>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {angelNames.map(name => (
+                    <div key={name} className="flex items-center justify-between rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/20 px-4 py-3">
+                      <span className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
+                        <Crown className="h-3.5 w-3.5 text-yellow-600" /> {name}
+                      </span>
+                      <button onClick={() => handleCopyLink(name)} className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+                        <Copy className="h-3.5 w-3.5" /> Copiar link
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {consultantNames.length === 0 && angelNames.length === 0 && (
+              <p className="text-center text-sm text-gray-500 py-8">Nenhum consultor ou anjo encontrado. Cadastre consultores na gestão de equipe.</p>
+            )}
+          </div>
         </div>
       )}
 
