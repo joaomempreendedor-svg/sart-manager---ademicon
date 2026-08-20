@@ -90,11 +90,20 @@ const PublicCommissionConference = () => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'vendas' | 'proventos'>('vendas');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [displayName, setDisplayName] = useState('');
 
   const loadData = useCallback(async () => {
     if (!ownerId || !consultantName) return;
     setIsLoading(true);
     const decodedName = decodeURIComponent(consultantName);
+
+    const { data: teamData } = await supabase
+      .from('public_metric_consultants')
+      .select('name')
+      .eq('user_id', ownerId);
+
+    const registeredNames = (teamData || []).map(t => t.name);
+    const matchedName = registeredNames.find(n => n.toLowerCase() === decodedName.toLowerCase()) || decodedName;
 
     const { data, error } = await supabase
       .from('commissions')
@@ -120,22 +129,23 @@ const PublicCommissionConference = () => {
 
       const full = { ...commission, db_id: item.id, criado_em: item.created_at } as Commission;
 
-      if (commission.consultant === decodedName) {
+      if (commission.consultant === matchedName) {
         results.push({ ...full, myRole: 'consultant', myValue: commission.consultantValue || 0 });
       }
 
-      if (commission.angelName === decodedName) {
+      if (commission.angelName === matchedName) {
         results.push({ ...full, myRole: 'angel', myValue: commission.angelValue || 0 });
       }
     });
 
     setAllCommissions(results);
+    setDisplayName(matchedName);
     setIsLoading(false);
   }, [ownerId, consultantName]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const decodedName = consultantName ? decodeURIComponent(consultantName) : '';
+  const decodedName = displayName || (consultantName ? decodeURIComponent(consultantName) : '');
 
   const uniqueMonths = useMemo(() => {
     const months = new Set<string>();
