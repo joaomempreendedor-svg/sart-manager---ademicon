@@ -91,7 +91,8 @@ export const Commissions = () => {
     deleteCutoffPeriod,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'calculator' | 'history' | 'reports'>('calculator');
+  const [activeTab, setActiveTab] = useState<'calculator' | 'history' | 'reports' | 'conference'>('calculator');
+  const [conferenceConsultant, setConferenceConsultant] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAngelMode, setIsAngelMode] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -946,6 +947,7 @@ export const Commissions = () => {
           <button onClick={() => setActiveTab('calculator')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'calculator' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Calculator className="w-4 h-4 mr-2" />Simulador</button>
           <button onClick={() => setActiveTab('history')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'history' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><TableIcon className="w-4 h-4 mr-2" />Histórico</button>
           <button onClick={() => setActiveTab('reports')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'reports' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><FileText className="w-4 h-4 mr-2" />Relatórios</button>
+          <button onClick={() => setActiveTab('conference')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'conference' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><CheckCircle2 className="w-4 h-4 mr-2" />Conferência</button>
         </div>
       </div>
 
@@ -1670,6 +1672,230 @@ export const Commissions = () => {
               <button onClick={handleExportToExcel} className="mt-6 flex items-center text-purple-600 dark:text-purple-400 font-medium hover:text-purple-700 dark:hover:text-purple-300"><Download className="w-4 h-4 mr-2" />Exportar para Excel</button>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'conference' && (
+        <div key="conference-tab-content" className="animate-fade-in space-y-6">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-300" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Conferência por Consultor</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Visualize todas as vendas e pagamentos de um consultor.</p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Selecione o Consultor:</label>
+                <Select value={conferenceConsultant} onValueChange={setConferenceConsultant}>
+                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Selecione um consultor" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                    {consultants.map(c => (
+                      <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {conferenceConsultant && (() => {
+            const consultantCommissions = commissions.filter(c => c.consultant === conferenceConsultant);
+            const totalSales = consultantCommissions.length;
+            const totalCreditValue = consultantCommissions.reduce((sum, c) => sum + c.value, 0);
+            const totalConsultantValue = consultantCommissions.reduce((sum, c) => sum + c.consultantValue, 0);
+
+            let totalPaid = 0;
+            let totalPending = 0;
+            let totalPaidInstallments = 0;
+            let totalInstallmentsCount = 0;
+
+            consultantCommissions.forEach(c => {
+              Object.entries(c.installmentDetails).forEach(([num, info]) => {
+                const installmentInfo = info as InstallmentInfo;
+                totalInstallmentsCount++;
+                if (installmentInfo.status === 'Pago') {
+                  totalPaidInstallments++;
+                  const values = getInstallmentValues(c, parseInt(num));
+                  totalPaid += values.cons;
+                } else if (installmentInfo.status === 'Pendente' || installmentInfo.status === 'Atraso') {
+                  const values = getInstallmentValues(c, parseInt(num));
+                  totalPending += values.cons;
+                }
+              });
+            });
+
+            const progressPercent = totalInstallmentsCount > 0 ? (totalPaidInstallments / totalInstallmentsCount) * 100 : 0;
+
+            return (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                        <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Total de Vendas</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalSales}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-violet-100 dark:bg-violet-900/30">
+                        <DollarSign className="w-5 h-5 text-violet-600 dark:text-violet-300" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Crédito Total</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalCreditValue)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-300" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Recebido (Consultor)</p>
+                        <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(totalPaid)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                        <Calendar className="w-5 h-5 text-amber-600 dark:text-amber-300" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">A Receber (Consultor)</p>
+                        <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{formatCurrency(totalPending)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Progresso Geral</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{totalPaidInstallments}/{totalInstallmentsCount} parcelas ({Math.round(progressPercent)}%)</p>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-3">
+                    <div className={`h-3 rounded-full transition-all duration-500 ${progressPercent === 100 ? 'bg-emerald-500' : progressPercent > 50 ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: `${progressPercent}%` }} />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                    <h3 className="font-bold text-gray-900 dark:text-white">Vendas do Consultor</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[900px]">
+                      <thead className="text-left text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-700/30">
+                        <tr className="border-b dark:border-slate-700">
+                          <th className="py-3 px-4 font-semibold">Data</th>
+                          <th className="py-3 px-4 font-semibold">Cliente</th>
+                          <th className="py-3 px-4 font-semibold">Tipo</th>
+                          <th className="py-3 px-4 font-semibold">Grupo/Cota</th>
+                          <th className="py-3 px-4 font-semibold">Crédito</th>
+                          <th className="py-3 px-4 font-semibold">Status</th>
+                          <th className="py-3 px-4 font-semibold">Parcelas</th>
+                          <th className="py-3 px-4 font-semibold text-right">Valor Consultor</th>
+                          <th className="py-3 px-4 font-semibold text-right">Recebido</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        {consultantCommissions.length === 0 ? (
+                          <tr>
+                            <td colSpan={9} className="px-6 py-12 text-center text-gray-400">
+                              Nenhuma venda encontrada para este consultor.
+                            </td>
+                          </tr>
+                        ) : (
+                          consultantCommissions.map(c => {
+                            const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
+                            const status = getOverallStatus(c.installmentDetails);
+                            const statusColors: Record<CommissionStatus, string> = {
+                              'Em Andamento': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+                              'Atraso': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                              'Concluído': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                              'Cancelado': 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-gray-300'
+                            };
+
+                            let paidValue = 0;
+                            Object.entries(c.installmentDetails).forEach(([num, info]) => {
+                              if (info.status === 'Pago') {
+                                paidValue += getInstallmentValues(c, parseInt(num)).cons;
+                              }
+                            });
+
+                            return (
+                              <React.Fragment key={c.db_id}>
+                                <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                                  <td className="py-3 px-4">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                  <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{c.clientName}</td>
+                                  <td className="py-3 px-4">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>
+                                      {c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4">{c.group}/{c.quota}</td>
+                                  <td className="py-3 px-4 font-medium">{formatCurrency(c.value)}</td>
+                                  <td className="py-3 px-4">
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>
+                                      {status}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-16 bg-gray-200 dark:bg-slate-600 rounded-full h-1.5">
+                                        <div className={`h-1.5 rounded-full ${paidCount === 15 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${(paidCount / 15) * 100}%` }} />
+                                      </div>
+                                      <span className="text-xs text-gray-500">{paidCount}/15</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-medium">{formatCurrency(c.consultantValue)}</td>
+                                  <td className="py-3 px-4 text-right font-medium text-emerald-700 dark:text-emerald-300">{formatCurrency(paidValue)}</td>
+                                </tr>
+                                <tr className="bg-gray-50/50 dark:bg-slate-800/30">
+                                  <td colSpan={9} className="px-4 py-3">
+                                    <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-15 gap-1.5">
+                                      {Object.entries(c.installmentDetails).map(([num, info]) => {
+                                        const installmentInfo = info as InstallmentInfo;
+                                        const statusValue = installmentInfo?.status || 'Pendente';
+                                        const dotColor = statusValue === 'Pago' ? 'bg-emerald-500' : statusValue === 'Atraso' ? 'bg-red-500' : statusValue === 'Cancelado' ? 'bg-gray-400' : 'bg-amber-400';
+                                        const values = getInstallmentValues(c, parseInt(num));
+                                        return (
+                                          <div key={num} className={`text-center p-1.5 rounded text-[10px] border ${statusValue === 'Pago' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' : statusValue === 'Atraso' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600'}`}>
+                                            <div className={`w-2 h-2 rounded-full mx-auto mb-0.5 ${dotColor}`} />
+                                            <div className="font-medium text-gray-700 dark:text-gray-300">{num}</div>
+                                            <div className="text-gray-500 dark:text-gray-400">{formatCurrency(values.cons)}</div>
+                                            {installmentInfo.competenceMonth && (
+                                              <div className="text-[8px] text-purple-600 dark:text-purple-400">{installmentInfo.competenceMonth.slice(5, 7)}/{installmentInfo.competenceMonth.slice(2, 4)}</div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </td>
+                                </tr>
+                              </React.Fragment>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
