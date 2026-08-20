@@ -6,20 +6,24 @@ CREATE TABLE IF NOT EXISTS payment_receipts (
   gestor_id TEXT NOT NULL,
   consultant_name TEXT NOT NULL,
   competence_month TEXT NOT NULL,
-  file_data TEXT NOT NULL,
+  file_url TEXT NOT NULL,
   file_name TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Adicionar coluna file_data se a tabela já existia sem ela
+-- 2. Adicionar coluna file_url se a tabela já existia com file_data/file_path
 DO $$ BEGIN
-  ALTER TABLE payment_receipts ADD COLUMN file_data TEXT;
+  ALTER TABLE payment_receipts ADD COLUMN file_url TEXT;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
--- 3. Remover coluna file_path se existir (opcional, ignora erro)
+-- 3. Remover colunas antigas
 DO $$ BEGIN
   ALTER TABLE payment_receipts DROP COLUMN IF EXISTS file_path;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE payment_receipts DROP COLUMN IF EXISTS file_data;
 EXCEPTION WHEN others THEN NULL;
 END $$;
 

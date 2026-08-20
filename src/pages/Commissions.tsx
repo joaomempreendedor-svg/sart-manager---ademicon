@@ -264,7 +264,7 @@ export const Commissions = () => {
     return Array.from(names).sort();
   }, [commissions]);
 
-  const [receipts, setReceipts] = useState<{ id: string; consultant_name: string; competence_month: string; file_data: string; file_name: string }[]>([]);
+  const [receipts, setReceipts] = useState<{ id: string; consultant_name: string; competence_month: string; file_url: string; file_name: string }[]>([]);
   const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -272,7 +272,7 @@ export const Commissions = () => {
     if (!user) return;
     const { data } = await supabase
       .from('payment_receipts')
-      .select('id, consultant_name, competence_month, file_data, file_name')
+      .select('id, consultant_name, competence_month, file_url, file_name')
       .eq('gestor_id', user.id);
     setReceipts(data || []);
   };
@@ -284,37 +284,48 @@ export const Commissions = () => {
     const key = `${consultantName}-${competenceMonth}`;
     setUploadingReceipt(key);
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
+    const ext = file.name.split('.').pop();
+    const filePath = `${user.id}/${consultantName}/${competenceMonth}.${ext}`;
 
-      await supabase.from('payment_receipts')
-        .delete()
-        .eq('gestor_id', user.id)
-        .eq('consultant_name', consultantName)
-        .eq('competence_month', competenceMonth);
+    const { error: uploadError } = await supabase.storage
+      .from('payment-receipts')
+      .upload(filePath, file, { upsert: true });
 
-      const { error: dbError } = await supabase.from('payment_receipts').insert({
-        gestor_id: user.id,
-        consultant_name: consultantName,
-        competence_month: competenceMonth,
-        file_data: base64,
-        file_name: file.name,
-      });
-
-      if (dbError) {
-        toast.error(`Erro ao salvar: ${dbError.message}`);
-      } else {
-        toast.success(`Comprovante de ${consultantName} salvo!`);
-        loadReceipts();
-      }
+    if (uploadError) {
+      toast.error(`Erro ao enviar: ${uploadError.message}`);
       setUploadingReceipt(null);
-    };
-    reader.readAsDataURL(file);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from('payment-receipts').getPublicUrl(filePath);
+
+    await supabase.from('payment_receipts')
+      .delete()
+      .eq('gestor_id', user.id)
+      .eq('consultant_name', consultantName)
+      .eq('competence_month', competenceMonth);
+
+    const { error: dbError } = await supabase.from('payment_receipts').insert({
+      gestor_id: user.id,
+      consultant_name: consultantName,
+      competence_month: competenceMonth,
+      file_url: urlData.publicUrl,
+      file_name: file.name,
+    });
+
+    if (dbError) {
+      toast.error(`Erro ao salvar: ${dbError.message}`);
+    } else {
+      toast.success(`Comprovante de ${consultantName} salvo!`);
+      loadReceipts();
+    }
+    setUploadingReceipt(null);
   };
 
-  const handleDeleteReceipt = async (receipt: { id: string }) => {
+  const handleDeleteReceipt = async (receipt: { id: string; file_url: string }) => {
     if (!window.confirm('Excluir este comprovante?')) return;
+    const filePath = receipt.file_url.split('/payment-receipts/')[1];
+    if (filePath) await supabase.storage.from('payment-receipts').remove([decodeURIComponent(filePath)]);
     await supabase.from('payment_receipts').delete().eq('id', receipt.id);
     toast.success('Comprovante excluído.');
     loadReceipts();
@@ -1746,7 +1757,7 @@ export const Commissions = () => {
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             {receipt && (
-                              <a href={receipt.file_data} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800">
+                              <a href={receipt.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-800">
                                 <Eye className="h-3.5 w-3.5" /> Ver
                               </a>
                             )}
