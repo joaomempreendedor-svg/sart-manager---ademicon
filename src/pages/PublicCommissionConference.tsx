@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, DollarSign, Home, Loader2, Moon, Sun, TrendingUp, User } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, Crown, DollarSign, Home, Loader2, Moon, Sun, User } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,15 +9,42 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-const getInstallmentValues = (credit: number, installment: number, taxRate: number = 0) => {
-  const rules = { p1_10: 0.001288, p11_13: 0.002374, p15: 0.003 };
-  let rate = 0;
-  if (installment <= 10) rate = rules.p1_10;
-  else if (installment <= 13) rate = rules.p11_13;
-  else if (installment === 15) rate = rules.p15;
+const getInstallmentValues = (commission: Commission, installment: number) => {
+  const credit = commission.value;
+  const taxRate = commission.taxRate || 0;
   const taxMultiplier = 1 - (taxRate / 100);
-  const value = credit * rate * taxMultiplier;
-  return value;
+  const hasAngel = !!commission.angelName;
+
+  let consRate = 0, manRate = 0, angelRate = 0;
+
+  if (commission.customRules && commission.customRules.length > 0) {
+    const rule = commission.customRules.find(r => installment >= r.startInstallment && installment <= r.endInstallment);
+    if (rule) {
+      consRate = rule.consultantRate / 100;
+      manRate = rule.managerRate / 100;
+      angelRate = hasAngel ? rule.angelRate / 100 : 0;
+    }
+  } else {
+    const manRules = hasAngel
+      ? { p1_10: 0.000194, p11_13: 0.000356 }
+      : { p1_10: 0.000322, p11_13: 0.000593 };
+
+    if (installment <= 10) {
+      consRate = 0.001288; manRate = manRules.p1_10;
+      if (hasAngel) angelRate = 0.0001288;
+    } else if (installment <= 13) {
+      consRate = 0.002374; manRate = manRules.p11_13;
+      if (hasAngel) angelRate = 0.0002374;
+    } else if (installment === 15) {
+      consRate = 0.003;
+    }
+  }
+
+  return {
+    cons: credit * consRate * taxMultiplier,
+    man: credit * manRate * taxMultiplier,
+    angel: credit * angelRate * taxMultiplier,
+  };
 };
 
 const getOverallStatus = (installmentDetails: Record<string, InstallmentInfo>): string => {
@@ -28,6 +55,15 @@ const getOverallStatus = (installmentDetails: Record<string, InstallmentInfo>): 
   return 'Em Andamento';
 };
 
+const getInstallmentStatusColor = (status: string) => {
+  switch (status) {
+    case 'Pago': return 'bg-green-100 text-green-800 border-green-200';
+    case 'Atraso': return 'bg-red-100 text-red-800 border-red-200';
+    case 'Cancelado': return 'bg-gray-100 text-gray-600 border-gray-200';
+    default: return 'bg-yellow-50 text-yellow-800 border-yellow-200';
+  }
+};
+
 const statusColors: Record<string, string> = {
   'Em Andamento': 'bg-blue-100 text-blue-800',
   'Atraso': 'bg-red-100 text-red-800',
@@ -35,11 +71,11 @@ const statusColors: Record<string, string> = {
   'Cancelado': 'bg-gray-100 text-gray-800',
 };
 
-const installmentStatusColors: Record<string, string> = {
-  'Pago': 'bg-emerald-500',
-  'Pendente': 'bg-amber-400',
-  'Atraso': 'bg-red-500',
-  'Cancelado': 'bg-gray-400',
+const rowBgColor: Record<string, string> = {
+  'Em Andamento': 'bg-yellow-50',
+  'Atraso': 'bg-red-50',
+  'Concluído': 'bg-green-50',
+  'Cancelado': 'bg-gray-50',
 };
 
 const PublicCommissionConference = () => {
@@ -72,6 +108,7 @@ const PublicCommissionConference = () => {
       ...row,
       db_id: row.id,
       installmentDetails: (row.installment_details || {}) as Record<string, InstallmentInfo>,
+      customRules: (row.custom_rules || []) as any[],
     })) as Commission[];
 
     setCommissions(normalized);
@@ -90,13 +127,12 @@ const PublicCommissionConference = () => {
 
     commissions.forEach(c => {
       Object.entries(c.installmentDetails).forEach(([num, info]) => {
-        const installmentInfo = info as InstallmentInfo;
         totalInstallmentsCount++;
-        if (installmentInfo.status === 'Pago') {
+        if (info.status === 'Pago') {
           totalPaidInstallments++;
-          totalPaid += getInstallmentValues(c.value, parseInt(num), c.taxRate || 0);
-        } else if (installmentInfo.status === 'Pendente' || installmentInfo.status === 'Atraso') {
-          totalPending += getInstallmentValues(c.value, parseInt(num), c.taxRate || 0);
+          totalPaid += getInstallmentValues(c, parseInt(num)).cons;
+        } else if (info.status === 'Pendente' || info.status === 'Atraso') {
+          totalPending += getInstallmentValues(c, parseInt(num)).cons;
         }
       });
     });
@@ -127,9 +163,13 @@ const PublicCommissionConference = () => {
               <p className="text-sm text-slate-500 dark:text-slate-400">{decodedName}</p>
             </div>
           </div>
-          <Button variant="outline" size="icon" onClick={toggleTheme} title={theme === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}>
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-medium transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+          >
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
+          </button>
         </div>
       </header>
 
@@ -147,175 +187,169 @@ const PublicCommissionConference = () => {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="rounded-xl bg-blue-100 p-3.5 text-blue-600"><Home className="h-6 w-6" /></div>
-              <div>
-                <p className="text-sm text-slate-500">Total de Vendas</p>
-                <p className="text-3xl font-bold">{commissions.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="rounded-xl bg-violet-100 p-3.5 text-violet-600"><DollarSign className="h-6 w-6" /></div>
-              <div>
-                <p className="text-sm text-slate-500">Crédito Total</p>
-                <p className="text-3xl font-bold">{formatCurrency(commissions.reduce((s, c) => s + c.value, 0))}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="rounded-xl bg-emerald-100 p-3.5 text-emerald-600"><CheckCircle2 className="h-6 w-6" /></div>
-              <div>
-                <p className="text-sm text-slate-500">Recebido</p>
-                <p className="text-3xl font-bold text-emerald-700">{formatCurrency(stats.totalPaid)}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="rounded-xl bg-amber-100 p-3.5 text-amber-600"><Calendar className="h-6 w-6" /></div>
-              <div>
-                <p className="text-sm text-slate-500">A Receber</p>
-                <p className="text-3xl font-bold text-amber-700">{formatCurrency(stats.totalPending)}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
+            <div className="p-2 bg-blue-50 rounded-lg"><Home className="w-5 h-5 text-blue-600" /></div>
+            <div>
+              <p className="text-sm text-gray-500">Total de Vendas</p>
+              <p className="text-xl font-bold text-gray-900">{commissions.length}</p>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
+            <div className="p-2 bg-violet-50 rounded-lg"><DollarSign className="w-5 h-5 text-violet-600" /></div>
+            <div>
+              <p className="text-sm text-gray-500">Crédito Total</p>
+              <p className="text-xl font-bold text-gray-900">{formatCurrency(commissions.reduce((s, c) => s + c.value, 0))}</p>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
+            <div className="p-2 bg-green-50 rounded-lg"><CheckCircle2 className="w-5 h-5 text-green-600" /></div>
+            <div>
+              <p className="text-sm text-gray-500">Recebido (Consultor)</p>
+              <p className="text-xl font-bold text-green-700">{formatCurrency(stats.totalPaid)}</p>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3">
+            <div className="p-2 bg-yellow-50 rounded-lg"><Calendar className="w-5 h-5 text-yellow-600" /></div>
+            <div>
+              <p className="text-sm text-gray-500">A Receber (Consultor)</p>
+              <p className="text-xl font-bold text-yellow-700">{formatCurrency(stats.totalPending)}</p>
+            </div>
+          </div>
         </div>
 
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex justify-between items-center mb-2">
-              <p className="text-sm font-medium text-slate-600">Progresso Geral</p>
-              <p className="text-sm font-bold">{stats.totalPaidInstallments}/{stats.totalInstallmentsCount} parcelas ({stats.totalInstallmentsCount > 0 ? Math.round((stats.totalPaidInstallments / stats.totalInstallmentsCount) * 100) : 0}%)</p>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-3">
-              <div
-                className={`h-3 rounded-full transition-all duration-500 ${stats.totalPaidInstallments === stats.totalInstallmentsCount ? 'bg-emerald-500' : stats.totalPaidInstallments / stats.totalInstallmentsCount > 0.5 ? 'bg-blue-500' : 'bg-amber-500'}`}
-                style={{ width: `${stats.totalInstallmentsCount > 0 ? (stats.totalPaidInstallments / stats.totalInstallmentsCount) * 100 : 0}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-sm font-medium text-gray-600">Progresso Geral</p>
+            <p className="text-sm font-bold text-gray-900">{stats.totalPaidInstallments}/{stats.totalInstallmentsCount} parcelas ({stats.totalInstallmentsCount > 0 ? Math.round((stats.totalPaidInstallments / stats.totalInstallmentsCount) * 100) : 0}%)</p>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className={`h-3 rounded-full transition-all duration-500 ${stats.totalPaidInstallments === stats.totalInstallmentsCount ? 'bg-green-500' : stats.totalPaidInstallments / stats.totalInstallmentsCount > 0.5 ? 'bg-blue-500' : 'bg-yellow-500'}`}
+              style={{ width: `${stats.totalInstallmentsCount > 0 ? (stats.totalPaidInstallments / stats.totalInstallmentsCount) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
 
         {commissions.length === 0 ? (
-          <Card>
-            <CardContent className="py-16 text-center">
-              <ClipboardCheck className="mx-auto mb-4 h-12 w-12 text-slate-300" />
-              <h2 className="text-lg font-semibold">Nenhuma venda encontrada</h2>
-              <p className="mt-1 text-sm text-slate-500">Não há comissões registradas para este consultor.</p>
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm py-16 text-center">
+            <ClipboardCheck className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+            <h2 className="text-lg font-semibold text-gray-900">Nenhuma venda encontrada</h2>
+            <p className="mt-1 text-sm text-gray-500">Não há comissões registradas para este consultor.</p>
+          </div>
         ) : (
-          <div className="space-y-4">
-            {commissions.map(c => {
-              const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
-              const status = getOverallStatus(c.installmentDetails);
-              const isExpanded = expandedRow === c.db_id;
-              let paidValue = 0;
-              Object.entries(c.installmentDetails).forEach(([num, info]) => {
-                if (info.status === 'Pago') {
-                  paidValue += getInstallmentValues(c.value, parseInt(num), c.taxRate || 0);
-                }
-              });
-              const consultantTotal = c.consultantValue || 0;
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                  <tr>
+                    <th className="px-4 py-3">Data</th>
+                    <th className="px-4 py-3">Cliente / Produto</th>
+                    <th className="px-4 py-3">Valor do Crédito</th>
+                    <th className="px-4 py-3">Progresso & Status</th>
+                    <th className="px-4 py-3 text-right">Meu Valor</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {commissions.map(c => {
+                    const paidCount = Object.values(c.installmentDetails).filter(s => s.status === 'Pago').length;
+                    const status = getOverallStatus(c.installmentDetails);
+                    const isExpanded = expandedRow === c.db_id;
+                    const progressPercent = (paidCount / 15) * 100;
+                    const progressColor = progressPercent === 100 ? 'bg-green-500' : progressPercent > 50 ? 'bg-blue-500' : 'bg-yellow-500';
 
-              return (
-                <Card key={c.db_id} className="overflow-hidden">
-                  <div className="cursor-pointer" onClick={() => setExpandedRow(isExpanded ? null : c.db_id!)}>
-                    <CardContent className="p-5">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`rounded-xl p-3 ${c.type === 'Imóvel' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
-                            <Home className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-slate-900">{c.clientName}</h3>
-                            <p className="text-sm text-slate-500">{c.group}/{c.quota} · {new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')} · {c.pv}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-xs text-slate-500">Crédito</p>
-                            <p className="font-bold">{formatCurrency(c.value)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-slate-500">Meu valor</p>
-                            <p className="font-bold text-emerald-700">{formatCurrency(consultantTotal)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-slate-500">Recebido</p>
-                            <p className="font-bold text-emerald-600">{formatCurrency(paidValue)}</p>
-                          </div>
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusColors[status] || ''}`}>{status}</span>
-                          {isExpanded ? <ChevronUp className="h-5 w-5 text-slate-400" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <div className="flex justify-between text-xs text-slate-500 mb-1">
-                          <span>{paidCount}/15 parcelas pagas</span>
-                          <span>{Math.round((paidCount / 15) * 100)}%</span>
-                        </div>
-                        <div className="w-full bg-slate-200 rounded-full h-2">
-                          <div className={`h-2 rounded-full ${paidCount === 15 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${(paidCount / 15) * 100}%` }} />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="border-t bg-slate-50 px-5 py-4">
-                      <h4 className="text-sm font-semibold text-slate-700 mb-3">Parcelas</h4>
-                      <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-15 gap-2">
-                        {Object.entries(c.installmentDetails).map(([num, info]) => {
-                          const installmentInfo = info as InstallmentInfo;
-                          const st = installmentInfo?.status || 'Pendente';
-                          const dotColor = installmentStatusColors[st] || 'bg-gray-400';
-                          const val = getInstallmentValues(c.value, parseInt(num), c.taxRate || 0);
-                          return (
-                            <div key={num} className={`text-center p-2 rounded-lg text-xs border ${
-                              st === 'Pago' ? 'bg-emerald-50 border-emerald-200' : st === 'Atraso' ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'
-                            }`}>
-                              <div className={`w-2.5 h-2.5 rounded-full mx-auto mb-1 ${dotColor}`} />
-                              <div className="font-semibold text-slate-700">{num}</div>
-                              <div className="text-slate-500 text-[10px]">{formatCurrency(val)}</div>
-                              {installmentInfo.competenceMonth && (
-                                <div className="text-[9px] text-purple-600 font-medium mt-0.5">
-                                  {installmentInfo.competenceMonth.slice(5, 7)}/{installmentInfo.competenceMonth.slice(2, 4)}
-                                </div>
-                              )}
+                    return (
+                      <React.Fragment key={c.db_id}>
+                        <tr className={`${rowBgColor[status]} hover:bg-gray-50 transition`}>
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-medium text-gray-900">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-gray-900 flex items-center">
+                              {c.clientName}
+                              {c.angelName && <Crown className="ml-2 h-3.5 w-3.5 text-yellow-500" />}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
+                            <div className="text-xs text-gray-500">
+                              {c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-base font-bold text-gray-900">{formatCurrency(c.value)}</div>
+                            <div className="text-xs text-gray-500">PV: {c.pv}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>{status}</span>
+                            <div className="mt-2">
+                              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>{paidCount}/15</span>
+                                <span>{Math.round(progressPercent)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                <div className={`h-1.5 rounded-full ${progressColor}`} style={{ width: `${progressPercent}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-gray-900">{formatCurrency(c.consultantValue)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => setExpandedRow(isExpanded ? null : c.db_id!)}
+                              className="p-2 rounded-md hover:bg-gray-100 text-gray-500"
+                            >
+                              <ChevronDown className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className={rowBgColor[status]}>
+                            <td colSpan={6} className="p-4">
+                              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                {Object.entries(c.installmentDetails).map(([num, info]) => {
+                                  const installmentInfo = info as InstallmentInfo;
+                                  const statusValue = installmentInfo?.status || 'Pendente';
+                                  const values = getInstallmentValues(c, parseInt(num));
+                                  return (
+                                    <div key={num} className="text-center p-2 rounded-md border bg-white">
+                                      <div className="text-xs text-gray-400">
+                                        Parcela {num}
+                                        {installmentInfo.competenceMonth && (
+                                          <div className="text-[10px] text-purple-600 font-semibold">
+                                            Comp: {installmentInfo.competenceMonth.slice(5, 7)}/{installmentInfo.competenceMonth.slice(2, 4)}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className={`mt-1 w-full text-xs font-bold py-1 px-2 rounded border ${getInstallmentStatusColor(statusValue)}`}>
+                                        {statusValue}
+                                      </div>
+                                      {statusValue === 'Pago' && (
+                                        <div className="mt-2 text-xs space-y-1 text-left text-gray-600">
+                                          <div className="flex justify-between"><span>Consultor:</span> <span className="font-medium text-gray-800">{formatCurrency(values.cons)}</span></div>
+                                          <div className="flex justify-between"><span>Gestor:</span> <span className="font-medium text-gray-800">{formatCurrency(values.man)}</span></div>
+                                          {c.angelName && <div className="flex justify-between"><span>Anjo:</span> <span className="font-medium text-gray-800">{formatCurrency(values.angel)}</span></div>}
+                                        </div>
+                                      )}
+                                      {statusValue !== 'Pago' && (
+                                        <div className="mt-2 text-xs text-left text-gray-500">
+                                          <div className="flex justify-between"><span>Consultor:</span> <span className="font-medium">{formatCurrency(values.cons)}</span></div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </main>
     </div>
   );
 };
-
-const Button = ({ children, variant, size, onClick, title, className, ...props }: any) => {
-  return (
-    <button onClick={onClick} title={title} className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition ${variant === 'outline' ? 'border border-slate-300 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700' : 'bg-brand-600 text-white hover:bg-brand-700'} ${size === 'icon' ? 'h-9 w-9' : 'h-9 px-4'} ${className || ''}`} {...props}>
-      {children}
-    </button>
-  );
-};
-
-const Card = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={`rounded-xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className || ''}`}>{children}</div>
-);
-
-const CardContent = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={className}>{children}</div>
-);
 
 export default PublicCommissionConference;
