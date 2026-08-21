@@ -1,0 +1,426 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useApp } from '@/context/AppContext';
+import { CrmLead, CrmField, CrmStage } from '@/types';
+import { X, Save, Loader2, SlidersHorizontal, MapPin } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/context/AuthContext'; // Importar useAuth
+
+interface LeadModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  lead: CrmLead | null; // Pode ser null para novo lead
+  crmFields: CrmField[];
+  assignedConsultantId?: string | null;
+}
+
+const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, lead, crmFields, assignedConsultantId }) => {
+  const { user } = useAuth(); // Obter o usuário logado
+  const { addCrmLead, updateCrmLead, deleteCrmLead, crmOwnerUserId, crmStages, salesOrigins, crmPipelines, teamMembers } = useApp();
+  const [formData, setFormData] = useState<Partial<CrmLead>>({
+    name: '',
+    data: {},
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  // A lista de origens disponíveis é estritamente as salesOrigins configuradas
+  const allAvailableOrigins = useMemo(() => {
+    return [...salesOrigins].sort((a, b) => a.localeCompare(b));
+  }, [salesOrigins]);
+
+  const consultants = useMemo(() => {
+    // CORREÇÃO: Filtra membros ativos com busca insensível a maiúsculas nos cargos.
+    const allowedRoles = ['prévia', 'autorizado', 'gestor', 'anjo', 'consultor'];
+    
+    return teamMembers.filter(m => 
+      m.isActive && 
+      m.roles.some(role => allowedRoles.includes(role.toLowerCase()))
+    ).sort((a, b) => a.name.localeCompare(b.name));
+  }, [teamMembers]);
+
+  const activePipeline = useMemo(() => {
+    return crmPipelines.find(p => p.is_active) || crmPipelines[0];
+  }, [crmPipelines]);
+
+  const firstActiveStage = useMemo(() => {
+    if (!activePipeline) return null;
+    return crmStages
+      .filter(s => s.pipeline_id === activePipeline.id && s.is_active)
+      .sort((a, b) => a.order_index - b.order_index)[0];
+  }, [crmStages, activePipeline]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const initialOrigin = lead?.data?.origin;
+      let validatedOrigin = '';
+
+      // Se houver uma origem inicial e ela estiver na lista de origens configuradas, use-a.
+      if (initialOrigin && allAvailableOrigins.includes(initialOrigin)) {
+        validatedOrigin = initialOrigin;
+      }
+
+      // Lógica para definir o consultant_id automaticamente ou permitir seleção
+      let initialConsultantId = lead?.consultant_id || '';
+      if (!lead && user?.role === 'CONSULTOR' && user.id) {
+        initialConsultantId = user.id; // Preenche automaticamente para consultores em novo lead
+      } else if (!initialConsultantId && assignedConsultantId) {
+        initialConsultantId = assignedConsultantId; // Fallback para assignedConsultantId se não houver lead e não for consultor
+      }
+
+      // Definir a etapa padrão para novos leads
+      let initialStageId = lead?.stage_id || '';
+      if (!lead && firstActiveStage) {
+        initialStageId = firstActiveStage.id;
+      }
+
+      setFormData({
+        name: lead?.name || '',
+        stage_id: initialStageId, // Definir a etapa padrão aqui
+        consultant_id: initialConsultantId,
+        proposal_value: lead?.proposal_value, // Usando snake_case
+        proposal_closing_date: lead?.proposal_closing_date, // Usando snake_case
+        sold_credit_value: lead?.sold_credit_value, // Usando snake_case
+        sold_group: lead?.sold_group, // Usando snake_case
+        sold_quota: lead?.sold_quota, // Usando snake_case
+        sale_date: lead?.sale_date, // Usando snake_case
+        data: { 
+          ...lead?.data,
+          origin: validatedOrigin,
+        },
+      });
+      setError('');
+    }
+  }, [lead, isOpen, assignedConsultantId, allAvailableOrigins, user, firstActiveStage]);
+
+  const handleChange = (key: string, value: any) => {
+    setFormData(prev => {
+      // Campos que são diretamente propriedades de CrmLead (agora snake_case)
+      if (['name', 'stage_id', 'consultant_id', 'proposal_value', 'proposal_closing_date', 'sold_credit_value', 'sold_group', 'sold_quota', 'sale_date'].includes(key)) {
+        return { ...prev, [key]: value };
+      } else {
+        // Campos dentro do objeto 'data'
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            [key]: value,
+          },
+        };
+      }
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    const errorsList: string[] = [];
+
+    if (!formData.name?.trim()) {
+      errorsList.push('Nome do Lead');
+    }
+
+    if (!formData.data?.origin?.trim()) {
+      errorsList.push('Origem');
+    }
+
+    // Para novos leads, a etapa já é preenchida automaticamente.
+    // Para leads existentes, a etapa deve existir.
+    if (lead && !formData.stage_id) {
+      errorsList.push('Etapa');
+    } else if (!lead && !firstActiveStage) {
+      errorsList.push('Nenhuma etapa ativa configurada no pipeline. Por favor, configure-a nas configurações do CRM.');
+    }
+
+    const systemHandledKeys = ['name', 'nome', 'origin', 'origem']; 
+    
+    const missingRequiredCustomFields = crmFields.filter(field => 
+      field.is_active && 
+      field.is_required && 
+      !systemHandledKeys.includes(field.key) && 
+      !formData.data?.[field.key]
+    );
+
+    missingRequiredCustomFields.forEach(field => {
+      errorsList.push(field.label);
+    });
+
+    if (errorsList.length > 0) {
+      setError(`Os seguintes campos são obrigatórios: ${errorsList.join(', ')}.`);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        ...formData,
+        name: formData.name || null,
+        consultant_id: formData.consultant_id || null,
+        user_id: crmOwnerUserId,
+        data: {
+          ...formData.data,
+          origin: formData.data?.origin || null,
+        },
+        stage_id: formData.stage_id || firstActiveStage?.id, // Garante que stage_id seja definido
+        proposal_value: formData.proposal_value || null, // Usando snake_case
+        proposal_closing_date: formData.proposal_closing_date || null, // Usando snake_case
+        sold_credit_value: formData.sold_credit_value || null, // Usando snake_case
+        sold_group: formData.sold_group || null, // Usando snake_case
+        sold_quota: formData.sold_quota || null, // Usando snake_case
+        sale_date: formData.sale_date || null, // Usando snake_case
+      } as CrmLead;
+
+      if (lead) {
+        await updateCrmLead(lead.id, payload);
+        toast.success(`Lead "${payload.name}" atualizado com sucesso!`);
+      } else {
+        await addCrmLead(payload);
+        toast.success(`Lead "${payload.name}" adicionado com sucesso!`);
+      }
+      onClose();
+    } catch (error: any) {
+      console.error("Erro ao salvar lead:", error);
+      toast.error(`Erro ao salvar lead: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!lead || !window.confirm(`Tem certeza que deseja excluir o lead "${lead.name}"?`)) return;
+    setIsDeleting(true);
+    try {
+      await deleteCrmLead(lead.id);
+      toast.success(`Lead "${lead.name}" excluído com sucesso!`);
+      onClose();
+    } catch (error: any) {
+      console.error("Erro ao excluir lead:", error);
+      toast.error(`Erro ao excluir lead: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const renderField = (field: CrmField) => {
+    const systemReservedKeys = ['name', 'nome', 'origin', 'origem'];
+
+    if (systemReservedKeys.includes(field.key)) {
+      return null;
+    }
+
+    const value = formData.data?.[field.key] || '';
+    const commonProps = {
+      id: field.key,
+      name: field.key,
+      value: value,
+      onChange: (e: any) => handleChange(field.key, e.target.value),
+      className: "w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent",
+      required: field.is_required,
+    };
+
+    switch (field.type) {
+      case 'text':
+        return <Input type="text" {...commonProps} />;
+      case 'longtext':
+        return <Textarea rows={3} {...commonProps} />;
+      case 'number':
+        return <Input type="number" {...commonProps} />;
+      case 'select':
+        return (
+          <Select value={value} onValueChange={(val) => handleChange(field.key, val)} required={field.is_required}>
+            <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-transparent">
+              <SelectValue placeholder={`Selecione ${field.label}`} />
+            </SelectTrigger>
+            <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white border-gray-200 dark:border-slate-700 shadow-lg z-50 max-h-[200px] overflow-y-auto">
+              {field.options?.map(option => (
+                <SelectItem key={option} value={option}>{option}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      default:
+        return <Input type="text" {...commonProps} />;
+    }
+  };
+
+  const filteredCrmFields = useMemo(() => {
+    const explicitlyHandledKeys = ['name', 'nome', 'origin', 'origem']; 
+    
+    return crmFields.filter(field => 
+      field.is_active && 
+      !explicitlyHandledKeys.includes(field.key)
+    );
+  }, [crmFields]);
+
+  const currentStageName = useMemo(() => {
+    if (!lead?.stage_id) return 'N/A';
+    const stage = crmStages.find(s => s.id === lead.stage_id);
+    return stage?.name || 'N/A';
+  }, [lead?.stage_id, crmStages]);
+
+  const isConsultorRole = user?.role === 'CONSULTOR';
+  const isNewLead = !lead;
+
+  // Determina se o campo de consultor deve ser desabilitado
+  const isConsultantFieldDisabled = isConsultorRole && isNewLead;
+
+
+  if (!isOpen) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose();
+    }}>
+      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
+        <DialogHeader>
+          <DialogTitle>{lead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
+          <DialogDescription>
+            {lead ? `Edite as informações de ${lead.name}.` : 'Preencha os detalhes para adicionar um novo lead.'}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <ScrollArea className="max-h-[60vh] py-4 pr-4 custom-scrollbar">
+            <div className="grid gap-4">
+              {lead && (
+                <div className="grid gap-2">
+                  <Label htmlFor="current_stage" className="text-left text-gray-500 dark:text-gray-400">
+                    Etapa Atual
+                  </Label>
+                  <Input
+                    id="current_stage"
+                    value={currentStageName}
+                    readOnly
+                    className="w-full p-2 border rounded bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200"
+                  />
+                </div>
+              )}
+
+              <div className="grid gap-2">
+                <Label htmlFor="name" className="text-left">
+                  Nome do Lead <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600"
+                  required
+                />
+              </div>
+
+              {/* Conditionally render the "Consultor" field */}
+              {!(isConsultorRole && isNewLead) && (
+                <div className="grid gap-2">
+                  <Label htmlFor="consultant_id" className="text-left">
+                    Consultor <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.consultant_id || ''}
+                    onValueChange={(val) => handleChange('consultant_id', val)}
+                    required
+                    disabled={isConsultantFieldDisabled}
+                  >
+                    <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <SelectValue placeholder="Selecione o Consultor" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
+                      {consultants.map(consultant => (
+                        <SelectItem key={consultant.id} value={consultant.id}>
+                          {consultant.name} ({consultant.roles.join(', ')})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="grid gap-2">
+                <Label htmlFor="origin" className="text-left">
+                  Origem <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Select
+                    value={formData.data?.origin || ''}
+                    onValueChange={(val) => handleChange('origin', val)}
+                    required
+                  >
+                    <SelectTrigger className="w-full pl-10 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <SelectValue placeholder="Selecione a origem" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700 max-h-[200px] overflow-y-auto">
+                      {allAvailableOrigins.map(origin => (
+                        <SelectItem key={origin} value={origin}>{origin}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="col-span-4 border-t border-gray-200 dark:border-slate-700 pt-4 mt-4">
+                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                  <SlidersHorizontal className="w-4 h-4 mr-2 text-brand-500" />
+                  Campos Personalizados
+                </h4>
+                <div className="grid gap-4">
+                  {filteredCrmFields.map(field => (
+                    <div key={field.id} className="grid gap-2">
+                      <Label htmlFor={field.key} className="text-left">
+                        {field.label} {field.is_required && <span className="text-red-500">*</span>}
+                      </Label>
+                      <div>
+                        {renderField(field)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+            {lead && (
+              <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting} className="mb-2 sm:mb-0 w-full sm:w-auto">
+                {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <X className="w-4 h-4 mr-2" />}
+                {isDeleting ? 'Excluindo...' : 'Excluir Lead'}
+              </Button>
+            )}
+            <div className="flex gap-2 flex-col sm:flex-row w-full sm:w-auto">
+              <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                <span>Salvar</span>
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default LeadModal;

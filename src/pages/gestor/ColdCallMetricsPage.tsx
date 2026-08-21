@@ -1,0 +1,266 @@
+import React, { useState, useMemo } from 'react';
+import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock, TrendingUp, Star } from 'lucide-react';
+import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
+import { ColdCallLead, ColdCallLog, ColdCallDetailType } from '@/types';
+import toast from 'react-hot-toast';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { MetricCard } from '@/components/MetricCard';
+
+const formatDuration = (seconds: number) => {
+  if (isNaN(seconds) || seconds < 0) return '0s';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+};
+
+const ColdCallMetricsPage = () => {
+  const { user } = useAuth();
+  const { coldCallLeads, coldCallLogs, teamMembers, isDataLoading } = useApp();
+
+  const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null);
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+
+  const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
+  const [coldCallModalTitle, setColdCallModalTitle] = useState('');
+  const [coldCallLeadsForModal, setColdCallLeadsForModal] = useState<ColdCallLead[]>([]);
+  const [coldCallLogsForModal, setColdCallLogsForModal] = useState<ColdCallLog[]>([]);
+  const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
+  
+  const selectedColdCallConsultantName = useMemo(() => {
+    if (!selectedColdCallConsultantId) {
+      return 'Todos os Consultores';
+    }
+    return teamMembers.find(m => (m.authUserId || m.id) === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido';
+  }, [selectedColdCallConsultantId, teamMembers]);
+
+
+  const coldCallConsultants = useMemo(() => {
+    return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
+  }, [teamMembers]);
+
+  const filteredColdCallLogs = useMemo(() => {
+    let logs = coldCallLogs;
+    if (selectedColdCallConsultantId) {
+      logs = logs.filter(log => log.user_id === selectedColdCallConsultantId);
+    }
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      logs = logs.filter(log => new Date(log.created_at) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59');
+      logs = logs.filter(log => new Date(log.created_at) <= end);
+    }
+    return logs;
+  }, [coldCallLogs, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
+
+  const filteredColdCallLeadsForMetrics = useMemo(() => {
+    let leads = coldCallLeads;
+    if (selectedColdCallConsultantId) {
+      leads = leads.filter(lead => lead.user_id === selectedColdCallConsultantId);
+    }
+    if (filterStartDate) {
+      const start = new Date(filterStartDate + 'T00:00:00');
+      leads = leads.filter(lead => new Date(lead.created_at) >= start);
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate + 'T23:59:59');
+      leads = leads.filter(lead => new Date(lead.created_at) <= end);
+    }
+    return leads;
+  }, [coldCallLeads, selectedColdCallConsultantId, filterStartDate, filterEndDate]);
+
+  const coldCallMetrics = useMemo(() => {
+    const totalCalls = filteredColdCallLogs.length;
+    
+    const answeredLogs = filteredColdCallLogs.filter(log => 
+      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
+    );
+    const totalAnswered = answeredLogs.length;
+
+    const totalConversations = answeredLogs.filter(log =>
+      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+    ).length;
+    const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
+
+    const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
+    const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;
+
+    const totalDuration = filteredColdCallLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
+    const averageDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
+
+    return {
+      totalCalls,
+      totalAnswered,
+      totalConversations,
+      totalMeetingsScheduled,
+      interestConversionRate,
+      meetingConversionRate,
+      averageDuration,
+    };
+  }, [filteredColdCallLogs]);
+
+  const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
+    const leadsToPass = selectedColdCallConsultantId 
+      ? coldCallLeads.filter(l => l.user_id === selectedColdCallConsultantId)
+      : coldCallLeads; 
+
+    setColdCallModalTitle(title);
+    setColdCallLeadsForModal(leadsToPass);
+    setColdCallLogsForModal(filteredColdCallLogs);
+    setColdCallDetailType(type);
+    setIsColdCallDetailModalOpen(true);
+  };
+
+  const clearFilters = () => {
+    setFilterStartDate('');
+    setFilterEndDate('');
+    setSelectedColdCallConsultantId(null);
+  };
+
+  const hasActiveFilters = filterStartDate || filterEndDate || selectedColdCallConsultantId;
+
+  if (isDataLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
+        <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div key={user?.id || 'guest'} className="p-4 sm:p-8 max-w-7xl mx-auto space-y-10">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+          <PhoneCall className="w-6 h-6 mr-2 text-brand-500" /> Métricas de Cold Call
+        </h1>
+        <div className="flex items-center space-x-2">
+          <label htmlFor="coldCallConsultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">Consultor:</label>
+          <Select
+            value={selectedColdCallConsultantId || 'all'}
+            onValueChange={(value) => setSelectedColdCallConsultantId(value === 'all' ? null : value)}
+          >
+            <SelectTrigger className="w-[180px] dark:bg-slate-700 dark:text-white dark:border-slate-600">
+              <SelectValue placeholder="Selecione o Consultor" />
+            </SelectTrigger>
+            <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+              <SelectItem value="all">Todos os Consultores</SelectItem>
+              {coldCallConsultants.map(consultant => (
+                <SelectItem key={consultant.id} value={consultant.authUserId || consultant.id}>
+                  {consultant.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Filtros de Data */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm space-y-4">
+        <div className="flex items-center justify-between flex-col sm:flex-row">
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center uppercase tracking-wide"><Filter className="w-4 h-4 mr-2" />Filtrar por Período</h3>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs flex items-center text-red-500 hover:text-red-700 transition mt-2 sm:mt-0">
+              <RotateCcw className="w-3 h-3 mr-1" />Limpar Filtros
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="filterStartDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Início</label>
+            <input
+              type="date"
+              id="filterStartDate"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="filterEndDate" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Data de Fim</label>
+            <input
+              type="date"
+              id="filterEndDate"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <MetricCard
+          title="Total de Ligações"
+          value={coldCallMetrics.totalCalls}
+          icon={PhoneCall}
+          colorClass="bg-blue-600 text-white"
+          subValue="Chamadas registradas no período"
+          onClick={() => handleOpenColdCallDetailModal('Total de Ligações', 'calls')}
+        />
+        <MetricCard
+          title="Ligações Atendidas"
+          value={coldCallMetrics.totalAnswered}
+          icon={MessageSquare}
+          colorClass="bg-sky-600 text-white"
+          subValue="Chamadas que foram atendidas"
+          onClick={() => handleOpenColdCallDetailModal('Ligações Atendidas', 'answered')}
+        />
+        <MetricCard
+          title="Demonstraram Interesse"
+          value={coldCallMetrics.totalConversations}
+          icon={Star}
+          colorClass="bg-amber-600 text-white"
+          subValue="Conversou ou Agendou Reunião"
+          onClick={() => handleOpenColdCallDetailModal('Demonstraram Interesse', 'conversations')}
+        />
+        <MetricCard
+          title="Taxa de Interesse"
+          value={`${coldCallMetrics.interestConversionRate.toFixed(1)}%`}
+          icon={Percent}
+          colorClass="bg-yellow-600 text-white"
+          subValue="Atendidas → Interesse"
+        />
+        <MetricCard
+          title="Reuniões Agendadas"
+          value={coldCallMetrics.totalMeetingsScheduled}
+          icon={CalendarCheck}
+          colorClass="bg-green-600 text-white"
+          subValue="Agendadas durante a ligação"
+          onClick={() => handleOpenColdCallDetailModal('Reuniões Agendadas', 'meetings')}
+        />
+        <MetricCard
+          title="Taxa de Agendamento"
+          value={`${coldCallMetrics.meetingConversionRate.toFixed(1)}%`}
+          icon={TrendingUp}
+          colorClass="bg-teal-600 text-white"
+          subValue="Atendidas → Reunião"
+        />
+      </div>
+
+      <ColdCallDetailModal
+        isOpen={isColdCallDetailModalOpen}
+        onClose={() => setIsColdCallDetailModalOpen(false)}
+        title={coldCallModalTitle}
+        consultantName={selectedColdCallConsultantName}
+        leads={coldCallLeadsForModal}
+        logs={coldCallLogsForModal}
+        type={coldCallDetailType}
+        teamMembers={teamMembers}
+        filterStartDate={filterStartDate}
+        filterEndDate={filterEndDate}
+      />
+    </div>
+  );
+};
+
+export default ColdCallMetricsPage;

@@ -1,0 +1,615 @@
+import React, { useMemo, useState } from 'react';
+import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
+import { GestorTask } from '@/types';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Calendar,
+  Clock,
+  Save,
+  X,
+  ListTodo,
+  CalendarPlus,
+  Repeat,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  ArrowRightCircle,
+  Settings2,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import toast from 'react-hot-toast';
+
+const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+interface GestorTasksSectionProps {
+  compact?: boolean;
+  mode?: 'dashboard' | 'config';
+}
+
+export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
+  compact = false,
+  mode = 'config',
+}) => {
+  const { user } = useAuth();
+  const {
+    gestorTasks,
+    gestorTaskCompletions,
+    addGestorTask,
+    updateGestorTask,
+    deleteGestorTask,
+    toggleGestorTaskCompletion,
+    isGestorTaskDueOnDate,
+  } = useApp();
+
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [newTaskRecurrenceType, setNewTaskRecurrenceType] = useState<'none' | 'daily' | 'every_x_days'>('none');
+  const [newTaskRecurrenceInterval, setNewTaskRecurrenceInterval] = useState<number | undefined>(undefined);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+
+  const [editingTask, setEditingTask] = useState<GestorTask | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskDescription, setEditTaskDescription] = useState('');
+  const [editTaskDueDate, setEditTaskDueDate] = useState('');
+  const [editTaskRecurrenceType, setEditTaskRecurrenceType] = useState<'none' | 'daily' | 'every_x_days'>('none');
+  const [editTaskRecurrenceInterval, setEditTaskRecurrenceInterval] = useState<number | undefined>(undefined);
+  const [isUpdatingTask, setIsUpdatingTask] = useState(false);
+
+  const [showAllTasks, setShowAllTasks] = useState(false);
+  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [isRescheduling, setIsRescheduling] = useState(false);
+
+  const today = formatDate(new Date());
+  const isDashboardMode = mode === 'dashboard';
+
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
+  const displayDateLabel = useMemo(() =>
+    selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
+  [selectedDate]);
+  const navigateDay = (offset: number) => {
+    setSelectedDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(prev.getDate() + offset);
+      return newDate;
+    });
+  };
+
+  const sortedTasks = useMemo(() => {
+    return [...gestorTasks].sort((a, b) => {
+      const aIsRecurring = a.recurrence_pattern && a.recurrence_pattern.type !== 'none';
+      const bIsRecurring = b.recurrence_pattern && b.recurrence_pattern.type !== 'none';
+
+      const aIsCompletedToday = aIsRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === a.id && c.user_id === user?.id && c.date === today && c.done);
+      const bIsCompletedToday = bIsRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === b.id && c.user_id === user?.id && c.date === today && c.done);
+
+      const aIsDueToday = isGestorTaskDueOnDate(a, today);
+      const bIsDueToday = isGestorTaskDueOnDate(b, today);
+
+      if (aIsDueToday && !aIsCompletedToday && (!bIsDueToday || bIsCompletedToday)) return -1;
+      if (bIsDueToday && !bIsCompletedToday && (!aIsDueToday || aIsCompletedToday)) return 1;
+
+      if (!aIsRecurring && !a.is_completed && (!bIsRecurring && b.is_completed)) return -1;
+      if (!bIsRecurring && !b.is_completed && (!aIsRecurring && a.is_completed)) return 1;
+
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+    });
+  }, [gestorTasks, gestorTaskCompletions, user?.id, today, isGestorTaskDueOnDate]);
+
+  const dashboardTasks = useMemo(() => {
+    return sortedTasks.filter(task => {
+      const isDueOnDate = isGestorTaskDueOnDate(task, formattedSelectedDate);
+      if (formattedSelectedDate === today) {
+        const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+        const isOverdue = !isRecurring && !task.is_completed && !!task.due_date && task.due_date < today;
+        return isDueOnDate || isOverdue;
+      }
+      return isDueOnDate;
+    });
+  }, [sortedTasks, formattedSelectedDate, today, isGestorTaskDueOnDate]);
+
+  const configVisibleLimit = compact ? 5 : 6;
+  const tasksToDisplay = isDashboardMode
+    ? dashboardTasks
+    : showAllTasks
+      ? sortedTasks
+      : sortedTasks.slice(0, configVisibleLimit);
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newTaskTitle.trim()) {
+      toast.error('O título da tarefa é obrigatório.');
+      return;
+    }
+
+    if (newTaskRecurrenceType === 'every_x_days' && (!newTaskRecurrenceInterval || isNaN(newTaskRecurrenceInterval) || newTaskRecurrenceInterval < 2)) {
+      toast.error("Para recorrência 'A cada X dias', o intervalo deve ser maior ou igual a 2.");
+      return;
+    }
+
+    setIsAddingTask(true);
+    try {
+      const recurrence_pattern = newTaskRecurrenceType === 'none'
+        ? { type: 'none' as const }
+        : {
+            type: newTaskRecurrenceType,
+            interval: newTaskRecurrenceType === 'every_x_days'
+              ? (newTaskRecurrenceInterval && !isNaN(newTaskRecurrenceInterval) ? Math.max(2, newTaskRecurrenceInterval) : 2)
+              : undefined,
+          };
+
+      await addGestorTask({
+        title: newTaskTitle.trim(),
+        description: newTaskDescription.trim() || undefined,
+        due_date: newTaskDueDate || undefined,
+        is_completed: false,
+        recurrence_pattern,
+      });
+
+      setNewTaskTitle('');
+      setNewTaskDescription('');
+      setNewTaskDueDate('');
+      setNewTaskRecurrenceType('none');
+      setNewTaskRecurrenceInterval(undefined);
+      toast.success('Tarefa adicionada!');
+    } catch (error) {
+      console.error('Failed to add gestor task:', error);
+      toast.error('Erro ao adicionar tarefa.');
+    } finally {
+      setIsAddingTask(false);
+    }
+  };
+
+  const startEditingTask = (task: GestorTask) => {
+    setEditingTask(task);
+    setEditTaskTitle(task.title);
+    setEditTaskDescription(task.description || '');
+    setEditTaskDueDate(task.due_date || '');
+    setEditTaskRecurrenceType(task.recurrence_pattern?.type || 'none');
+    setEditTaskRecurrenceInterval(task.recurrence_pattern?.interval);
+  };
+
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !editingTask || !editTaskTitle.trim()) {
+      toast.error('O título da tarefa é obrigatório.');
+      return;
+    }
+
+    if (editTaskRecurrenceType === 'every_x_days' && (!editTaskRecurrenceInterval || isNaN(editTaskRecurrenceInterval) || editTaskRecurrenceInterval < 2)) {
+      toast.error("Para recorrência 'A cada X dias', o intervalo deve ser maior ou igual a 2.");
+      return;
+    }
+
+    setIsUpdatingTask(true);
+    try {
+      const recurrence_pattern = editTaskRecurrenceType === 'none'
+        ? { type: 'none' as const }
+        : {
+            type: editTaskRecurrenceType,
+            interval: editTaskRecurrenceType === 'every_x_days'
+              ? (editTaskRecurrenceInterval && !isNaN(editTaskRecurrenceInterval) ? Math.max(2, editTaskRecurrenceInterval) : 2)
+              : undefined,
+          };
+
+      await updateGestorTask(editingTask.id, {
+        title: editTaskTitle.trim(),
+        description: editTaskDescription.trim() || undefined,
+        due_date: editTaskDueDate || undefined,
+        recurrence_pattern,
+      });
+
+      setEditingTask(null);
+      toast.success('Tarefa atualizada!');
+    } catch (error) {
+      console.error('Failed to update gestor task:', error);
+      toast.error('Erro ao atualizar tarefa.');
+    } finally {
+      setIsUpdatingTask(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!user || !window.confirm('Tem certeza que deseja excluir esta tarefa?')) return;
+    try {
+      await deleteGestorTask(taskId);
+      toast.success('Tarefa excluída!');
+    } catch (error) {
+      console.error('Failed to delete gestor task:', error);
+      toast.error('Erro ao excluir tarefa.');
+    }
+  };
+
+  const handleToggleCompletion = async (task: GestorTask) => {
+    if (!user) return;
+    try {
+      const completionDate = isDashboardMode ? formattedSelectedDate : today;
+      const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+      const isCompletedOnDate = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === completionDate && c.done);
+      const nextDoneState = isRecurring ? !isCompletedOnDate : !task.is_completed;
+
+      await toggleGestorTaskCompletion(task.id, nextDoneState, completionDate);
+      toast.success(`Tarefa ${nextDoneState ? 'concluída' : 'marcada como pendente'}!`);
+    } catch (error) {
+      console.error('Failed to toggle task completion:', error);
+      toast.error('Erro ao atualizar status da tarefa.');
+    }
+  };
+
+  const handleAddToGoogleCalendar = (task: GestorTask) => {
+    if (!task.due_date) {
+      toast.error('Adicione uma data à tarefa para enviar ao Google Agenda.');
+      return;
+    }
+
+    const title = encodeURIComponent(`${task.title} (Tarefa do Gestor)`);
+    const startDate = new Date(task.due_date + 'T00:00:00');
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 1);
+
+    const formatDateForGoogle = (date: Date) => date.toISOString().split('T')[0].replace(/-/g, '');
+    const dates = `${formatDateForGoogle(startDate)}/${formatDateForGoogle(endDate)}`;
+    const details = encodeURIComponent(`Tarefa do gestor: ${task.description || ''}`);
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
+
+    window.open(url, '_blank');
+  };
+
+  const openReschedule = (task: GestorTask) => {
+    setRescheduleTaskId(task.id);
+    setRescheduleDate(task.due_date || (isDashboardMode ? formattedSelectedDate : today));
+  };
+
+  const cancelReschedule = () => {
+    setRescheduleTaskId(null);
+    setRescheduleDate('');
+  };
+
+  const handleRescheduleTask = async (task: GestorTask) => {
+    if (!rescheduleDate) {
+      toast.error('Escolha uma nova data.');
+      return;
+    }
+
+    setIsRescheduling(true);
+    try {
+      await updateGestorTask(task.id, { due_date: rescheduleDate, is_completed: false });
+      toast.success('Atividade jogada para outra data!');
+      cancelReschedule();
+    } catch (error) {
+      console.error('Failed to reschedule task:', error);
+      toast.error('Erro ao alterar a data da atividade.');
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-sm flex flex-col overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between bg-brand-50 dark:bg-brand-900/20">
+        <div className="flex items-center space-x-2">
+          {isDashboardMode ? (
+            <ListTodo className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          ) : (
+            <Settings2 className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          )}
+          {isDashboardMode ? (
+            <div className="flex items-center space-x-1">
+              <button onClick={() => navigateDay(-1)} className="p-1 rounded-full hover:bg-brand-100 dark:hover:bg-brand-800 text-brand-600 dark:text-brand-400">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300 capitalize">
+                {displayDateLabel}
+              </h2>
+              <button onClick={() => navigateDay(1)} className="p-1 rounded-full hover:bg-brand-100 dark:hover:bg-brand-800 text-brand-600 dark:text-brand-400">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          ) : (
+            <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">
+              Configurar tarefas ({gestorTasks.length})
+            </h2>
+          )}
+        </div>
+        {isDashboardMode && (
+          <span className="text-sm font-semibold text-brand-600 dark:text-brand-400">
+            {dashboardTasks.length} tarefa{dashboardTasks.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      <div className={`p-4 ${!isDashboardMode ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''}`}>
+        {!isDashboardMode && (
+          <div className="space-y-3">
+            <h3 className="text-md font-semibold text-gray-900 dark:text-white">
+              {editingTask ? 'Editar tarefa' : 'Adicionar nova tarefa'}
+            </h3>
+
+            <form onSubmit={editingTask ? handleUpdateTask : handleAddTask} className="space-y-3">
+              <div>
+                <Label htmlFor="taskTitle">Título da tarefa *</Label>
+                <Input
+                  id="taskTitle"
+                  value={editingTask ? editTaskTitle : newTaskTitle}
+                  onChange={(e) => (editingTask ? setEditTaskTitle(e.target.value) : setNewTaskTitle(e.target.value))}
+                  required
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="taskDescription">Descrição</Label>
+                <Textarea
+                  id="taskDescription"
+                  value={editingTask ? editTaskDescription : newTaskDescription}
+                  onChange={(e) => (editingTask ? setEditTaskDescription(e.target.value) : setNewTaskDescription(e.target.value))}
+                  rows={3}
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="taskDueDate">Data</Label>
+                <Input
+                  id="taskDueDate"
+                  type="date"
+                  value={editingTask ? editTaskDueDate : newTaskDueDate}
+                  onChange={(e) => (editingTask ? setEditTaskDueDate(e.target.value) : setNewTaskDueDate(e.target.value))}
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="recurrenceType">Recorrência</Label>
+                <Select
+                  value={editingTask ? editTaskRecurrenceType : newTaskRecurrenceType}
+                  onValueChange={(value: 'none' | 'daily' | 'every_x_days') => {
+                    if (editingTask) {
+                      setEditTaskRecurrenceType(value);
+                      if (value === 'none') setEditTaskRecurrenceInterval(undefined);
+                      else if (value === 'daily') setEditTaskRecurrenceInterval(1);
+                      else setEditTaskRecurrenceInterval(2);
+                    } else {
+                      setNewTaskRecurrenceType(value);
+                      if (value === 'none') setNewTaskRecurrenceInterval(undefined);
+                      else if (value === 'daily') setNewTaskRecurrenceInterval(1);
+                      else setNewTaskRecurrenceInterval(2);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <SelectValue placeholder="Nenhuma" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    <SelectItem value="daily">Diária</SelectItem>
+                    <SelectItem value="every_x_days">A cada X dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(editingTask ? editTaskRecurrenceType === 'every_x_days' : newTaskRecurrenceType === 'every_x_days') && (
+                <div>
+                  <Label htmlFor="recurrenceInterval">Repetir a cada (dias) *</Label>
+                  <Input
+                    id="recurrenceInterval"
+                    type="number"
+                    min="2"
+                    value={editingTask ? editTaskRecurrenceInterval || '' : newTaskRecurrenceInterval || ''}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (editingTask) setEditTaskRecurrenceInterval(isNaN(value) ? undefined : value);
+                      else setNewTaskRecurrenceInterval(isNaN(value) ? undefined : value);
+                    }}
+                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    placeholder="Ex: 3"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-2 flex-col sm:flex-row">
+                <Button type="submit" disabled={isAddingTask || isUpdatingTask} className="bg-brand-600 hover:bg-brand-700 text-white flex-1">
+                  {isAddingTask || isUpdatingTask ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : editingTask ? <Save className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                  {editingTask ? 'Salvar edição' : 'Adicionar tarefa'}
+                </Button>
+
+                {editingTask && (
+                  <Button type="button" variant="outline" onClick={() => setEditingTask(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 flex-1">
+                    <X className="w-4 h-4 mr-2" /> Cancelar
+                  </Button>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className={`space-y-3 ${!isDashboardMode ? '' : 'w-full'}`}>
+          <h3 className="text-md font-semibold text-gray-900 dark:text-white">
+            {isDashboardMode ? 'Checklist do dia' : `Tarefas cadastradas (${sortedTasks.length})`}
+          </h3>
+
+          {tasksToDisplay.length === 0 ? (
+            <p className="text-center text-gray-500 dark:text-gray-400 py-6">
+              {isDashboardMode ? `Nenhuma atividade para ${formattedSelectedDate === today ? 'hoje' : 'este dia'}.` : 'Nenhuma tarefa cadastrada.'}
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {tasksToDisplay.map(task => {
+                  const isRecurring = task.recurrence_pattern && task.recurrence_pattern.type !== 'none';
+                  const isCompletedOnDate = isRecurring && gestorTaskCompletions.some(c => c.gestor_task_id === task.id && c.user_id === user?.id && c.date === (isDashboardMode ? formattedSelectedDate : today) && c.done);
+                  const isVisuallyCompleted = isRecurring ? isCompletedOnDate : task.is_completed;
+                  const isDueOnDate = isGestorTaskDueOnDate(task, isDashboardMode ? formattedSelectedDate : today);
+                  const isOverdue = !isRecurring && !task.is_completed && task.due_date && new Date(task.due_date + 'T00:00:00') < new Date(today + 'T00:00:00');
+
+                  let itemClasses = 'flex items-start space-x-2 p-3 rounded-xl border group flex-col';
+                  let titleClasses = 'font-medium';
+                  let descriptionClasses = 'text-sm mt-1';
+
+                  if (isVisuallyCompleted) {
+                    itemClasses += ' bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700';
+                    titleClasses += ' line-through text-gray-500 dark:text-gray-400';
+                    descriptionClasses += ' line-through text-gray-500 dark:text-gray-400';
+                  } else if (isDueOnDate || isOverdue) {
+                    itemClasses += ' bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+                    titleClasses += ' text-red-800 dark:text-red-200';
+                    descriptionClasses += ' text-red-700 dark:text-red-300';
+                  } else {
+                    itemClasses += ' bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-700';
+                    titleClasses += ' text-gray-900 dark:text-white';
+                    descriptionClasses += ' text-gray-600 dark:text-gray-300';
+                  }
+
+                  return (
+                    <div key={task.id} className={itemClasses}>
+                      <div className="flex w-full items-start gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleToggleCompletion(task)}
+                          className={`flex-none ${isVisuallyCompleted ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-brand-600'}`}
+                        >
+                          {isVisuallyCompleted ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                        </Button>
+
+                        <div className="flex-1 min-w-0">
+                          <p className={titleClasses}>
+                            {task.title}
+                            {isOverdue && !isVisuallyCompleted && <span className="ml-2 text-[10px] font-bold uppercase bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Atrasada</span>}
+                            {isDueOnDate && !isOverdue && !isVisuallyCompleted && isDashboardMode && formattedSelectedDate === today && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">Hoje</span>}
+                            {isDueOnDate && !isOverdue && !isVisuallyCompleted && isDashboardMode && formattedSelectedDate !== today && <span className="ml-2 text-[10px] font-bold uppercase bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Vence</span>}
+                          </p>
+
+                          {task.description && <p className={descriptionClasses}>{task.description}</p>}
+
+                          {isVisuallyCompleted ? (
+                            <span className="flex items-center text-sm text-green-600 dark:text-green-400 font-bold mt-1">
+                              <CheckCircle2 className="w-4 h-4 mr-1 inline-block" /> {isRecurring ? 'Concluído hoje' : 'Concluído'}
+                            </span>
+                          ) : (
+                            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
+                              {task.due_date && !isRecurring && (
+                                <span className="flex items-center">
+                                  <Calendar className="w-3 h-3 mr-1" /> {new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                              {isRecurring && (
+                                <span className="flex items-center text-brand-600 dark:text-brand-400">
+                                  {task.recurrence_pattern?.type === 'daily' ? <Repeat className="w-3 h-3 mr-1" /> : <CalendarDays className="w-3 h-3 mr-1" />}
+                                  {task.recurrence_pattern?.type === 'daily' ? 'Diária' : `A cada ${task.recurrence_pattern?.interval} dias`}
+                                </span>
+                              )}
+                              {isDueOnDate && !isOverdue && (
+                                <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
+                                  <Clock className="w-3 h-3 mr-1" /> {isDashboardMode && formattedSelectedDate !== today ? `Vence em ${new Date(formattedSelectedDate + 'T00:00:00').toLocaleDateString('pt-BR')}` : 'Vence hoje'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-1">
+                          {task.due_date && (
+                            <Button variant="ghost" size="icon" onClick={() => handleAddToGoogleCalendar(task)} className="text-gray-400 hover:text-blue-600" title="Adicionar ao Google Agenda">
+                              <CalendarPlus className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => openReschedule(task)} className="text-gray-400 hover:text-amber-600" title="Jogar para outra data">
+                            <ArrowRightCircle className="w-4 h-4" />
+                          </Button>
+                          {!isDashboardMode && (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => startEditingTask(task)} className="text-gray-400 hover:text-brand-600" title="Editar tarefa">
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteTask(task.id)} className="text-gray-400 hover:text-red-600" title="Excluir tarefa">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {rescheduleTaskId === task.id && (
+                        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-950/20 sm:flex-row sm:items-end">
+                          <div className="flex-1">
+                            <Label htmlFor={`reschedule-${task.id}`}>Nova data</Label>
+                            <Input
+                              id={`reschedule-${task.id}`}
+                              type="date"
+                              value={rescheduleDate}
+                              onChange={(e) => setRescheduleDate(e.target.value)}
+                              className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              onClick={() => handleRescheduleTask(task)}
+                              disabled={isRescheduling}
+                              className="bg-amber-600 hover:bg-amber-700 text-white"
+                            >
+                              {isRescheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}
+                              Salvar data
+                            </Button>
+                            <Button type="button" variant="outline" onClick={cancelReschedule}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {!isDashboardMode && sortedTasks.length > configVisibleLimit && (
+                <div className="mt-4 text-center">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowAllTasks(!showAllTasks)}
+                    className="text-sm text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300"
+                  >
+                    {showAllTasks ? (
+                      <>
+                        <ChevronUp className="w-4 h-4 mr-1" /> Ver menos
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-4 h-4 mr-1" /> Ver mais ({sortedTasks.length - configVisibleLimit} mais)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
