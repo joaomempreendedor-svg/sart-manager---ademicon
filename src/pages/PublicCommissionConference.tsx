@@ -90,6 +90,7 @@ const PublicCommissionConference = () => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'vendas' | 'proventos'>('vendas');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedRole, setSelectedRole] = useState<'all' | 'consultant' | 'angel'>('all');
   const [displayName, setDisplayName] = useState('');
   const [receipts, setReceipts] = useState<{ consultant_name: string; competence_month: string; file_url: string; file_name: string }[]>([]);
 
@@ -156,6 +157,17 @@ const PublicCommissionConference = () => {
 
   const decodedName = displayName || (consultantName ? decodeURIComponent(consultantName) : '');
 
+  const hasBothRoles = useMemo(() => {
+    const hasConsultant = allCommissions.some(c => c.myRole === 'consultant');
+    const hasAngel = allCommissions.some(c => c.myRole === 'angel');
+    return hasConsultant && hasAngel;
+  }, [allCommissions]);
+
+  const filteredCommissions = useMemo(() => {
+    if (!hasBothRoles || selectedRole === 'all') return allCommissions;
+    return allCommissions.filter(c => c.myRole === selectedRole);
+  }, [allCommissions, selectedRole, hasBothRoles]);
+
   const getReceiptForMonth = (month: string) => {
     return receipts.find(r => r.competence_month === month);
   };
@@ -168,12 +180,12 @@ const PublicCommissionConference = () => {
       });
     });
     return Array.from(months).sort();
-  }, [allCommissions]);
+  }, [filteredCommissions]);
 
   const monthlyForecast = useMemo(() => {
     const monthMap: Record<string, { paid: number; pending: number; delayed: number; details: { client: string; installment: number; value: number; status: string; role: RoleType }[] }> = {};
 
-    allCommissions.forEach(c => {
+    filteredCommissions.forEach(c => {
       Object.entries(c.installmentDetails).forEach(([num, info]) => {
         const installmentInfo = info as InstallmentInfo;
         const month = installmentInfo.competenceMonth || 'sem-competencia';
@@ -203,7 +215,7 @@ const PublicCommissionConference = () => {
     });
 
     return monthMap;
-  }, [allCommissions, selectedMonth]);
+  }, [filteredCommissions, selectedMonth]);
 
   const stats = useMemo(() => {
     let totalPaid = 0;
@@ -212,7 +224,7 @@ const PublicCommissionConference = () => {
     let totalInstallmentsCount = 0;
     let totalVolume = 0;
 
-    allCommissions.forEach(c => {
+    filteredCommissions.forEach(c => {
       totalVolume += c.value || 0;
       Object.entries(c.installmentDetails).forEach(([num, info]) => {
         totalInstallmentsCount++;
@@ -228,16 +240,16 @@ const PublicCommissionConference = () => {
     });
 
     return { totalPaid, totalPending, totalPaidInstallments, totalInstallmentsCount, totalVolume };
-  }, [allCommissions]);
+  }, [filteredCommissions]);
 
   const displayCommissions = useMemo(() => {
-    if (!selectedMonth) return allCommissions;
-    return allCommissions.filter(c => {
+    if (!selectedMonth) return filteredCommissions;
+    return filteredCommissions.filter(c => {
       return Object.values(c.installmentDetails).some(
         info => (info as InstallmentInfo).competenceMonth === selectedMonth
       );
     });
-  }, [allCommissions, selectedMonth]);
+  }, [filteredCommissions, selectedMonth]);
 
   const filteredMonthData = selectedMonth ? monthlyForecast[selectedMonth] : null;
 
@@ -281,40 +293,40 @@ const PublicCommissionConference = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
-            <div className="p-2 bg-blue-50 rounded-lg shrink-0"><Home className="w-5 h-5 text-blue-600" /></div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <div className="p-2 bg-blue-50 rounded-lg shrink-0"><Home className="w-4 h-4 text-blue-600" /></div>
             <div className="min-w-0">
-              <p className="text-sm text-gray-500 truncate">Total Vendas</p>
-              <p className="text-lg font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'consultant').length}</p>
+              <p className="text-xs text-gray-500 whitespace-nowrap">Total Vendas</p>
+              <p className="text-base font-bold text-gray-900 whitespace-nowrap">{filteredCommissions.filter(c => c.myRole === 'consultant').length}</p>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
-            <div className="p-2 bg-yellow-50 rounded-lg shrink-0"><Crown className="w-5 h-5 text-yellow-600" /></div>
+          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <div className="p-2 bg-yellow-50 rounded-lg shrink-0"><Crown className="w-4 h-4 text-yellow-600" /></div>
             <div className="min-w-0">
-              <p className="text-sm text-gray-500 truncate">Vendas como Anjo</p>
-              <p className="text-lg font-bold text-gray-900">{allCommissions.filter(c => c.myRole === 'angel').length}</p>
+              <p className="text-xs text-gray-500 whitespace-nowrap">Vendas Anjo</p>
+              <p className="text-base font-bold text-gray-900 whitespace-nowrap">{filteredCommissions.filter(c => c.myRole === 'angel').length}</p>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
-            <div className="p-2 bg-purple-50 rounded-lg shrink-0"><DollarSign className="w-5 h-5 text-purple-600" /></div>
+          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <div className="p-2 bg-purple-50 rounded-lg shrink-0"><DollarSign className="w-4 h-4 text-purple-600" /></div>
             <div className="min-w-0">
-              <p className="text-sm text-gray-500 truncate">Volume de Vendas</p>
-              <p className="text-lg font-bold text-purple-700 break-all leading-tight">{formatCurrency(stats.totalVolume)}</p>
+              <p className="text-xs text-gray-500 whitespace-nowrap">Volume Vendas</p>
+              <p className="text-base font-bold text-purple-700 whitespace-nowrap">{formatCurrency(stats.totalVolume)}</p>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
-            <div className="p-2 bg-green-50 rounded-lg shrink-0"><CheckCircle2 className="w-5 h-5 text-green-600" /></div>
+          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <div className="p-2 bg-green-50 rounded-lg shrink-0"><CheckCircle2 className="w-4 h-4 text-green-600" /></div>
             <div className="min-w-0">
-              <p className="text-sm text-gray-500 truncate">Recebido</p>
-              <p className="text-lg font-bold text-green-700 break-all leading-tight">{formatCurrency(stats.totalPaid)}</p>
+              <p className="text-xs text-gray-500 whitespace-nowrap">Recebido</p>
+              <p className="text-base font-bold text-green-700 whitespace-nowrap">{formatCurrency(stats.totalPaid)}</p>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-3 overflow-hidden">
-            <div className="p-2 bg-yellow-50 rounded-lg shrink-0"><Calendar className="w-5 h-5 text-yellow-600" /></div>
+          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <div className="p-2 bg-yellow-50 rounded-lg shrink-0"><Calendar className="w-4 h-4 text-yellow-600" /></div>
             <div className="min-w-0">
-              <p className="text-sm text-gray-500 truncate">A Receber</p>
-              <p className="text-lg font-bold text-yellow-700 break-all leading-tight">{formatCurrency(stats.totalPending)}</p>
+              <p className="text-xs text-gray-500 whitespace-nowrap">A Receber</p>
+              <p className="text-base font-bold text-yellow-700 whitespace-nowrap">{formatCurrency(stats.totalPending)}</p>
             </div>
           </div>
         </div>
@@ -338,6 +350,19 @@ const PublicCommissionConference = () => {
               <TrendingUp className="h-4 w-4" /> Proventos por Mês
             </button>
           </div>
+          {hasBothRoles && (
+            <div className="flex rounded-lg bg-gray-100 p-1">
+              <button onClick={() => setSelectedRole('all')} className={`flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium transition ${selectedRole === 'all' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                Todos
+              </button>
+              <button onClick={() => setSelectedRole('consultant')} className={`flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium transition ${selectedRole === 'consultant' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                <User className="h-3 w-3" /> Consultor
+              </button>
+              <button onClick={() => setSelectedRole('angel')} className={`flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium transition ${selectedRole === 'angel' ? 'bg-white text-yellow-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                <Crown className="h-3 w-3" /> Anjo
+              </button>
+            </div>
+          )}
           {viewMode === 'vendas' && (
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-gray-400" />
@@ -476,12 +501,6 @@ const PublicCommissionConference = () => {
                                             <span>{c.myRole === 'angel' ? 'Anjo:' : 'Consultor:'}</span>
                                             <span className="font-medium text-gray-800">{formatCurrency(myVal)}</span>
                                           </div>
-                                          {c.myRole === 'consultant' && (
-                                            <>
-                                              <div className="flex justify-between"><span>Gestor:</span> <span className="font-medium text-gray-800">{formatCurrency(values.man)}</span></div>
-                                              {c.angelName && <div className="flex justify-between"><span>Anjo:</span> <span className="font-medium text-gray-800">{formatCurrency(values.angel)}</span></div>}
-                                            </>
-                                          )}
                                         </div>
                                       </div>
                                     );
