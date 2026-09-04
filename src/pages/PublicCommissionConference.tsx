@@ -174,7 +174,7 @@ const PublicCommissionConference = () => {
 
   const uniqueMonths = useMemo(() => {
     const months = new Set<string>();
-    allCommissions.forEach(c => {
+    filteredCommissions.forEach(c => {
       Object.values(c.installmentDetails).forEach(info => {
         if (info.competenceMonth) months.add(info.competenceMonth);
       });
