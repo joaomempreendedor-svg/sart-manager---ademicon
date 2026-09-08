@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { UploadCloud, Loader2, CheckCircle2, AlertTriangle, Save, Users, ShieldBan } from 'lucide-react';
 import {
   Dialog,
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import toast from 'react-hot-toast';
 import { ColdCallLead } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface ColdCallImportConsultant {
   id: string;
@@ -44,19 +45,20 @@ const parsePastedData = (pastedData: string): { items: LeadInput[]; errors: stri
   if (allLines.length === 0) return { items, errors };
 
   const firstLine = allLines[0];
+  const countChar = (ch: string) => (firstLine.match(new RegExp(ch === '\t' ? '\\t' : ch, 'g')) || []).length;
   const counts = {
-    '\t': (firstLine.match(/\t/g) || []).length,
-    ',': (firstLine.match(/,/g) || []).length,
-    ';': (firstLine.match(/;/g) || []).length,
+    '\t': countChar('\t'),
+    ';': countChar(';'),
+    ',': countChar(','),
   };
-  let delimiter = ',';
-  let maxCount = 0;
-  (Object.keys(counts) as (keyof typeof counts)[]).forEach(k => {
-    if (counts[k] > maxCount) {
-      maxCount = counts[k];
-      delimiter = k === '\t' ? '\t' : k;
-    }
-  });
+  let delimiter = '\t';
+  if (counts[';'] > 0 && counts[';'] >= counts[',']) {
+    delimiter = ';';
+  } else if (counts[','] > counts[';']) {
+    delimiter = ',';
+  } else if (counts['\t'] > 0) {
+    delimiter = '\t';
+  }
 
   let headers: string[] = [];
   let dataLines: string[] = [];
@@ -117,38 +119,72 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
   const [isProcessing, setIsProcessing] = useState(false);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [parsedItems, setParsedItems] = useState<LeadInput[]>([]);
-  const [duplicates, setDuplicates] = useState<number>(0);
+  const [duplicatesInBase, setDuplicatesInBase] = useState(0);
+  const [duplicatesInBatch, setDuplicatesInBatch] = useState(0);
+  const [blockedNumbers, setBlockedNumbers] = useState<string[]>([]);
   const [selectedConsultantKeys, setSelectedConsultantKeys] = useState<string[]>(consultants.map(c => c.key));
   const [isImporting, setIsImporting] = useState(false);
+  const [dbPhones, setDbPhones] = useState<Set<string>>(new Set());
+
+  const loadDbPhones = useCallback(async () => {
+    const { data } = await supabase.from('cold_call_leads').select('phone');
+    const set = new Set<string>();
+    (data || []).forEach(row => {
+      if (row?.phone) set.add(normalizePhone(String(row.phone)));
+    });
+    setDbPhones(set);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) loadDbPhones();
+  }, [isOpen, loadDbPhones]);
 
   const existingPhones = useMemo(() => {
-    return new Set(existingLeads.map(l => normalizePhone(l.phone)));
-  }, [existingLeads]);
+    const set = new Set(dbPhones);
+    existingLeads.forEach(l => set.add(normalizePhone(l.phone)));
+    return set;
+  }, [existingLeads, dbPhones]);
+
+  // Telefones reais da base (para sinalizar apenas o que é bloqueado contra o banco)
+  const knownBasePhones = useMemo(() => {
+    return new Set([...dbPhones, ...existingLeads.map(l => normalizePhone(l.phone))]);
+  }, [existingLeads, dbPhones]);
 
   const handleProcess = () => {
     setIsProcessing(true);
     setParseErrors([]);
     setParsedItems([]);
-    setDuplicates(0);
+    setDuplicatesInBase(0);
+    setDuplicatesInBatch(0);
+    setBlockedNumbers([]);
 
     const { items, errors } = parsePastedData(pastedData);
 
-    const seen = new Set(existingPhones);
-    let dupCount = 0;
+    const seenAll = new Set(existingPhones);
+    let dupBase = 0;
+    let dupBatch = 0;
+    const blocked: string[] = [];
     const unique: LeadInput[] = [];
     items.forEach(item => {
       const norm = normalizePhone(item.phone);
-      if (seen.has(norm)) {
-        dupCount += 1;
+      if (seenAll.has(norm)) {
+        if (knownBasePhones.has(norm)) {
+          dupBase += 1;
+        } else {
+          dupBatch += 1;
+        }
+        blocked.push(item.phone);
         return;
       }
-      seen.add(norm);
+      seenAll.add(norm);
       unique.push(item);
     });
 
     setParseErrors(errors);
     setParsedItems(unique);
-    setDuplicates(dupCount);
+    setDuplicatesInBase(dupBase);
+    setDuplicatesInBatch(dupBatch);
+    setBlockedNumbers(blocked);
     setIsProcessing(false);
 
     if (unique.length === 0) {
@@ -195,7 +231,10 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
     setPastedData('');
     setParsedItems([]);
     setParseErrors([]);
-    setDuplicates(0);
+    setDuplicatesInBase(0);
+    setDuplicatesInBatch(0);
+    setBlockedNumbers([]);
+    setDbPhones(new Set());
     onClose();
   };
 
@@ -239,10 +278,22 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
             )}
           </div>
 
-          {duplicates > 0 && (
+          {(duplicatesInBase > 0 || duplicatesInBatch > 0) && (
             <div className="flex items-start space-x-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-700 dark:text-amber-300">
               <ShieldBan className="w-4 h-4 mt-0.5 shrink-0" />
-              <span><strong>{duplicates}</strong> telefone(s) duplicado(s) com a base existente foram bloqueados e não serão importados.</span>
+              <div>
+                {duplicatesInBase > 0 && (
+                  <p><strong>{duplicatesInBase}</strong> telefone(s) já existente(s) na base foram bloqueados e não serão importados.</p>
+                )}
+                {duplicatesInBatch > 0 && (
+                  <p><strong>{duplicatesInBatch}</strong> telefone(s) repetido(s) dentro da própria lista colada foram mantidos apenas uma vez.</p>
+                )}
+                {blockedNumbers.length > 0 && (
+                  <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                    Números bloqueados: <span className="font-mono break-all">{blockedNumbers.map(n => normalizePhone(n)).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
