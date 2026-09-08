@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock, TrendingUp, Star, Target, Trophy, Settings2, ChevronRight } from 'lucide-react';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock, TrendingUp, Star, Target, Trophy, Settings2, ChevronRight, UploadCloud } from 'lucide-react';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
+import ImportColdCallLeadsDivisionModal, { ColdCallImportConsultant } from '@/components/gestor/ImportColdCallLeadsDivisionModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType, ColdCallGoals } from '@/types';
 import toast from 'react-hot-toast';
 import {
@@ -83,7 +84,9 @@ const LiveKpiCard: React.FC<LiveKpiProps> = ({ title, value, meta, icon: Icon, i
 
 const ColdCallMetricsPage = () => {
   const { user } = useAuth();
-  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, teamMembers, isDataLoading } = useApp();
+  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, addColdCallLeadsWithAssignments, teamMembers, isDataLoading } = useApp();
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null);
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -110,6 +113,10 @@ const ColdCallMetricsPage = () => {
   const coldCallConsultants = useMemo(() => {
     return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
   }, [teamMembers]);
+
+  const coldCallImportConsultants: ColdCallImportConsultant[] = useMemo(() => {
+    return coldCallConsultants.map(m => ({ id: m.id, name: m.name, key: (m.authUserId || m.id) }));
+  }, [coldCallConsultants]);
 
   const filteredColdCallLogs = useMemo(() => {
     let logs = coldCallLogs;
@@ -314,13 +321,22 @@ const ColdCallMetricsPage = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
           <PhoneCall className="w-6 h-6 mr-2 text-brand-500" /> Cold Call — Painel do Gestor
         </h1>
-        <button
-          onClick={openGoalsModal}
-          className="flex items-center space-x-2 text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline"
-        >
-          <Settings2 className="w-4 h-4" />
-          <span>Editar Meta do Dia</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center space-x-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400"
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span>Importar Leads</span>
+          </button>
+          <button
+            onClick={openGoalsModal}
+            className="flex items-center space-x-2 text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+          >
+            <Settings2 className="w-4 h-4" />
+            <span>Editar Meta do Dia</span>
+          </button>
+        </div>
       </div>
 
       {/* ===== PAINEL AO VIVO ===== */}
@@ -668,6 +684,17 @@ const ColdCallMetricsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ===== MODAL IMPORTAR LEADS ===== */}
+      <ImportColdCallLeadsDivisionModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        consultants={coldCallImportConsultants}
+        existingLeads={coldCallLeads}
+        onImport={async (items) => {
+          await addColdCallLeadsWithAssignments(items);
+        }}
+      />
 
       <ColdCallDetailModal
         isOpen={isColdCallDetailModalOpen}

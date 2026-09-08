@@ -708,6 +708,14 @@ export interface AppContextType {
   coldCallLogs: ColdCallLog[];
   coldCallGoals: ColdCallGoals;
   updateColdCallGoals: (goals: Partial<ColdCallGoals>) => void;
+  addColdCallLeadsWithAssignments: (items: {
+    lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>;
+    consultantId: string;
+  }[]) => Promise<ColdCallLead[]>;
+  addColdCallLogForConsultant: (
+    log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string },
+    consultantId: string
+  ) => Promise<ColdCallLog>;
   processes: Process[];
   contratos: Contrato[];
   theme: 'light' | 'dark';

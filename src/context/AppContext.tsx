@@ -1196,6 +1196,19 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     if (error) throw error; setColdCallLeads(prev => [data, ...prev]); return data;
   }, [user]);
 
+  const addColdCallLeadsWithAssignments = useCallback(async (items: {
+    lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>;
+    consultantId: string;
+  }[]) => {
+    if (items.length === 0) return [];
+    const payload = items.map(item => ({ ...item.lead, user_id: item.consultantId, current_stage: 'Base Fria' as const }));
+    const { data, error } = await supabase.from('cold_call_leads').insert(payload).select();
+    if (error) throw error;
+    const inserted = data as ColdCallLead[];
+    setColdCallLeads(prev => [...inserted, ...prev]);
+    return inserted;
+  }, []);
+
   const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
     const { data, error } = await supabase.from('cold_call_leads').update(updates).eq('id', id).select().single();
     if (error) throw error; setColdCallLeads(prev => prev.map(l => l.id === id ? data : l)); return data;
@@ -1211,6 +1224,12 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: user!.id, duration_seconds }).select().single();
     if (error) throw error; setColdCallLogs(prev => [data, ...prev]); return data;
   }, [user]);
+
+  const addColdCallLogForConsultant = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }, consultantId: string) => {
+    const duration_seconds = Math.round((new Date(log.end_time).getTime() - new Date(log.start_time).getTime()) / 1000);
+    const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: consultantId, duration_seconds }).select().single();
+    if (error) throw error; setColdCallLogs(prev => [data, ...prev]); return data;
+  }, []);
 
   const getColdCallMetrics = useCallback((consultantId: string) => {
     const logs = coldCallLogs.filter(l => l.user_id === consultantId);
@@ -1430,7 +1449,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
     hasPendingSecretariaTasks,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, addColdCallLeadsWithAssignments, addColdCallLogForConsultant,
     createCrmLeadFromColdCall,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
     addContrato, deleteContrato,
@@ -1466,7 +1485,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
     addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     hasPendingSecretariaTasks,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, addColdCallLeadsWithAssignments, addColdCallLogForConsultant,
     createCrmLeadFromColdCall,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
     addContrato, deleteContrato,
