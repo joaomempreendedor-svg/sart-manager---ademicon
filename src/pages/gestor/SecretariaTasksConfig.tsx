@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Calendar, ClipboardList, Loader2, Plus, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
+import { Calendar, ClipboardList, Clock, Loader2, Plus, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { GestorTask } from '@/types';
@@ -20,6 +20,7 @@ const SecretariaTasksConfig = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
   const [recurrenceType, setRecurrenceType] = useState<'none' | 'daily' | 'every_x_days'>('none');
   const [recurrenceInterval, setRecurrenceInterval] = useState('2');
   const [isSaving, setIsSaving] = useState(false);
@@ -53,6 +54,7 @@ const SecretariaTasksConfig = () => {
     setTitle('');
     setDescription('');
     setDueDate('');
+    setScheduledTime('');
     setRecurrenceType('none');
     setRecurrenceInterval('2');
     setEditingTaskId(null);
@@ -63,6 +65,7 @@ const SecretariaTasksConfig = () => {
     setTitle(task.title);
     setDescription(task.description || '');
     setDueDate(task.due_date || '');
+    setScheduledTime(task.scheduled_time ? task.scheduled_time.slice(0, 5) : '');
     setRecurrenceType(task.recurrence_pattern?.type || 'none');
     setRecurrenceInterval(String(task.recurrence_pattern?.interval || 2));
   };
@@ -117,6 +120,7 @@ const SecretariaTasksConfig = () => {
           title: title.trim(),
           description: description.trim() || undefined,
           due_date: dueDate || undefined,
+          scheduled_time: scheduledTime || undefined,
           recurrence_pattern,
         });
         toast.success('Atividade da secretaria atualizada.');
@@ -126,6 +130,7 @@ const SecretariaTasksConfig = () => {
             title: title.trim(),
             description: description.trim() || undefined,
             due_date: dueDate || undefined,
+            scheduled_time: scheduledTime || undefined,
             recurrence_pattern,
           },
           effectiveSecretariaId,
@@ -225,6 +230,17 @@ const SecretariaTasksConfig = () => {
                 </div>
 
                 <div>
+                  <label className="mb-1 block text-xs font-bold uppercase text-gray-400">Horário</label>
+                  <input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(event) => setScheduledTime(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
                   <label className="mb-1 block text-xs font-bold uppercase text-gray-400">Recorrência</label>
                   <select
                     value={recurrenceType}
@@ -236,7 +252,6 @@ const SecretariaTasksConfig = () => {
                     <option value="every_x_days">A cada X dias</option>
                   </select>
                 </div>
-              </div>
 
               {recurrenceType === 'every_x_days' && (
                 <div>
@@ -352,6 +367,12 @@ const SecretariaTasksConfig = () => {
                                     <Calendar className="h-3.5 w-3.5" />
                                     {task.due_date ? new Date(`${task.due_date}T00:00:00`).toLocaleDateString('pt-BR') : 'Sem data'}
                                   </span>
+                                  {task.scheduled_time && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <Clock className="h-3.5 w-3.5" />
+                                      {task.scheduled_time.slice(0, 5)}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 

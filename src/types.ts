@@ -412,6 +412,7 @@ export interface GestorTask {
   title: string;
   description?: string;
   due_date?: string;
+  scheduled_time?: string;
   is_completed: boolean;
   created_at: string;
   recurrence_pattern?: {
