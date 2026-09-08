@@ -310,10 +310,24 @@ const ColdCallMetricsPage = () => {
     return `${window.location.origin}${window.location.pathname}#/cold-call/${ownerId}`;
   }, [user?.id]);
 
+  const tvPanelUrl = useMemo(() => {
+    const ownerId = user?.id || '';
+    return `${window.location.origin}${window.location.pathname}#/cold-call-tv/${ownerId}`;
+  }, [user?.id]);
+
   const copyPublicOperationLink = async () => {
     try {
       await navigator.clipboard.writeText(publicOperationUrl);
       toast.success('Link da operação copiado!');
+    } catch {
+      toast.error('Não foi possível copiar o link.');
+    }
+  };
+
+  const copyTvPanelLink = async () => {
+    try {
+      await navigator.clipboard.writeText(tvPanelUrl);
+      toast.success('Link do painel de TV copiado!');
     } catch {
       toast.error('Não foi possível copiar o link.');
     }
@@ -336,6 +350,14 @@ const ColdCallMetricsPage = () => {
           <PhoneCall className="w-6 h-6 mr-2 text-brand-500" /> Cold Call — Painel do Gestor
         </h1>
         <div className="flex items-center space-x-3">
+          <button
+            onClick={copyTvPanelLink}
+            className="flex items-center space-x-2 text-sm font-semibold text-violet-500 dark:text-violet-400 hover:underline"
+            title="Copiar link para exibir o painel ao vivo em uma TV"
+          >
+            <Link2 className="w-4 h-4" />
+            <span>Copiar link da TV</span>
+          </button>
           <button
             onClick={copyPublicOperationLink}
             className="flex items-center space-x-2 text-sm font-semibold text-green-600 dark:text-green-400 hover:underline"

@@ -22,6 +22,7 @@ import { PublicProcessView } from '@/pages/PublicProcessView';
 import PublicDailyMetrics from '@/pages/PublicDailyMetrics';
 import PublicCommissionConference from '@/pages/PublicCommissionConference';
 import PublicColdCall from '@/pages/PublicColdCall';
+import PublicColdCallTV from '@/pages/PublicColdCallTV';
 
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
@@ -64,6 +65,7 @@ const AppRoutes = () => {
       <Route path="/public-process/:processId" element={<PublicProcessView />} />
       <Route path="/metricas/:ownerId" element={<PublicDailyMetrics />} />
       <Route path="/cold-call/:ownerId" element={<PublicColdCall />} />
+      <Route path="/cold-call-tv/:ownerId" element={<PublicColdCallTV />} />
       <Route path="/comissoes/:ownerId/:consultantName" element={<PublicCommissionConference />} />
 
       <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA', 'CONSULTOR']} />}>
