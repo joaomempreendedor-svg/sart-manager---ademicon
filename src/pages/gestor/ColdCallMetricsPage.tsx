@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock, TrendingUp, Star, Target, Trophy, Settings2, ChevronRight, UploadCloud } from 'lucide-react';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Clock, TrendingUp, Star, Target, Trophy, Settings2, ChevronRight, UploadCloud, Link2 } from 'lucide-react';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import ImportColdCallLeadsDivisionModal, { ColdCallImportConsultant } from '@/components/gestor/ImportColdCallLeadsDivisionModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType, ColdCallGoals } from '@/types';
@@ -305,6 +305,20 @@ const ColdCallMetricsPage = () => {
     return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
   }, []);
 
+  const publicOperationUrl = useMemo(() => {
+    const ownerId = user?.id || '';
+    return `${window.location.origin}${window.location.pathname}#/cold-call/${ownerId}`;
+  }, [user?.id]);
+
+  const copyPublicOperationLink = async () => {
+    try {
+      await navigator.clipboard.writeText(publicOperationUrl);
+      toast.success('Link da operação copiado!');
+    } catch {
+      toast.error('Não foi possível copiar o link.');
+    }
+  };
+
   if (isDataLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))]">
@@ -322,6 +336,14 @@ const ColdCallMetricsPage = () => {
           <PhoneCall className="w-6 h-6 mr-2 text-brand-500" /> Cold Call — Painel do Gestor
         </h1>
         <div className="flex items-center space-x-3">
+          <button
+            onClick={copyPublicOperationLink}
+            className="flex items-center space-x-2 text-sm font-semibold text-green-600 dark:text-green-400 hover:underline"
+            title="Copiar link público para os consultores operarem sem login"
+          >
+            <Link2 className="w-4 h-4" />
+            <span>Copiar link da operação</span>
+          </button>
           <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center space-x-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400"
