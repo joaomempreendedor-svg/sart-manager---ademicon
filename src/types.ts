@@ -620,6 +620,13 @@ export interface ColdCallLog {
   created_at: string;
 }
 
+export interface ColdCallGoals {
+  calls: number;
+  contacts: number;
+  interested: number;
+  meetings: number;
+}
+
 export interface ProcessAttachment {
   id: string;
   process_id: string;
@@ -699,6 +706,8 @@ export interface AppContextType {
   teamProductionGoals: TeamProductionGoal[];
   coldCallLeads: ColdCallLead[];
   coldCallLogs: ColdCallLog[];
+  coldCallGoals: ColdCallGoals;
+  updateColdCallGoals: (goals: Partial<ColdCallGoals>) => void;
   processes: Process[];
   contratos: Contrato[];
   theme: 'light' | 'dark';
