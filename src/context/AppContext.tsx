@@ -294,7 +294,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          processesRes, processAttachmentsRes, contratosRes, dailyMetricsConfigRes
+          processesRes, processAttachmentsRes, contratosRes, dailyMetricsConfigRes,
+          coldCallLeadsRes, coldCallLogsRes
         ] = await Promise.all([
           safeFetch('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
           safeFetch('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
@@ -318,7 +319,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           safeFetch('processes', { filters: { user_id: effectiveGestorId } }),
           safeFetch('process_attachments'),
           safeFetch('contratos', { orderBy: 'created_at', ascending: false }),
-          safeFetch('daily_metrics_config', { orderBy: 'order_index' })
+          safeFetch('daily_metrics_config', { orderBy: 'order_index' }),
+          safeFetch('cold_call_leads'),
+          safeFetch('cold_call_logs', { orderBy: 'created_at', ascending: false })
         ]);
 
         if (!candidatesRes.error) {
@@ -380,6 +383,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (!contratosRes.error) setContratos(contratosRes.data || []);
         if (!dailyMetricsConfigRes.error) setDailyMetricsConfig(dailyMetricsConfigRes.data || []);
+        if (!coldCallLeadsRes.error) setColdCallLeads((coldCallLeadsRes.data || []) as ColdCallLead[]);
+        if (!coldCallLogsRes.error) setColdCallLogs((coldCallLogsRes.data || []) as ColdCallLog[]);
 
         refetchCommissions();
       } catch (error: any) {
