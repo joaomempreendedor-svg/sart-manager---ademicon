@@ -392,6 +392,12 @@ export const SecretariaDashboard = () => {
                       {item.isRecorrente ? 'RECORRENTE' : 'PONTUAL'}
                     </span>
 
+                    {item.resource?.recurrence?.time && (
+                      <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600 dark:bg-slate-600 dark:text-slate-200">
+                        <Clock className="h-3 w-3" />{item.resource.recurrence.time.slice(0, 5)}
+                      </span>
+                    )}
+
                     <span className={`text-sm flex-1 truncate ${item.isDone ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-gray-200'}`}>
                       {item.text}
                     </span>

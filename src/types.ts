@@ -439,6 +439,7 @@ export interface DailyChecklistItemRecurrence {
   intervalDays?: number;
   startDate?: string;
   specificDate?: string;
+  time?: string;
 }
 
 export interface DailyChecklistItemResource {
