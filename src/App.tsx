@@ -39,6 +39,7 @@ import { TeamConfig } from '@/pages/TeamConfig';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
 import Contratos from '@/pages/gestor/Contratos';
 import DailyMetricsConfig from '@/pages/gestor/MetricsConfig';
+import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
@@ -80,6 +81,7 @@ const AppRoutes = () => {
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="daily-checklists" element={<DailyChecklistConfig />} />
           <Route path="daily-metrics-config" element={<DailyMetricsConfig />} />
+          <Route path="cold-call" element={<ColdCallMetricsPage />} />
           <Route path="tasks" element={<GestorTasksPage />} />
           <Route path="hiring-dashboard" element={<Navigate to="../hiring-metrics" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
