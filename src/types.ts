@@ -412,6 +412,7 @@ export interface GestorTask {
   title: string;
   description?: string;
   due_date?: string;
+  scheduled_time?: string;
   is_completed: boolean;
   created_at: string;
   recurrence_pattern?: {
@@ -438,6 +439,7 @@ export interface DailyChecklistItemRecurrence {
   intervalDays?: number;
   startDate?: string;
   specificDate?: string;
+  time?: string;
 }
 
 export interface DailyChecklistItemResource {
@@ -618,6 +620,13 @@ export interface ColdCallLog {
   created_at: string;
 }
 
+export interface ColdCallGoals {
+  calls: number;
+  contacts: number;
+  interested: number;
+  meetings: number;
+}
+
 export interface ProcessAttachment {
   id: string;
   process_id: string;
@@ -697,6 +706,16 @@ export interface AppContextType {
   teamProductionGoals: TeamProductionGoal[];
   coldCallLeads: ColdCallLead[];
   coldCallLogs: ColdCallLog[];
+  coldCallGoals: ColdCallGoals;
+  updateColdCallGoals: (goals: Partial<ColdCallGoals>) => void;
+  addColdCallLeadsWithAssignments: (items: {
+    lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>;
+    consultantId: string;
+  }[]) => Promise<ColdCallLead[]>;
+  addColdCallLogForConsultant: (
+    log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string },
+    consultantId: string
+  ) => Promise<ColdCallLog>;
   processes: Process[];
   contratos: Contrato[];
   theme: 'light' | 'dark';

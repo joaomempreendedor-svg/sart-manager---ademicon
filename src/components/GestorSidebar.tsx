@@ -23,6 +23,7 @@ import {
   ListTodo,
   FileSignature,
   Target,
+  PhoneCall,
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -74,6 +75,7 @@ export const GestorSidebar: React.FC<GestorSidebarProps> = ({
     { to: `${baseRoute}/commissions`, icon: Banknote, label: 'Comissões', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/financial-panel`, icon: DollarSign, label: 'Financeiro', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/feedbacks`, icon: Star, label: 'Feedbacks', roles: ['GESTOR', 'ADMIN'], section: 'main' },
+    { to: `${baseRoute}/cold-call`, icon: PhoneCall, label: 'Cold Call', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/processos`, icon: FileText, label: 'Processos', roles: ['GESTOR', 'ADMIN'], section: 'main' },
     { to: `${baseRoute}/contratos`, icon: FileSignature, label: 'Contratos Assinados', roles: ['GESTOR', 'ADMIN', 'SECRETARIA'], section: 'main' },
     { to: `${baseRoute}/daily-checklists`, icon: CheckSquare, label: 'Checklists Secretaria', roles: ['GESTOR', 'ADMIN'], section: 'main' },

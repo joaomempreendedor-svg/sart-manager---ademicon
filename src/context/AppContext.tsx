@@ -39,6 +39,13 @@ const MONTHLY_CUTOFF_DAYS: Record<number, number> = {
 
 const JOAO_GESTOR_AUTH_ID = "0c6d71b7-daeb-4dde-8eec-0e7a8ffef658";
 
+const DEFAULT_COLD_CALL_GOALS = {
+  calls: 80,
+  contacts: 30,
+  interested: 5,
+  meetings: 3,
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const fetchedUserIdRef = useRef<string | null>(null);
@@ -94,6 +101,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]);
   const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);
+  const [coldCallGoals, setColdCallGoals] = useState(DEFAULT_COLD_CALL_GOALS);
   const [processes, setProcesses] = useState<Process[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
 
@@ -152,9 +160,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateConfig = useCallback((updates: any) => {
     if (!user) return;
-    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns };
+    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals };
     debouncedUpdateConfig({ ...currentConfig, ...updates });
-  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, debouncedUpdateConfig]);
+  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals, debouncedUpdateConfig]);
 
   const resetLocalState = useCallback(() => {
     setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
@@ -167,7 +175,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setDailyMetricsConfig([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
-    setColdCallLeads([]); setColdCallLogs([]); setProcesses([]); setContratos([]);
+    setColdCallLeads([]); setColdCallLogs([]); setColdCallGoals(DEFAULT_COLD_CALL_GOALS); setProcesses([]); setContratos([]);
     setIsDataLoading(false);
   }, []);
 
@@ -255,6 +263,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setHiringOrigins(appConfigData.hiringOrigins !== undefined ? appConfigData.hiringOrigins : DEFAULT_APP_CONFIG_DATA.hiringOrigins);
       setPvs(appConfigData.pvs || []);
       setHiringPipelineColumns(normalizeHiringPipelineColumns(appConfigData.hiringPipelineColumns));
+      setColdCallGoals(appConfigData.coldCallGoals || DEFAULT_COLD_CALL_GOALS);
     }
   }, []);
 
@@ -285,7 +294,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           supportMaterialsV2Res, supportMaterialAssignmentsV2Res,
           gestorTasksRes, gestorTaskCompletionsRes, financialEntriesRes,
           formCadastrosRes, formFilesRes, notificationsRes, teamProductionGoalsRes, teamMembersRes,
-          processesRes, processAttachmentsRes, contratosRes, dailyMetricsConfigRes
+          processesRes, processAttachmentsRes, contratosRes, dailyMetricsConfigRes,
+          coldCallLeadsRes, coldCallLogsRes
         ] = await Promise.all([
           safeFetch('candidates', { select: 'id, data, created_at, last_updated_at', filters: { user_id: effectiveGestorId } }),
           safeFetch('support_materials', { select: 'id, data', filters: { user_id: effectiveGestorId } }),
@@ -309,7 +319,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           safeFetch('processes', { filters: { user_id: effectiveGestorId } }),
           safeFetch('process_attachments'),
           safeFetch('contratos', { orderBy: 'created_at', ascending: false }),
-          safeFetch('daily_metrics_config', { orderBy: 'order_index' })
+          safeFetch('daily_metrics_config', { orderBy: 'order_index' }),
+          safeFetch('cold_call_leads'),
+          safeFetch('cold_call_logs', { orderBy: 'created_at', ascending: false })
         ]);
 
         if (!candidatesRes.error) {
@@ -371,6 +383,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (!contratosRes.error) setContratos(contratosRes.data || []);
         if (!dailyMetricsConfigRes.error) setDailyMetricsConfig(dailyMetricsConfigRes.data || []);
+        if (!coldCallLeadsRes.error) setColdCallLeads((coldCallLeadsRes.data || []) as ColdCallLead[]);
+        if (!coldCallLogsRes.error) setColdCallLogs((coldCallLogsRes.data || []) as ColdCallLog[]);
 
         refetchCommissions();
       } catch (error: any) {
@@ -1187,6 +1201,19 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     if (error) throw error; setColdCallLeads(prev => [data, ...prev]); return data;
   }, [user]);
 
+  const addColdCallLeadsWithAssignments = useCallback(async (items: {
+    lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>;
+    consultantId: string;
+  }[]) => {
+    if (items.length === 0) return [];
+    const payload = items.map(item => ({ ...item.lead, user_id: item.consultantId, current_stage: 'Base Fria' as const }));
+    const { data, error } = await supabase.from('cold_call_leads').insert(payload).select();
+    if (error) throw error;
+    const inserted = data as ColdCallLead[];
+    setColdCallLeads(prev => [...inserted, ...prev]);
+    return inserted;
+  }, []);
+
   const updateColdCallLead = useCallback(async (id: string, updates: Partial<ColdCallLead>) => {
     const { data, error } = await supabase.from('cold_call_leads').update(updates).eq('id', id).select().single();
     if (error) throw error; setColdCallLeads(prev => prev.map(l => l.id === id ? data : l)); return data;
@@ -1203,6 +1230,12 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     if (error) throw error; setColdCallLogs(prev => [data, ...prev]); return data;
   }, [user]);
 
+  const addColdCallLogForConsultant = useCallback(async (log: Omit<ColdCallLog, 'id' | 'user_id' | 'created_at' | 'duration_seconds'> & { start_time: string; end_time: string; }, consultantId: string) => {
+    const duration_seconds = Math.round((new Date(log.end_time).getTime() - new Date(log.start_time).getTime()) / 1000);
+    const { data, error } = await supabase.from('cold_call_logs').insert({ ...log, user_id: consultantId, duration_seconds }).select().single();
+    if (error) throw error; setColdCallLogs(prev => [data, ...prev]); return data;
+  }, []);
+
   const getColdCallMetrics = useCallback((consultantId: string) => {
     const logs = coldCallLogs.filter(l => l.user_id === consultantId);
     const totalCalls = logs.length;
@@ -1211,6 +1244,12 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
     return { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate };
   }, [coldCallLogs]);
+
+  const updateColdCallGoals = useCallback((updates: Partial<typeof DEFAULT_COLD_CALL_GOALS>) => {
+    const next = { ...coldCallGoals, ...updates };
+    setColdCallGoals(next);
+    updateConfig({ coldCallGoals: next });
+  }, [coldCallGoals, updateConfig]);
 
   const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
     const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
@@ -1238,7 +1277,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, dailyMetricsConfig, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, processes, contratos, theme, hiringPipelineColumns,
+    coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, processes, contratos, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), setCandidates,
     toggleChecklistItem, setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
@@ -1415,7 +1454,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     addTeamMember, updateTeamMember, deleteTeamMember,
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
     hasPendingSecretariaTasks,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, addColdCallLeadsWithAssignments, addColdCallLogForConsultant,
     createCrmLeadFromColdCall,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
     addContrato, deleteContrato,
@@ -1428,7 +1467,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, dailyMetricsConfig, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, processes, contratos, theme, hiringPipelineColumns,
+    coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, processes, contratos, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem,
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
@@ -1451,7 +1490,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     addTeamProductionGoal, updateTeamProductionGoal, deleteTeamProductionGoal,
     addCutoffPeriod, updateCutoffPeriod, deleteCutoffPeriod,
     hasPendingSecretariaTasks,
-    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics,
+    addColdCallLead, updateColdCallLead, deleteColdCallLead, addColdCallLog, getColdCallMetrics, addColdCallLeadsWithAssignments, addColdCallLogForConsultant,
     createCrmLeadFromColdCall,
     addProcess, updateProcess, deleteProcess, deleteProcessAttachment,
     addContrato, deleteContrato,

@@ -21,6 +21,8 @@ import { PublicForm } from '@/pages/PublicForm';
 import { PublicProcessView } from '@/pages/PublicProcessView';
 import PublicDailyMetrics from '@/pages/PublicDailyMetrics';
 import PublicCommissionConference from '@/pages/PublicCommissionConference';
+import PublicColdCall from '@/pages/PublicColdCall';
+import PublicColdCallTV from '@/pages/PublicColdCallTV';
 
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
@@ -38,6 +40,7 @@ import { TeamConfig } from '@/pages/TeamConfig';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
 import Contratos from '@/pages/gestor/Contratos';
 import DailyMetricsConfig from '@/pages/gestor/MetricsConfig';
+import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
@@ -61,6 +64,8 @@ const AppRoutes = () => {
       <Route path="/public-form" element={<PublicForm />} />
       <Route path="/public-process/:processId" element={<PublicProcessView />} />
       <Route path="/metricas/:ownerId" element={<PublicDailyMetrics />} />
+      <Route path="/cold-call/:ownerId" element={<PublicColdCall />} />
+      <Route path="/cold-call-tv/:ownerId" element={<PublicColdCallTV />} />
       <Route path="/comissoes/:ownerId/:consultantName" element={<PublicCommissionConference />} />
 
       <Route element={<ProtectedLayout allowedRoles={['GESTOR', 'ADMIN', 'SECRETARIA', 'CONSULTOR']} />}>
@@ -78,6 +83,7 @@ const AppRoutes = () => {
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
           <Route path="daily-checklists" element={<DailyChecklistConfig />} />
           <Route path="daily-metrics-config" element={<DailyMetricsConfig />} />
+          <Route path="cold-call" element={<ColdCallMetricsPage />} />
           <Route path="tasks" element={<GestorTasksPage />} />
           <Route path="hiring-dashboard" element={<Navigate to="../hiring-metrics" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />

@@ -33,6 +33,7 @@ interface AgendaItem {
   personId: string;
   personType: 'candidate' | 'teamMember';
   dueDate: string;
+  scheduledTime?: string;
   taskId?: string;
 }
 
@@ -225,6 +226,7 @@ export const SecretariaDashboard = () => {
             personId: user!.id,
             personType: 'teamMember',
             dueDate: task.due_date || todayStr,
+            scheduledTime: task.scheduled_time,
           });
         } else if (!isRecurring && task.due_date && task.due_date < todayStr && !task.is_completed) {
           overdueItems.push({
@@ -235,9 +237,17 @@ export const SecretariaDashboard = () => {
             personId: user!.id,
             personType: 'teamMember',
             dueDate: task.due_date,
+            scheduledTime: task.scheduled_time,
           });
         }
       });
+
+    todayAgendaItems.sort((a, b) => {
+      if (a.scheduledTime && b.scheduledTime) return a.scheduledTime.localeCompare(b.scheduledTime);
+      if (a.scheduledTime) return -1;
+      if (b.scheduledTime) return 1;
+      return 0;
+    });
 
     return { todayAgenda: todayAgendaItems, overdueTasks: overdueItems };
   }, [candidates, checklistStructure, user, gestorTasks, gestorTaskCompletions, isGestorTaskDueOnDate, todayStr]);
@@ -382,6 +392,12 @@ export const SecretariaDashboard = () => {
                       {item.isRecorrente ? 'RECORRENTE' : 'PONTUAL'}
                     </span>
 
+                    {item.resource?.recurrence?.time && (
+                      <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600 dark:bg-slate-600 dark:text-slate-200">
+                        <Clock className="h-3 w-3" />{item.resource.recurrence.time.slice(0, 5)}
+                      </span>
+                    )}
+
                     <span className={`text-sm flex-1 truncate ${item.isDone ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-gray-200'}`}>
                       {item.text}
                     </span>
@@ -460,7 +476,16 @@ export const SecretariaDashboard = () => {
                         </div>
                         <div className="flex-1">
                           <p className="font-bold text-sm text-gray-900 dark:text-white">{item.title}</p>
-                          <p className="text-xs text-gray-500">{item.personName}</p>
+                          <p className="text-xs text-gray-500">
+                            {item.scheduledTime ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-brand-600 dark:text-brand-400">
+                                <Clock className="h-3 w-3" /> {item.scheduledTime.slice(0, 5)}
+                                <span className="font-normal text-gray-400">· {item.personName}</span>
+                              </span>
+                            ) : (
+                              item.personName
+                            )}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -509,6 +534,11 @@ export const SecretariaDashboard = () => {
                         <div className="flex-1">
                           <p className="font-bold text-sm text-red-900 dark:text-red-200">{item.title}</p>
                           <p className="text-xs text-red-700 dark:text-red-400">
+                            {item.scheduledTime && (
+                              <span className="inline-flex items-center gap-1 font-semibold text-red-600 dark:text-red-300 mr-1">
+                                <Clock className="h-3 w-3" /> {item.scheduledTime.slice(0, 5)}
+                              </span>
+                            )}
                             {item.personName} • Venceu em {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('pt-BR')}
                           </p>
                         </div>

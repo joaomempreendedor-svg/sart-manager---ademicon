@@ -152,6 +152,7 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'every_x_days' | 'specific_date'>('daily');
+  const [taskTime, setTaskTime] = useState('');
   const [weeklyDayOfWeek, setWeeklyDayOfWeek] = useState(new Date().getDay());
   const [monthlyDay, setMonthlyDay] = useState(1);
   const [intervalDays, setIntervalDays] = useState(2);
@@ -193,12 +194,14 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
       const rec = item?.resource?.recurrence;
       if (rec) {
         setRecurrenceType(rec.type as any);
+        setTaskTime(rec.time || '');
         if (rec.type === 'weekly') setWeeklyDayOfWeek(rec.dayOfWeek ?? new Date().getDay());
         if (rec.type === 'monthly') setMonthlyDay(rec.dayOfMonth ?? 1);
         if (rec.type === 'every_x_days') setIntervalDays(rec.intervalDays ?? 2);
         if (rec.type === 'specific_date') setSpecificDate(rec.specificDate ?? new Date().toISOString().split('T')[0]);
       } else {
         setRecurrenceType('daily');
+        setTaskTime('');
       }
     }
   }, [isOpen, item]);
@@ -232,11 +235,11 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
     const nowDate = new Date().toISOString().split('T')[0];
 
     const recurrence: DailyChecklistItemResource['recurrence'] =
-      recurrenceType === 'daily' ? { type: 'daily' } :
-      recurrenceType === 'weekly' ? { type: 'weekly', dayOfWeek: weeklyDayOfWeek } :
-      recurrenceType === 'monthly' ? { type: 'monthly', dayOfMonth: monthlyDay } :
-      recurrenceType === 'every_x_days' ? { type: 'every_x_days', intervalDays, startDate: item?.created_at?.split('T')[0] || nowDate } :
-      { type: 'specific_date', specificDate };
+      recurrenceType === 'daily' ? { type: 'daily', time: taskTime || undefined } :
+      recurrenceType === 'weekly' ? { type: 'weekly', dayOfWeek: weeklyDayOfWeek, time: taskTime || undefined } :
+      recurrenceType === 'monthly' ? { type: 'monthly', dayOfMonth: monthlyDay, time: taskTime || undefined } :
+      recurrenceType === 'every_x_days' ? { type: 'every_x_days', intervalDays, startDate: item?.created_at?.split('T')[0] || nowDate, time: taskTime || undefined } :
+      { type: 'specific_date', specificDate, time: taskTime || undefined };
 
     if (resourceType === 'none') {
       finalResource = { type: 'none', content: '', name: resourceName.trim() || undefined, recurrence };
@@ -308,8 +311,16 @@ const ChecklistItemModal: React.FC<ChecklistItemModalProps> = ({ isOpen, onClose
               </div>
 
               <div className="border-t border-gray-200 dark:border-slate-700 pt-4 mt-2">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Recorrência da Tarefa</h4>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Recorrência e Horário da Tarefa</h4>
                 <div className="grid gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label>Horário para executar</Label>
+                      <input type="time" value={taskTime} onChange={(e) => setTaskTime(e.target.value)}
+                        className="w-full mt-1 p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 dark:text-white" />
+                      <p className="text-xs text-gray-400 mt-1">Opcional.</p>
+                    </div>
+                  </div>
                   <Label>Tipo de Recorrência</Label>
                   <select value={recurrenceType} onChange={(e) => setRecurrenceType(e.target.value as any)}
                     className="w-full p-2 border rounded bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 dark:text-white">
@@ -550,6 +561,30 @@ export const DailyChecklistConfig = () => {
         </Button>
       </div>
 
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-black text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">1</div>
+          <div>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">Crie um checklist</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Botão "Novo Checklist" no topo (ex: Rotina Diária).</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-black text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">2</div>
+          <div>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">Adicione atividades</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Botão "Adicionar Tarefa" em cada checklist. Você pode definir horário de execução.</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-black text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">3</div>
+          <div>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">Atribua a uma secretaria</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Botão "Atribuir" para a secretaria ver no dashboard.</p>
+          </div>
+        </div>
+      </div>
+
       {filteredChecklists.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
           <ListChecks className="mx-auto w-12 h-12 text-gray-300 dark:text-slate-600" />
@@ -588,6 +623,10 @@ export const DailyChecklistConfig = () => {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
+                      <Button onClick={() => { setSelectedChecklistForItem(checklist); setEditingItem(null); setIsItemModalOpen(true); }}
+                        className="bg-brand-600 hover:bg-brand-700 text-white">
+                        <Plus className="w-4 h-4" />Adicionar Tarefa
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => { setSelectedChecklistForAssignment(checklist); setIsAssignmentModalOpen(true); }}
                         className="flex items-center space-x-1 dark:bg-slate-700 dark:text-white dark:border-slate-600">
                         <Users className="w-4 h-4" /><span>Atribuir</span>
@@ -671,6 +710,11 @@ export const DailyChecklistConfig = () => {
                             <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                               {getRecorrenciaLabel(item)}
                             </span>
+                            {item.resource?.recurrence?.time && (
+                              <span className="flex-shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-600 dark:text-gray-200">
+                                <Clock className="w-3 h-3" />{item.resource.recurrence.time.slice(0, 5)}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1 sm:mt-0">
                             <Button variant="ghost" size="sm" onClick={() => handleMoveItem(checklist.id, item.id, 'up')} disabled={index === 0} className="p-1.5 text-gray-400 hover:text-brand-600 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></Button>
@@ -712,6 +756,11 @@ export const DailyChecklistConfig = () => {
                             <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
                               {getRecorrenciaLabel(item)}
                             </span>
+                            {item.resource?.recurrence?.time && (
+                              <span className="flex-shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-600 dark:text-gray-200">
+                                <Clock className="w-3 h-3" />{item.resource.recurrence.time.slice(0, 5)}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1 sm:mt-0">
                             <Button variant="ghost" size="sm" onClick={() => handleMoveItem(checklist.id, item.id, 'up')} disabled={index === 0} className="p-1.5 text-gray-400 hover:text-brand-600 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></Button>
@@ -727,9 +776,9 @@ export const DailyChecklistConfig = () => {
 
                 {/* Adicionar tarefa */}
                 <div className="px-6 pb-5">
-                  <Button variant="ghost"
+                  <Button variant="outline"
                     onClick={() => { setSelectedChecklistForItem(checklist); setEditingItem(null); setIsItemModalOpen(true); }}
-                    className="flex items-center text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700">
+                    className="flex items-center text-sm text-brand-600 dark:text-brand-400 font-medium hover:text-brand-700 dark:bg-slate-700 dark:border-slate-600">
                     <Plus className="w-4 h-4 mr-1" />Adicionar Tarefa
                   </Button>
                 </div>
