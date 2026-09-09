@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   PhoneCall, CalendarCheck, Star, Loader2, Sun, Moon,
   UserRound, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
-  Clock, BarChart3, Save, PhoneForwarded,
+  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -403,6 +403,16 @@ const PublicColdCall = () => {
                         <h3 className="text-2xl font-bold sm:text-3xl">{activeLead.name || activeLead.phone}</h3>
                         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-white/85">
                           <span className="flex items-center gap-1.5"><PhoneCall className="h-4 w-4" /> {activeLead.phone}</span>
+                          {activeLead.company_name && (
+                            <span className="flex items-center gap-1.5">
+                              <Building2 className="h-4 w-4" /> {activeLead.company_name}
+                            </span>
+                          )}
+                          {activeLead.city && (
+                            <span className="flex items-center gap-1.5">
+                              <MapPin className="h-4 w-4" /> {activeLead.city}
+                            </span>
+                          )}
                           <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
                             {activeLead.current_stage}
                           </span>

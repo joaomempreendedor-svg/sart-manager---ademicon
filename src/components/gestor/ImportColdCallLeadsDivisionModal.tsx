@@ -71,7 +71,7 @@ const parsePastedData = (pastedData: string): { items: LeadInput[]; errors: stri
     dataLines = allLines;
   }
 
-  const headerMap: Record<string, 'phone' | 'name' | 'email' | 'notes'> = {
+  const headerMap: Record<string, 'phone' | 'name' | 'email' | 'notes' | 'city' | 'address' | 'company_name' | 'opening_date'> = {
     'telefone': 'phone',
     'celular': 'phone',
     'fone': 'phone',
@@ -83,6 +83,17 @@ const parsePastedData = (pastedData: string): { items: LeadInput[]; errors: stri
     'observacao': 'notes',
     'anotações': 'notes',
     'anotacoes': 'notes',
+    'cidade': 'city',
+    'endereço': 'address',
+    'endereco': 'address',
+    'rua': 'address',
+    'nome da empresa': 'company_name',
+    'empresa': 'company_name',
+    'razão social': 'company_name',
+    'razao social': 'company_name',
+    'data de abertura': 'opening_date',
+    'data abertura': 'opening_date',
+    'abertura': 'opening_date',
   };
 
   dataLines.forEach((line, idx) => {
@@ -102,6 +113,10 @@ const parsePastedData = (pastedData: string): { items: LeadInput[]; errors: stri
     if (!lead.name?.trim()) lead.name = lead.phone.trim();
     if (!lead.email) delete lead.email;
     if (!lead.notes) delete lead.notes;
+    if (!lead.city) delete lead.city;
+    if (!lead.address) delete lead.address;
+    if (!lead.company_name) delete lead.company_name;
+    if (!lead.opening_date) delete lead.opening_date;
     items.push(lead as LeadInput);
   });
 
@@ -249,7 +264,7 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
             <span>Importar e Dividir Prospects</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da planilha (CSV ou tab-separated). Coluna obrigatória: Telefone. Colunas opcionais: Nome, Email, Observações. Os leads são divididos automaticamente entre os consultores marcados.
+            Cole os dados da planilha (CSV ou tab-separated). Coluna obrigatória: Telefone. Colunas opcionais: Nome, Email, Cidade, Endereço, Nome da Empresa, Data de Abertura, Observações. Os leads são divididos automaticamente entre os consultores marcados.
           </DialogDescription>
         </DialogHeader>
 
@@ -262,7 +277,7 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
               onChange={e => setPastedData(e.target.value)}
               rows={6}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder={'Nome;Telefone;Email;Observações\nJoão Silva;(11) 98765-4321;joao@email.com;Cliente quente\nMaria Oliveira;(31) 99887-7665;;Retornar semana que vem'}
+              placeholder={'Nome;Telefone;Email;Cidade;Endereço;Nome da Empresa;Data de Abertura\nJoão Silva;(11) 98765-4321;joao@email.com;Maringá;Rua X, 123;EMPRESA LTDA;01/01/2020\nMaria Oliveira;(31) 99887-7665;;Sarandi;Av Y, 456;OUTRA LTDA;02/02/2021'}
             />
           </div>
 
@@ -341,6 +356,8 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
                     <tr className="text-left text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                       <th className="px-3 py-2">Nome</th>
                       <th className="px-3 py-2">Telefone</th>
+                      <th className="px-3 py-2">Cidade</th>
+                      <th className="px-3 py-2">Empresa</th>
                       <th className="px-3 py-2">Consultor</th>
                     </tr>
                   </thead>
@@ -351,6 +368,8 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
                         <tr key={i}>
                           <td className="px-3 py-2 text-gray-900 dark:text-white">{a.lead.name}</td>
                           <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{a.lead.phone}</td>
+                          <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{a.lead.city || '—'}</td>
+                          <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{a.lead.company_name || '—'}</td>
                           <td className="px-3 py-2 font-medium text-brand-600 dark:text-brand-400">{consultant?.name || '—'}</td>
                         </tr>
                       );

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { X, PhoneCall, MessageSquare, CalendarCheck, BarChart3, UserRound, Clock, ChevronRight } from 'lucide-react';
+import { X, PhoneCall, MessageSquare, CalendarCheck, BarChart3, UserRound, Clock, ChevronRight, Building2, MapPin } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -174,6 +174,21 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
                         {lead.email && (
                           <span className="flex items-center">
                             <MessageSquare className="w-3 h-3 mr-1" /> {lead.email}
+                          </span>
+                        )}
+                        {lead.company_name && (
+                          <span className="flex items-center">
+                            <Building2 className="w-3 h-3 mr-1" /> {lead.company_name}{lead.city ? ` — ${lead.city}` : ''}
+                          </span>
+                        )}
+                        {lead.address && (
+                          <span className="flex items-center">
+                            <MapPin className="w-3 h-3 mr-1" /> {lead.address}
+                          </span>
+                        )}
+                        {lead.opening_date && (
+                          <span className="flex items-center">
+                            <CalendarCheck className="w-3 h-3 mr-1" /> Abertura da empresa: {lead.opening_date}
                           </span>
                         )}
                         <span className="flex items-center">

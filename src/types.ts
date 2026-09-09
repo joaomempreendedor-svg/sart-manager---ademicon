@@ -599,6 +599,10 @@ export interface ColdCallLead {
   email?: string;
   current_stage: ColdCallStage;
   notes?: string;
+  city?: string;
+  address?: string;
+  company_name?: string;
+  opening_date?: string;
   crm_lead_id?: string;
   created_at: string;
   updated_at: string;

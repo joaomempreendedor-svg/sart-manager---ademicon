@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult, CrmLead, ColdCallDetailType } from '@/types';
-import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays, UploadCloud, UserPlus, ArrowUpRight, Star } from 'lucide-react';
+import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays, UploadCloud, UserPlus, ArrowUpRight, Star, Building2, MapPin } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -474,11 +474,24 @@ const ColdCallPage = () => {
                 filteredLeads.map(lead => (
                   <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900 dark:text-white">{lead.name}</span>
-                        {lead.crm_lead_id && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-500 text-white dark:bg-orange-500">
-                            Enviado ao CRM
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-white">{lead.name}</span>
+                          {lead.crm_lead_id && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-500 text-white dark:bg-orange-500">
+                              Enviado ao CRM
+                            </span>
+                          )}
+                        </div>
+                        {lead.company_name && (
+                          <span className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                            <Building2 className="w-3 h-3 mr-1 text-gray-400" /> {lead.company_name}
+                            {lead.city ? ` — ${lead.city}` : ''}
+                          </span>
+                        )}
+                        {lead.address && (
+                          <span className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                            <MapPin className="w-3 h-3 mr-1 text-gray-400" /> {lead.address}
                           </span>
                         )}
                       </div>

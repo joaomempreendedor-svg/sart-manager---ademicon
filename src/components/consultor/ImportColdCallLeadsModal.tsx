@@ -82,7 +82,24 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
     const headerToFieldKeyMap: { [key: string]: string } = {
       'telefone': 'phone',
       'celular': 'phone',
+      'fone': 'phone',
       'nome': 'name', // Adicionado mapeamento para 'nome'
+      'email': 'email',
+      'e-mail': 'email',
+      'cidade': 'city',
+      'endereço': 'address',
+      'endereco': 'address',
+      'rua': 'address',
+      'nome da empresa': 'company_name',
+      'empresa': 'company_name',
+      'razão social': 'company_name',
+      'razao social': 'company_name',
+      'data de abertura': 'opening_date',
+      'data abertura': 'opening_date',
+      'abertura': 'opening_date',
+      'observações': 'notes',
+      'observacoes': 'notes',
+      'observacao': 'notes',
     };
 
     for (const line of dataLines) {
@@ -101,8 +118,15 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
             leadData.phone = value;
           } else if (fieldKey === 'name') { // Preenche o nome se a coluna existir
             leadData.name = value;
+          } else {
+            (leadData as any)[fieldKey] = value;
           }
         }
+      });
+
+      // Limpa campos opcionais vazios
+      ['email', 'city', 'address', 'company_name', 'opening_date', 'notes'].forEach(k => {
+        if (!(leadData as any)[k]) delete (leadData as any)[k];
       });
 
       // Validação: Telefone é obrigatório
@@ -164,7 +188,7 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
             <span>Importar Prospects de Cold Call</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da sua planilha (CSV ou tab-separated). A coluna 'Telefone' é obrigatória. Se a coluna 'Nome' não for fornecida, o telefone será usado como nome.
+            Cole os dados da sua planilha (CSV ou tab-separated). A coluna 'Telefone' é obrigatória. Se a coluna 'Nome' não for fornecida, o telefone será usado como nome. Colunas opcionais: Cidade, Endereço, Nome da Empresa, Data de Abertura, Email, Observações.
           </DialogDescription>
         </DialogHeader>
         
@@ -177,7 +201,7 @@ export const ImportColdCallLeadsModal: React.FC<ImportColdCallLeadsModalProps> =
               onChange={(e) => setPastedData(e.target.value)}
               rows={8}
               className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600 font-mono text-sm"
-              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (	) como separador.\n\nExemplo:\nNome,Telefone\nJoão Silva,(11) 98765-4321\n,(21) 91234-5678 (nome será o telefone)\nMaria Oliveira,(31) 99887-7665`}
+              placeholder={`Cole aqui os dados da sua planilha. Use vírgula (,) ou tab (\t) como separador.\n\nExemplo:\nNome,Telefone,Cidade,Endereço,Nome da Empresa,Data de Abertura\nJoão Silva,(11) 98765-4321,Maringá,Rua X 123,EMPRESA LTDA,01/01/2020\n,(21) 91234-5678,Sarandi,Av Y 456,OUTRA LTDA,02/02/2021 (nome será o telefone)\nMaria Oliveira,(31) 99887-7665,Paiçandu,Rua Z 789,MAIS LTDA,03/03/2022`}
             />
             {parseError && (
               <p className="text-red-500 text-sm mt-2 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" />{parseError}</p>
