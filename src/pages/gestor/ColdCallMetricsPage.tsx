@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, ArrowUpRight, Clock, TrendingUp, Star, Target, Trophy, Settings2, ChevronRight, UploadCloud, Link2 } from 'lucide-react';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, ArrowUpRight, Clock, TrendingUp, Target, Trophy, Settings2, ChevronRight, UploadCloud, Link2 } from 'lucide-react';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import ImportColdCallLeadsDivisionModal, { ColdCallImportConsultant } from '@/components/gestor/ImportColdCallLeadsDivisionModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType, ColdCallGoals } from '@/types';
@@ -158,12 +158,8 @@ const ColdCallMetricsPage = () => {
     );
     const totalAnswered = answeredLogs.length;
 
-    const totalConversations = answeredLogs.filter(log =>
-      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
-    ).length;
     const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 
-    const interestConversionRate = totalAnswered > 0 ? (totalConversations / totalAnswered) * 100 : 0;
     const meetingConversionRate = totalAnswered > 0 ? (totalMeetingsScheduled / totalAnswered) * 100 : 0;
 
     const totalDuration = filteredColdCallLogs.reduce((sum, log) => sum + log.duration_seconds, 0);
@@ -172,9 +168,7 @@ const ColdCallMetricsPage = () => {
     return {
       totalCalls,
       totalAnswered,
-      totalConversations,
       totalMeetingsScheduled,
-      interestConversionRate,
       meetingConversionRate,
       averageDuration,
     };
@@ -186,14 +180,13 @@ const ColdCallMetricsPage = () => {
   }, [coldCallLogs]);
 
   const perConsultantToday = useMemo(() => {
-    const map: Record<string, { calls: number; contacts: number; interested: number; meetings: number }> = {};
+    const map: Record<string, { calls: number; contacts: number; meetings: number }> = {};
     coldCallConsultants.forEach(m => {
       const uid = m.authUserId || m.id;
       const logs = todayLogs.filter(l => l.user_id === uid);
       map[uid] = {
         calls: logs.length,
         contacts: logs.filter(l => l.result !== 'Não atendeu' && l.result !== 'Número inválido').length,
-        interested: logs.filter(l => l.result === 'Demonstrou Interesse').length,
         meetings: logs.filter(l => l.result === 'Agendar Reunião').length,
       };
     });
@@ -201,21 +194,20 @@ const ColdCallMetricsPage = () => {
   }, [todayLogs, coldCallConsultants]);
 
   const liveTotals = useMemo(() => {
-    let calls = 0, contacts = 0, interested = 0, meetings = 0;
+    let calls = 0, contacts = 0, meetings = 0;
     todayLogs.forEach(l => {
       calls += 1;
       if (l.result !== 'Não atendeu' && l.result !== 'Número inválido') contacts += 1;
-      if (l.result === 'Demonstrou Interesse') interested += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
-    return { calls, contacts, interested, meetings };
+    return { calls, contacts, meetings };
   }, [todayLogs]);
 
   const liveMetaCompletion = useMemo(() => {
     const pcts = [
-      liveTotals.calls, liveTotals.contacts, liveTotals.interested, liveTotals.meetings,
+      liveTotals.calls, liveTotals.contacts, liveTotals.meetings,
     ].map((v, i) => {
-      const metaValues = [coldCallGoals.calls, coldCallGoals.contacts, coldCallGoals.interested, coldCallGoals.meetings];
+      const metaValues = [coldCallGoals.calls, coldCallGoals.contacts, coldCallGoals.meetings];
       return metaValues[i] > 0 ? Math.min(100, (v / metaValues[i]) * 100) : 0;
     });
     return pcts.length > 0 ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : 0;
@@ -225,7 +217,7 @@ const ColdCallMetricsPage = () => {
     return coldCallConsultants
       .map(m => {
         const uid = m.authUserId || m.id;
-        const metrics = perConsultantToday[uid] || { calls: 0, contacts: 0, interested: 0, meetings: 0 };
+        const metrics = perConsultantToday[uid] || { calls: 0, contacts: 0, meetings: 0 };
         const meetingsPct = coldCallGoals.meetings > 0 ? Math.min(100, Math.round((metrics.meetings / coldCallGoals.meetings) * 100)) : 0;
         return { consultant: m, uid, ...metrics, meetingsPct };
       })
@@ -236,21 +228,19 @@ const ColdCallMetricsPage = () => {
     const baseLeads = coldCallLeads.filter(l => l.current_stage === 'Base Fria').length;
     const poolWorked = baseLeads > 0 ? (liveTotals.calls / baseLeads) * 100 : null;
     const callContact = liveTotals.calls > 0 ? (liveTotals.contacts / liveTotals.calls) * 100 : null;
-    const contactInterest = liveTotals.contacts > 0 ? (liveTotals.interested / liveTotals.contacts) * 100 : null;
-    const interestMeeting = liveTotals.interested > 0 ? (liveTotals.meetings / liveTotals.interested) * 100 : null;
+    const contactMeeting = liveTotals.contacts > 0 ? (liveTotals.meetings / liveTotals.contacts) * 100 : null;
 
     const stages = [
       { label: 'Base → Ligações', rate: poolWorked },
       { label: 'Ligações → Contatos', rate: callContact },
-      { label: 'Contatos → Interessados', rate: contactInterest },
-      { label: 'Interessados → Reuniões', rate: interestMeeting },
+      { label: 'Contatos → Reuniões', rate: contactMeeting },
     ];
     const withRate: { label: string; rate: number }[] = stages.filter((s): s is { label: string; rate: number } => s.rate !== null);
     let bottleneck: { label: string; rate: number } | null = null;
     if (withRate.length > 0) {
       bottleneck = withRate.reduce((min, s) => (s.rate! < min.rate! ? s : min));
     }
-    return { baseLeads, poolWorked, callContact, contactInterest, interestMeeting, bottleneck };
+    return { baseLeads, poolWorked, callContact, contactMeeting, bottleneck };
   }, [coldCallLeads, liveTotals]);
 
   const handleOpenColdCallDetailModal = (title: string, type: ColdCallDetailType) => {
@@ -294,7 +284,6 @@ const ColdCallMetricsPage = () => {
     updateColdCallGoals({
       calls: Math.max(0, goalsDraft.calls),
       contacts: Math.max(0, goalsDraft.contacts),
-      interested: Math.max(0, goalsDraft.interested),
       meetings: Math.max(0, goalsDraft.meetings),
     });
     setIsGoalsModalOpen(false);
@@ -392,7 +381,7 @@ const ColdCallMetricsPage = () => {
           <span className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">{todayLabel}</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <LiveKpiCard
             title="Ligações"
             value={liveTotals.calls}
@@ -408,14 +397,6 @@ const ColdCallMetricsPage = () => {
             icon={MessageSquare}
             iconColorClass="text-sky-600 dark:text-sky-400"
             onClick={() => handleOpenTodayDetailModal('Contatos Realizados', 'answered')}
-          />
-          <LiveKpiCard
-            title="Interessados"
-            value={liveTotals.interested}
-            meta={coldCallGoals.interested}
-            icon={Star}
-            iconColorClass="text-amber-600 dark:text-amber-400"
-            onClick={() => handleOpenTodayDetailModal('Demonstraram Interesse', 'interest')}
           />
           <LiveKpiCard
             title="Reuniões"
@@ -458,7 +439,6 @@ const ColdCallMetricsPage = () => {
                 <div className="mt-3 space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
                   <p className="flex items-center justify-between"><span>Ligações</span><span className="font-bold text-gray-800 dark:text-gray-200">{r.calls}</span></p>
                   <p className="flex items-center justify-between"><span>Contatos</span><span className="font-bold text-gray-800 dark:text-gray-200">{r.contacts}</span></p>
-                  <p className="flex items-center justify-between"><span>Interessados</span><span className="font-bold text-gray-800 dark:text-gray-200">{r.interested}</span></p>
                 </div>
                 <div className="mt-3 h-2 rounded-full bg-gray-100 dark:bg-slate-700">
                   <div className={`h-full rounded-full ${progressBarClass(r.meetingsPct)}`} style={{ width: `${r.meetingsPct}%` }} />
@@ -478,7 +458,6 @@ const ColdCallMetricsPage = () => {
                 <th className="px-4 py-3 text-center">Ligações</th>
                 <th className="px-4 py-3 w-40 min-w-40">Meta Ligações</th>
                 <th className="px-4 py-3 text-center">Contatos</th>
-                <th className="px-4 py-3 text-center">Interessados</th>
                 <th className="px-4 py-3 text-center">Reuniões</th>
                 <th className="px-4 py-3 w-40 min-w-40">Meta Reuniões</th>
               </tr>
@@ -497,7 +476,6 @@ const ColdCallMetricsPage = () => {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">{r.contacts}</td>
-                  <td className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">{r.interested}</td>
                   <td className="px-4 py-3 text-center font-bold text-green-600 dark:text-green-400">{r.meetings}</td>
                   <td className="px-4 py-3">
                     <div className="h-2 rounded-full bg-gray-100 dark:bg-slate-700">
@@ -518,7 +496,7 @@ const ColdCallMetricsPage = () => {
         </h2>
 
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-5">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <div className="rounded-lg bg-slate-100 dark:bg-slate-700/60 p-4 text-center">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Leads na Base Fria</p>
               <p className="mt-1 text-3xl font-black text-gray-900 dark:text-white">{funnelAnalysis.baseLeads}</p>
@@ -546,17 +524,7 @@ const ColdCallMetricsPage = () => {
             <div className="flex items-center justify-center">
               <div className="flex flex-col items-center">
                 <ChevronRight className="w-5 h-5 text-gray-400" />
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400">{funnelAnalysis.contactInterest !== null ? `${funnelAnalysis.contactInterest.toFixed(0)}%` : '—'}</p>
-              </div>
-            </div>
-            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800 p-4 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Interessados</p>
-              <p className="mt-1 text-3xl font-black text-amber-700 dark:text-amber-300">{liveTotals.interested}</p>
-            </div>
-            <div className="flex items-center justify-center">
-              <div className="flex flex-col items-center">
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400">{funnelAnalysis.interestMeeting !== null ? `${funnelAnalysis.interestMeeting.toFixed(0)}%` : '—'}</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400">{funnelAnalysis.contactMeeting !== null ? `${funnelAnalysis.contactMeeting.toFixed(0)}%` : '—'}</p>
               </div>
             </div>
             <div className="rounded-lg bg-green-50 dark:bg-green-950/40 border border-green-100 dark:border-green-800 p-4 text-center">
@@ -640,7 +608,7 @@ const ColdCallMetricsPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           <MetricCard
             title="Total de Ligações"
             value={coldCallMetrics.totalCalls}
@@ -656,21 +624,6 @@ const ColdCallMetricsPage = () => {
             colorClass="bg-sky-600 text-white"
             subValue="Chamadas que foram atendidas"
             onClick={() => handleOpenColdCallDetailModal('Ligações Atendidas', 'answered')}
-          />
-          <MetricCard
-            title="Demonstraram Interesse"
-            value={coldCallMetrics.totalConversations}
-            icon={Star}
-            colorClass="bg-amber-600 text-white"
-            subValue="Conversou ou Agendou Reunião"
-            onClick={() => handleOpenColdCallDetailModal('Demonstraram Interesse', 'conversations')}
-          />
-          <MetricCard
-            title="Taxa de Interesse"
-            value={`${coldCallMetrics.interestConversionRate.toFixed(1)}%`}
-            icon={Percent}
-            colorClass="bg-yellow-600 text-white"
-            subValue="Atendidas → Interesse"
           />
           <MetricCard
             title="Reuniões Agendadas"
@@ -709,7 +662,6 @@ const ColdCallMetricsPage = () => {
               {([
                 { key: 'calls', label: 'Ligações' },
                 { key: 'contacts', label: 'Contatos' },
-                { key: 'interested', label: 'Interessados' },
                 { key: 'meetings', label: 'Reuniões' },
               ] as { key: keyof ColdCallGoals; label: string }[]).map(field => (
                 <div key={field.key}>
