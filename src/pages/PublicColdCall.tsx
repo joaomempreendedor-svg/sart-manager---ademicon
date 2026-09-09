@@ -73,6 +73,7 @@ const PublicColdCall = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | ColdCallResult>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogResult, setDialogResult] = useState<ColdCallResult>('Agendar Reunião');
   const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
@@ -154,14 +155,18 @@ const PublicColdCall = () => {
   };
 
   const queue = useMemo(() => {
+    const calledLeadIds = new Set(logs.map(l => l.cold_call_lead_id));
     return leads
       .filter(l => l.current_stage !== 'Reunião Agendada')
       .sort((a, b) => {
+        const aNotCalled = calledLeadIds.has(a.id) ? 1 : 0;
+        const bNotCalled = calledLeadIds.has(b.id) ? 1 : 0;
+        if (aNotCalled !== bNotCalled) return aNotCalled - bNotCalled;
         const orderDiff = (STAGE_ORDER[a.current_stage] ?? 9) - (STAGE_ORDER[b.current_stage] ?? 9);
         if (orderDiff !== 0) return orderDiff;
         return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
       });
-  }, [leads]);
+  }, [leads, logs]);
 
   const activeLead = useMemo(() => {
     return queue.find(l => l.id === activeLeadId) || queue[0] || null;
@@ -184,6 +189,13 @@ const PublicColdCall = () => {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return sorted[0] || null;
   }, [logs]);
+
+  const filteredQueue = useMemo(() => {
+    if (statusFilter === 'all') return queue;
+    return queue
+      .filter(l => lastLogForLead(l.id)?.result === statusFilter)
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  }, [queue, statusFilter, lastLogForLead]);
 
   const resultColor = useCallback((result: string) => {
     return CALL_RESULTS.find(c => c.result === result)?.color || 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
@@ -450,16 +462,32 @@ const PublicColdCall = () => {
 
             {/* Fila restante */}
             <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-center justify-between border-b px-5 py-4 dark:border-slate-800">
+              <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
                 <h3 className="flex items-center gap-2 font-semibold">
-                  <BarChart3 className="h-5 w-5 text-brand-600" /> Minha fila ({queue.length})
+                  <BarChart3 className="h-5 w-5 text-brand-600" /> Minha fila ({filteredQueue.length})
                 </h3>
+                <div className="w-full sm:w-56">
+                  <Label htmlFor="statusFilter" className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Filtrar por resultado da ligação</Label>
+                  <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | ColdCallResult)}>
+                    <SelectTrigger id="statusFilter" className="h-9 dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                      <SelectValue placeholder="Todos os status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
+                      <SelectItem value="all">Todos os status</SelectItem>
+                      {CALL_RESULTS.map(c => (
+                        <SelectItem key={c.result} value={c.result}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              {queue.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-slate-400">Nenhum prospect aguardando contato.</p>
+              {filteredQueue.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-slate-400">
+                  {statusFilter === 'all' ? 'Nenhum prospect aguardando contato.' : 'Nenhum prospect com este resultado de ligação.'}
+                </p>
               ) : (
                 <div className="divide-y dark:divide-slate-800">
-                  {queue.map(lead => {
+                  {filteredQueue.map(lead => {
                     const last = lastLogForLead(lead.id);
                     return (
                       <div
