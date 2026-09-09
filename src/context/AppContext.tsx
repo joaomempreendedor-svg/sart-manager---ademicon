@@ -345,7 +345,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const normalizedTeamMembers = (teamMembersRes.data || []).map(item => {
             const data = item.data as any;
             const dbId = item.id;
-            const authId = data.id || data.authUserId || null;
+            const authId = data.authUserId || data.id || null;
             return { 
               id: dbId, db_id: dbId, authUserId: authId, name: String(data.name || ''), email: data.email, 
               roles: Array.isArray(data.roles) ? data.roles.map((role: string) => role.toUpperCase()) : [],
