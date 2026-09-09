@@ -115,9 +115,7 @@ const ColdCallMetricsPage = () => {
   }, [teamMembers]);
 
   const coldCallImportConsultants: ColdCallImportConsultant[] = useMemo(() => {
-    return coldCallConsultants
-      .filter(m => Boolean(m.authUserId))
-      .map(m => ({ id: m.id, name: m.name, key: m.authUserId! }));
+    return coldCallConsultants.map(m => ({ id: m.id, name: m.name, key: (m.authUserId || m.id) }));
   }, [coldCallConsultants]);
 
   const filteredColdCallLogs = useMemo(() => {
