@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   PhoneCall, MessageSquare, CalendarCheck, Star, Loader2, Sun, Moon, TrendingUp,
   UserRound, Play, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
-  Clock, BarChart3, Send, Save, Target, PhoneForwarded,
+  Clock, BarChart3, Save, Target, PhoneForwarded,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -82,7 +82,6 @@ const PublicColdCall = () => {
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingModality, setMeetingModality] = useState('');
   const [meetingNotes, setMeetingNotes] = useState('');
-  const [sendToCrm, setSendToCrm] = useState(true);
 
   const selectedConsultant = consultants.find(c => c.id === selectedConsultantId);
   const selectedConsultantKey = selectedConsultant?.consultantKey || null;
@@ -209,7 +208,6 @@ const PublicColdCall = () => {
     setMeetingTime('');
     setMeetingModality('Online');
     setMeetingNotes('');
-    setSendToCrm(true);
     setIsDialogOpen(true);
   };
 
@@ -237,23 +235,6 @@ const PublicColdCall = () => {
       }).eq('id', lead.id);
       if (leadError) throw leadError;
 
-      if (sendToCrm && (result === 'Agendar Reunião' || result === 'Demonstrou Interesse') && !lead.crm_lead_id) {
-        const { data, error: fnError } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
-          body: {
-            coldCallLeadId: lead.id,
-            meetingDate: meeting?.date || undefined,
-            meetingTime: meeting?.time || undefined,
-            meetingModality: meeting?.modality || undefined,
-            meetingNotes: meeting?.notes || undefined,
-            coldCallResult: result,
-          },
-        });
-        if (fnError) throw fnError;
-        if (data?.crmLeadId) {
-          await supabase.from('cold_call_leads').update({ crm_lead_id: data.crmLeadId }).eq('id', lead.id);
-        }
-      }
-
       toast.success('Resultado registrado!');
       await refreshAfterWrite();
       return true;
@@ -280,11 +261,6 @@ const PublicColdCall = () => {
       toast.error('Informe data e horário da reunião.');
       return;
     }
-    const needsName = (dialogResult === 'Agendar Reunião' || dialogResult === 'Demonstrou Interesse') && sendToCrm;
-    if (needsName && !contactName.trim()) {
-      toast.error('Informe o nome do contato para enviar ao CRM.');
-      return;
-    }
     const ok = await recordResult(activeLead, dialogResult, {
       date: meetingDate || undefined,
       time: meetingTime || undefined,
@@ -292,7 +268,7 @@ const PublicColdCall = () => {
       notes: meetingNotes || undefined,
     });
     if (ok) {
-      if (needsName && contactName.trim() && contactName.trim() !== activeLead.name) {
+      if (contactName.trim() && contactName.trim() !== activeLead.name) {
         await supabase.from('cold_call_leads').update({ name: contactName.trim() }).eq('id', activeLead.id);
         await refreshAfterWrite();
       }
@@ -391,11 +367,9 @@ const PublicColdCall = () => {
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {([
                 { label: 'Ligações hoje', value: todaysMetrics.calls, icon: PhoneCall, color: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300' },
-                { label: 'Contatos hoje', value: todaysMetrics.contacts, icon: MessageSquare, color: 'bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-300' },
-                { label: 'Interessados hoje', value: todaysMetrics.interested, icon: Star, color: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300' },
                 { label: 'Reuniões hoje', value: todaysMetrics.meetings, icon: CalendarCheck, color: 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-300' },
               ] as { label: string; value: number; icon: React.ComponentType<{ className?: string }>; color: string }[]).map(item => (
                 <div key={item.label} className="flex items-center gap-3 rounded-2xl border bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -435,8 +409,16 @@ const PublicColdCall = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex-shrink-0 rounded-xl bg-white/15 px-5 py-3 text-center backdrop-blur">
-                        <p className="text-xs text-white/70">{queue.length - 1} na fila após este</p>
+                      <div className="flex flex-shrink-0 items-center gap-2">
+                        <a
+                          href={`tel:${activeLead.phone}`}
+                          className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400"
+                        >
+                          <PhoneCall className="h-5 w-5" /> Ligar
+                        </a>
+                        <div className="rounded-xl bg-white/15 px-5 py-3 text-center backdrop-blur">
+                          <p className="text-xs text-white/70">{queue.length - 1} na fila após este</p>
+                        </div>
                       </div>
                     </div>
 
@@ -479,25 +461,36 @@ const PublicColdCall = () => {
                   {queue.map(lead => {
                     const last = lastLogForLead(lead.id);
                     return (
-                      <button
+                      <div
                         key={lead.id}
-                        onClick={() => setActiveLeadId(lead.id)}
-                        className={`flex w-full items-center justify-between gap-3 px-5 py-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/50 ${activeLead?.id === lead.id ? 'bg-brand-50 dark:bg-brand-950/40' : ''}`}
+                        className={`flex w-full items-center justify-between gap-3 px-5 py-3 ${activeLead?.id === lead.id ? 'bg-brand-50 dark:bg-brand-950/40' : ''}`}
                       >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                            {lead.name || lead.phone}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{lead.phone}</p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stageBadgeClass(lead.current_stage)}`}>
-                            {lead.current_stage}
-                          </span>
-                          {last && <span className="hidden text-xs text-slate-400 sm:inline">{last.result}</span>}
-                          {activeLead?.id === lead.id && <ChevronRight className="h-4 w-4 text-brand-500" />}
-                        </div>
-                      </button>
+                        <button
+                          onClick={() => setActiveLeadId(lead.id)}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                              {lead.name || lead.phone}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{lead.phone}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stageBadgeClass(lead.current_stage)}`}>
+                              {lead.current_stage}
+                            </span>
+                            {last && <span className="hidden text-xs text-slate-400 sm:inline">{last.result}</span>}
+                            {activeLead?.id === lead.id && <ChevronRight className="h-4 w-4 text-brand-500" />}
+                          </div>
+                        </button>
+                        <a
+                          href={`tel:${lead.phone}`}
+                          title="Ligar"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 transition hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                        >
+                          <PhoneCall className="h-4 w-4" />
+                        </a>
+                      </div>
                     );
                   })}
                 </div>
@@ -561,17 +554,12 @@ const PublicColdCall = () => {
                 </div>
               </>
             )}
-
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-              <input type="checkbox" checked={sendToCrm} onChange={e => setSendToCrm(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
-              Enviar para o CRM
-            </label>
           </div>
 
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 flex-col gap-2 sm:flex-row dark:border-slate-700">
             <Button type="button" onClick={handleDialogSave} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : sendToCrm ? <Send className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-              {isSaving ? 'Salvando...' : sendToCrm ? 'Registrar e enviar ao CRM' : 'Registrar'}
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {isSaving ? 'Salvando...' : 'Registrar'}
             </Button>
             <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
               Cancelar

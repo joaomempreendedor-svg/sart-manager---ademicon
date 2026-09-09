@@ -89,9 +89,30 @@ const PublicColdCallTV = () => {
     loadData();
     const dataInterval = setInterval(loadData, 15000);
     const clockInterval = setInterval(() => setNow(new Date()), 10000);
+
+    const channel = supabase
+      .channel('cold-call-tv-live')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'cold_call_logs' },
+        () => loadData()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'cold_call_logs' },
+        () => loadData()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'cold_call_leads' },
+        () => loadData()
+      )
+      .subscribe();
+
     return () => {
       clearInterval(dataInterval);
       clearInterval(clockInterval);
+      supabase.removeChannel(channel);
     };
   }, [loadData]);
 

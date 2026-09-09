@@ -52,3 +52,8 @@ $$;
 
 REVOKE ALL ON FUNCTION get_cold_call_goals(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_cold_call_goals(uuid) TO anon, authenticated;
+
+-- 5) Realtime para o painel de TV atualizar as métricas em tempo real quando um
+--    consultor lança um resultado. Execute APÓS os itens 1–4.
+ALTER PUBLICATION supabase_realtime ADD TABLE cold_call_leads;
+ALTER PUBLICATION supabase_realtime ADD TABLE cold_call_logs;
