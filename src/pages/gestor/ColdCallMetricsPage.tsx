@@ -715,7 +715,7 @@ const ColdCallMetricsPage = () => {
           {/* Meta da equipe */}
           <div className="py-4">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide flex items-center mb-3">
-              <Users className="w-4 h-4 mr-2 text-brand-500" /> Meta da Equipe (por consultor)
+              <Users className="w-4 h-4 mr-2 text-brand-500" /> Meta da Equipe (no geral)
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {([
