@@ -106,7 +106,7 @@ const PublicColdCall = () => {
           name: String(d.name || ''),
           roles: Array.isArray(d.roles) ? d.roles.map((r: string) => String(r).toUpperCase()) : [],
           isActive: d.isActive !== false,
-          consultantKey: d.id || d.authUserId || row.id,
+          consultantKey: d.authUserId || d.id || row.id,
         };
       })
       .filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')))
