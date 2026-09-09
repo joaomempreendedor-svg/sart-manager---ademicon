@@ -202,6 +202,18 @@ const PublicColdCall = () => {
     return sorted[0] || null;
   }, [logs]);
 
+  const resultColor = useCallback((result: string) => {
+    return CALL_RESULTS.find(c => c.result === result)?.color || 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
+  }, []);
+
+  const todayLogsWithLead = useMemo(() => {
+    const leadById = new Map(leads.map(l => [l.id, l]));
+    return logs
+      .filter(l => isToday(l.start_time || l.created_at))
+      .map(l => ({ log: l, lead: leadById.get(l.cold_call_lead_id) || null }))
+      .sort((a, b) => new Date(b.log.start_time || b.log.created_at).getTime() - new Date(a.log.start_time || a.log.created_at).getTime());
+  }, [logs, leads]);
+
   const refreshAfterWrite = async () => {
     if (!selectedConsultantKey) return;
     const [leadsRes, logsRes] = await Promise.all([
@@ -359,25 +371,14 @@ const PublicColdCall = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
             {/* Resumo do dia */}
-            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Fila de {selectedConsultant.name}
-                </h2>
-                <p className="text-sm text-slate-500">{queue.length} prospect(s) aguardando na fila hoje.</p>
-              </div>
-              <Select value={selectedConsultantId} onValueChange={handleSelectConsultant}>
-                <SelectTrigger className="h-10 w-52">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {consultants.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Fila de {selectedConsultant.name}
+              </h2>
+              <p className="text-sm text-slate-500">{queue.length} prospect(s) aguardando na fila hoje.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -510,8 +511,45 @@ const PublicColdCall = () => {
               )}
             </div>
           </div>
-        )}
-      </main>
+
+          {/* Resultados das ligações realizadas */}
+          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center gap-2 border-b px-5 py-4 dark:border-slate-800">
+                <PhoneCall className="h-5 w-5 text-emerald-600" />
+                <h3 className="font-semibold">Ligações realizadas hoje</h3>
+              </div>
+              {todayLogsWithLead.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-slate-400">
+                  Nenhuma ligação registrada hoje ainda.
+                </p>
+              ) : (
+                <div className="max-h-[600px] divide-y overflow-y-auto dark:divide-slate-800">
+                  {todayLogsWithLead.map(({ log, lead }) => (
+                    <div key={log.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                          {lead?.name || lead?.phone || 'Contato'}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {lead?.phone || '—'}
+                          <span className="ml-2 text-slate-400">
+                            {new Date(log.start_time || log.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </p>
+                      </div>
+                      <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold ${resultColor(log.result)}`}>
+                        {log.result}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+    </main>
 
       {/* Dialog de resultado detalhado (Agendar Reunião) */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
