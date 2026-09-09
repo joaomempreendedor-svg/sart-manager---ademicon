@@ -81,8 +81,6 @@ const PublicColdCall = () => {
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingModality, setMeetingModality] = useState('');
   const [meetingNotes, setMeetingNotes] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [stageFilter, setStageFilter] = useState<string>('all');
 
   const selectedConsultant = consultants.find(c => c.id === selectedConsultantId);
   const selectedConsultantKey = selectedConsultant?.consultantKey || null;
@@ -168,17 +166,6 @@ const PublicColdCall = () => {
         return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
       });
   }, [leads]);
-
-  const filteredQueue = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    return queue.filter(l => {
-      const matchesTerm = !term
-        || (l.name || '').toLowerCase().includes(term)
-        || l.phone.includes(term);
-      const matchesStage = stageFilter === 'all' || l.current_stage === stageFilter;
-      return matchesTerm && matchesStage;
-    });
-  }, [queue, searchTerm, stageFilter]);
 
   const activeLead = useMemo(() => {
     return queue.find(l => l.id === activeLeadId) || queue[0] || null;
@@ -457,36 +444,16 @@ const PublicColdCall = () => {
 
             {/* Fila restante */}
             <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex flex-col gap-3 border-b px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center justify-between border-b px-5 py-4 dark:border-slate-800">
                 <h3 className="flex items-center gap-2 font-semibold">
-                  <BarChart3 className="h-5 w-5 text-brand-600" /> Minha fila ({filteredQueue.length}/{queue.length})
+                  <BarChart3 className="h-5 w-5 text-brand-600" /> Minha fila ({queue.length})
                 </h3>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Select value={stageFilter} onValueChange={setStageFilter}>
-                    <SelectTrigger className="h-10 w-full sm:w-56 dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                      <SelectValue placeholder="Filtrar por etapa" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">
-                      <SelectItem value="all">Todas as etapas</SelectItem>
-                      <SelectItem value="Base Fria">Contato não realizado</SelectItem>
-                      <SelectItem value="Tentativa de Contato">Tentativa de contato</SelectItem>
-                      <SelectItem value="Conversou">Conversou</SelectItem>
-                      <SelectItem value="Reunião Agendada">Reunião agendada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    placeholder="Buscar por nome ou telefone..."
-                    className="h-10 w-full sm:w-64 dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  />
-                </div>
               </div>
-              {filteredQueue.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-slate-400">Nenhum prospect encontrado com o filtro atual.</p>
+              {queue.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-slate-400">Nenhum prospect aguardando contato.</p>
               ) : (
                 <div className="divide-y dark:divide-slate-800">
-                  {filteredQueue.map(lead => {
+                  {queue.map(lead => {
                     const last = lastLogForLead(lead.id);
                     return (
                       <div
