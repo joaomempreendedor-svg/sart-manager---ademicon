@@ -84,7 +84,7 @@ const LiveKpiCard: React.FC<LiveKpiProps> = ({ title, value, meta, icon: Icon, i
 
 const ColdCallMetricsPage = () => {
   const { user } = useAuth();
-  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, addColdCallLeadsWithAssignments, teamMembers, isDataLoading } = useApp();
+  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, coldCallConsultantGoals, updateColdCallConsultantGoals, addColdCallLeadsWithAssignments, teamMembers, isDataLoading } = useApp();
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
@@ -102,6 +102,7 @@ const ColdCallMetricsPage = () => {
 
   const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
   const [goalsDraft, setGoalsDraft] = useState<ColdCallGoals>(coldCallGoals);
+  const [consultantGoalsDraft, setConsultantGoalsDraft] = useState<Record<string, ColdCallGoals>>({});
 
   const selectedColdCallConsultantName = useMemo(() => {
     if (!selectedColdCallConsultantId) {
@@ -287,6 +288,12 @@ const ColdCallMetricsPage = () => {
 
   const openGoalsModal = () => {
     setGoalsDraft(coldCallGoals);
+    const draft: Record<string, ColdCallGoals> = {};
+    coldCallConsultants.forEach(c => {
+      const key = c.authUserId || c.id;
+      draft[key] = { ...(coldCallConsultantGoals[key] || coldCallGoals) };
+    });
+    setConsultantGoalsDraft(draft);
     setIsGoalsModalOpen(true);
   };
 
@@ -296,6 +303,11 @@ const ColdCallMetricsPage = () => {
       contacts: Math.max(0, goalsDraft.contacts),
       interested: Math.max(0, goalsDraft.interested),
       meetings: Math.max(0, goalsDraft.meetings),
+    });
+    coldCallConsultants.forEach(c => {
+      const key = c.authUserId || c.id;
+      const g = consultantGoalsDraft[key];
+      if (g) updateColdCallConsultantGoals(key, g);
     });
     setIsGoalsModalOpen(false);
     toast.success('Metas diárias atualizadas');
@@ -692,32 +704,86 @@ const ColdCallMetricsPage = () => {
 
       {/* ===== MODAL EDITAR METAS ===== */}
       <Dialog open={isGoalsModalOpen} onOpenChange={setIsGoalsModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-800 dark:text-white p-6">
+        <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6 max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Target className="w-6 h-6 text-brand-500" />
-              <span>Metas Diárias do Time</span>
+              <span>Metas Diárias do Cold Call</span>
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            {([
-              { key: 'calls', label: 'Ligações' },
-              { key: 'contacts', label: 'Contatos' },
-              { key: 'interested', label: 'Interessados' },
-              { key: 'meetings', label: 'Reuniões' },
-            ] as { key: keyof ColdCallGoals; label: string }[]).map(field => (
-              <div key={field.key}>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{field.label} por consultor</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={goalsDraft[field.key]}
-                  onChange={(e) => setGoalsDraft(prev => ({ ...prev, [field.key]: Math.max(0, parseInt(e.target.value) || 0) }))}
-                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
-                />
-              </div>
-            ))}
+
+          {/* Meta da equipe */}
+          <div className="py-4">
+            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide flex items-center mb-3">
+              <Users className="w-4 h-4 mr-2 text-brand-500" /> Meta da Equipe (por consultor)
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {([
+                { key: 'calls', label: 'Ligações' },
+                { key: 'contacts', label: 'Contatos' },
+                { key: 'interested', label: 'Interessados' },
+                { key: 'meetings', label: 'Reuniões' },
+              ] as { key: keyof ColdCallGoals; label: string }[]).map(field => (
+                <div key={field.key}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{field.label}</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={goalsDraft[field.key]}
+                    onChange={(e) => setGoalsDraft(prev => ({ ...prev, [field.key]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* Meta por consultor */}
+          <div className="py-4 border-t border-gray-100 dark:border-slate-700">
+            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide flex items-center mb-3">
+              <UserPlus className="w-4 h-4 mr-2 text-brand-500" /> Meta de cada consultor
+            </h3>
+            {coldCallConsultants.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Nenhum consultor ativo configurado.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {coldCallConsultants.map(c => {
+                  const key = c.authUserId || c.id;
+                  const draft = consultantGoalsDraft[key] || { ...coldCallGoals };
+                  const setField = (field: keyof ColdCallGoals, value: number) => {
+                    setConsultantGoalsDraft(prev => ({ ...prev, [key]: { ...(prev[key] || draft), [field]: value } }));
+                  };
+                  return (
+                    <div key={key} className="rounded-xl border border-gray-200 dark:border-slate-700 p-3">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white mb-2">{c.name}</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {([
+                          { key: 'calls', label: 'Ligações' },
+                          { key: 'contacts', label: 'Contatos' },
+                          { key: 'interested', label: 'Interessados' },
+                          { key: 'meetings', label: 'Reuniões' },
+                        ] as { key: keyof ColdCallGoals; label: string }[]).map(field => (
+                          <div key={field.key}>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{field.label}</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={draft[field.key]}
+                              onChange={(e) => setField(field.key, Math.max(0, parseInt(e.target.value) || 0))}
+                              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
             <Button type="button" onClick={saveGoals} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
               Salvar Metas

@@ -708,6 +708,8 @@ export interface AppContextType {
   coldCallLogs: ColdCallLog[];
   coldCallGoals: ColdCallGoals;
   updateColdCallGoals: (goals: Partial<ColdCallGoals>) => void;
+  coldCallConsultantGoals: Record<string, ColdCallGoals>;
+  updateColdCallConsultantGoals: (consultantKey: string, goals: Partial<ColdCallGoals>) => void;
   addColdCallLeadsWithAssignments: (items: {
     lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>;
     consultantId: string;

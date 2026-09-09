@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn, Contrato, DailyMetricConfig } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn, Contrato, DailyMetricConfig, ColdCallGoals } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -102,6 +102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [coldCallLeads, setColdCallLeads] = useState<ColdCallLead[]>([]);
   const [coldCallLogs, setColdCallLogs] = useState<ColdCallLog[]>([]);
   const [coldCallGoals, setColdCallGoals] = useState(DEFAULT_COLD_CALL_GOALS);
+  const [coldCallConsultantGoals, setColdCallConsultantGoals] = useState<Record<string, ColdCallGoals>>({});
   const [processes, setProcesses] = useState<Process[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
 
@@ -160,9 +161,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateConfig = useCallback((updates: any) => {
     if (!user) return;
-    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals };
+    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals, coldCallConsultantGoals };
     debouncedUpdateConfig({ ...currentConfig, ...updates });
-  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals, debouncedUpdateConfig]);
+  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals, coldCallConsultantGoals, debouncedUpdateConfig]);
 
   const resetLocalState = useCallback(() => {
     setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
@@ -175,7 +176,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setDailyMetricsConfig([]);
     setSupportMaterialsV2([]); setSupportMaterialAssignments([]); setLeadTasks([]); setGestorTasks([]); setGestorTaskCompletions([]); setFinancialEntries([]);
     setFormCadastros([]); setFormFiles([]); setNotifications([]); setTeamProductionGoals([]);
-    setColdCallLeads([]); setColdCallLogs([]); setColdCallGoals(DEFAULT_COLD_CALL_GOALS); setProcesses([]); setContratos([]);
+    setColdCallLeads([]); setColdCallLogs([]); setColdCallGoals(DEFAULT_COLD_CALL_GOALS); setColdCallConsultantGoals({}); setProcesses([]); setContratos([]);
     setIsDataLoading(false);
   }, []);
 
@@ -264,6 +265,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setPvs(appConfigData.pvs || []);
       setHiringPipelineColumns(normalizeHiringPipelineColumns(appConfigData.hiringPipelineColumns));
       setColdCallGoals(appConfigData.coldCallGoals || DEFAULT_COLD_CALL_GOALS);
+      setColdCallConsultantGoals(appConfigData.coldCallConsultantGoals || {});
     }
   }, []);
 
@@ -1251,6 +1253,14 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     updateConfig({ coldCallGoals: next });
   }, [coldCallGoals, updateConfig]);
 
+  const updateColdCallConsultantGoals = useCallback((consultantKey: string, updates: Partial<ColdCallGoals>) => {
+    setColdCallConsultantGoals(prev => {
+      const next = { ...prev, [consultantKey]: { ...(prev[consultantKey] || DEFAULT_COLD_CALL_GOALS), ...updates } };
+      updateConfig({ coldCallConsultantGoals: next });
+      return next;
+    });
+  }, [updateConfig]);
+
   const createCrmLeadFromColdCall = useCallback(async (coldCallLeadId: string, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
     const { data, error } = await supabase.functions.invoke('create-crm-lead-from-cold-call', {
       body: { coldCallLeadId, meetingDate: meeting?.date, meetingTime: meeting?.time, meetingModality: meeting?.modality, meetingNotes: meeting?.notes }
@@ -1277,7 +1287,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, dailyMetricsConfig, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, processes, contratos, theme, hiringPipelineColumns,
+    coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, coldCallConsultantGoals, updateColdCallConsultantGoals, processes, contratos, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), setCandidates,
     toggleChecklistItem, setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
@@ -1467,7 +1477,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, dailyMetricsConfig, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, processes, contratos, theme, hiringPipelineColumns,
+    coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, coldCallConsultantGoals, updateColdCallConsultantGoals, processes, contratos, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem,
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,
