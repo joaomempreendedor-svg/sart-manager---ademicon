@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  PhoneCall, MessageSquare, CalendarCheck, Star, Target, Trophy, BarChart3,
+  PhoneCall, MessageSquare, CalendarCheck, Target, Trophy, BarChart3,
   AlertTriangle, TrendingUp, Users,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -119,19 +119,18 @@ const PublicColdCallTV = () => {
   const todayLogs = useMemo(() => logs.filter(l => isToday(l.start_time || l.created_at)), [logs]);
 
   const liveTotals = useMemo(() => {
-    let calls = 0, contacts = 0, interested = 0, meetings = 0;
+    let calls = 0, answered = 0, meetings = 0;
     todayLogs.forEach(l => {
       calls += 1;
-      if (l.result !== 'Não atendeu' && l.result !== 'Número inválido') contacts += 1;
-      if (l.result === 'Demonstrou Interesse') interested += 1;
+      if (l.result !== 'Não atendeu' && l.result !== 'Número inválido') answered += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
-    return { calls, contacts, interested, meetings };
+    return { calls, answered, meetings };
   }, [todayLogs]);
 
   const liveMetaCompletion = useMemo(() => {
-    const values = [liveTotals.calls, liveTotals.contacts, liveTotals.interested, liveTotals.meetings];
-    const metas = [goals.calls, goals.contacts, goals.interested, goals.meetings];
+    const values = [liveTotals.calls, liveTotals.answered, liveTotals.meetings];
+    const metas = [goals.calls, goals.contacts, goals.meetings];
     const pcts = values.map((v, i) => metas[i] > 0 ? Math.min(100, (v / metas[i]) * 100) : 0);
     return pcts.length ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length) : 0;
   }, [liveTotals, goals]);
@@ -142,26 +141,24 @@ const PublicColdCallTV = () => {
         const uid = m.consultantKey;
         const logsFor = todayLogs.filter(l => l.user_id === uid);
         const calls = logsFor.length;
-        const contacts = logsFor.filter(l => l.result !== 'Não atendeu' && l.result !== 'Número inválido').length;
-        const interested = logsFor.filter(l => l.result === 'Demonstrou Interesse').length;
+        const answered = logsFor.filter(l => l.result !== 'Não atendeu' && l.result !== 'Número inválido').length;
         const meetings = logsFor.filter(l => l.result === 'Agendar Reunião').length;
         const callsPct = goals.calls > 0 ? Math.min(100, Math.round((calls / goals.calls) * 100)) : 0;
         const meetingsPct = goals.meetings > 0 ? Math.min(100, Math.round((meetings / goals.meetings) * 100)) : 0;
-        return { consultant: m, uid, calls, contacts, interested, meetings, callsPct, meetingsPct };
+        return { consultant: m, uid, calls, answered, meetings, callsPct, meetingsPct };
       })
-      .sort((a, b) => b.meetings - a.meetings || b.contacts - a.contacts || b.calls - a.calls);
+      .sort((a, b) => b.meetings - a.meetings || b.answered - a.answered || b.calls - a.calls);
   }, [consultants, todayLogs, goals]);
 
   const funnelAnalysis = useMemo(() => {
     const baseLeads = leads.filter(l => l.current_stage === 'Base Fria').length;
     const stages = [
-      { label: 'Calls', value: liveTotals.calls, rate: liveTotals.calls > 0 ? 100 : 0, strong: 'bg-blue-500', faint: 'from-blue-500 to-blue-400' },
-      { label: 'Contatos', value: liveTotals.contacts, rate: liveTotals.calls > 0 ? (liveTotals.contacts / liveTotals.calls) * 100 : 0, strong: 'bg-sky-500', faint: 'from-sky-500 to-sky-400' },
-      { label: 'Interessados', value: liveTotals.interested, rate: liveTotals.contacts > 0 ? (liveTotals.interested / liveTotals.contacts) * 100 : 0, strong: 'bg-amber-500', faint: 'from-amber-500 to-yellow-400' },
-      { label: 'Reuniões', value: liveTotals.meetings, rate: liveTotals.interested > 0 ? (liveTotals.meetings / liveTotals.interested) * 100 : 0, strong: 'bg-green-500', faint: 'from-green-500 to-emerald-400' },
+      { label: 'Ligações realizadas', value: liveTotals.calls, rate: liveTotals.calls > 0 ? 100 : 0, strong: 'bg-blue-500', faint: 'from-blue-500 to-blue-400' },
+      { label: 'Ligações atendidas', value: liveTotals.answered, rate: liveTotals.calls > 0 ? (liveTotals.answered / liveTotals.calls) * 100 : 0, strong: 'bg-sky-500', faint: 'from-sky-500 to-sky-400' },
+      { label: 'Reuniões marcadas', value: liveTotals.meetings, rate: liveTotals.answered > 0 ? (liveTotals.meetings / liveTotals.answered) * 100 : 0, strong: 'bg-green-500', faint: 'from-green-500 to-emerald-400' },
     ];
     const bottlenecks = stages
-      .filter(s => s.label !== 'Calls' && s.value > 0)
+      .filter(s => s.label !== 'Ligações realizadas' && s.value > 0)
       .map(s => ({ label: s.label, rate: s.rate }));
     let bottleneck: { label: string; rate: number } | null = null;
     if (bottlenecks.length > 0) {
@@ -179,10 +176,9 @@ const PublicColdCallTV = () => {
   }, [now]);
 
   const kpiCards = [
-    { label: 'Ligações', value: liveTotals.calls, meta: goals.calls, icon: PhoneCall, color: 'bg-blue-500/20 text-blue-300', bar: 'bg-blue-400' },
-    { label: 'Contatos', value: liveTotals.contacts, meta: goals.contacts, icon: MessageSquare, color: 'bg-sky-500/20 text-sky-300', bar: 'bg-sky-400' },
-    { label: 'Interessados', value: liveTotals.interested, meta: goals.interested, icon: Star, color: 'bg-amber-500/20 text-amber-300', bar: 'bg-amber-400' },
-    { label: 'Reuniões', value: liveTotals.meetings, meta: goals.meetings, icon: CalendarCheck, color: 'bg-green-500/20 text-green-300', bar: 'bg-green-400' },
+    { label: 'Ligações realizadas', value: liveTotals.calls, meta: goals.calls, icon: PhoneCall, color: 'bg-blue-500/20 text-blue-300', bar: 'bg-blue-400' },
+    { label: 'Ligações atendidas', value: liveTotals.answered, meta: goals.contacts, icon: MessageSquare, color: 'bg-sky-500/20 text-sky-300', bar: 'bg-sky-400' },
+    { label: 'Reuniões marcadas', value: liveTotals.meetings, meta: goals.meetings, icon: CalendarCheck, color: 'bg-green-500/20 text-green-300', bar: 'bg-green-400' },
   ];
 
   if (isLoading) {
@@ -266,7 +262,7 @@ const PublicColdCallTV = () => {
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/20">
               <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${liveMetaCompletion}%` }} />
             </div>
-            <p className="mt-2 text-sm font-semibold text-white/80">Média de cumprimento das 4 metas</p>
+            <p className="mt-2 text-sm font-semibold text-white/80">Média de cumprimento das 3 metas</p>
           </div>
         </section>
 
@@ -298,15 +294,15 @@ const PublicColdCallTV = () => {
                     <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                       <div className="rounded-lg bg-black/10 p-2">
                         <p className="text-2xl font-black tabular-nums">{r.calls}</p>
-                        <p className="text-[11px] font-bold uppercase">Calls</p>
+                        <p className="text-[11px] font-bold uppercase">Ligações</p>
                       </div>
                       <div className="rounded-lg bg-black/10 p-2">
-                        <p className="text-2xl font-black tabular-nums">{r.contacts}</p>
-                        <p className="text-[11px] font-bold uppercase">Contatos</p>
+                        <p className="text-2xl font-black tabular-nums">{r.answered}</p>
+                        <p className="text-[11px] font-bold uppercase">Atendidas</p>
                       </div>
                       <div className="rounded-lg bg-black/10 p-2">
-                        <p className="text-2xl font-black tabular-nums">{r.interested}</p>
-                        <p className="text-[11px] font-bold uppercase">Interess.</p>
+                        <p className="text-2xl font-black tabular-nums">{r.meetings}</p>
+                        <p className="text-[11px] font-bold uppercase">Reuniões</p>
                       </div>
                     </div>
                     <div className="mt-3">
@@ -331,11 +327,10 @@ const PublicColdCallTV = () => {
                     <tr>
                       <th className="px-5 py-3">#</th>
                       <th className="px-5 py-3">Consultor</th>
-                      <th className="px-5 py-3 text-center">Calls</th>
-                      <th className="px-5 py-3 text-center">Contatos</th>
-                      <th className="px-5 py-3 text-center">Interess.</th>
+                      <th className="px-5 py-3 text-center">Ligações</th>
+                      <th className="px-5 py-3 text-center">Atendidas</th>
                       <th className="px-5 py-3 text-center">Reuniões</th>
-                      <th className="px-5 py-3">Meta Calls</th>
+                      <th className="px-5 py-3">Meta Ligações</th>
                       <th className="px-5 py-3">Meta Reuniões</th>
                     </tr>
                   </thead>
@@ -347,8 +342,7 @@ const PublicColdCallTV = () => {
                         </td>
                         <td className="px-5 py-3 font-bold">{r.consultant.name}</td>
                         <td className="px-5 py-3 text-center font-black tabular-nums">{r.calls}</td>
-                        <td className="px-5 py-3 text-center font-semibold tabular-nums">{r.contacts}</td>
-                        <td className="px-5 py-3 text-center font-semibold tabular-nums">{r.interested}</td>
+                        <td className="px-5 py-3 text-center font-semibold tabular-nums">{r.answered}</td>
                         <td className="px-5 py-3 text-center font-black tabular-nums text-green-300">{r.meetings}</td>
                         <td className="px-5 py-3">
                           <ProgressBar pct={r.callsPct} />
