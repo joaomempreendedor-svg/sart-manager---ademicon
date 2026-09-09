@@ -214,6 +214,13 @@ const PublicColdCall = () => {
       .sort((a, b) => new Date(b.log.start_time || b.log.created_at).getTime() - new Date(a.log.start_time || a.log.created_at).getTime());
   }, [logs, leads]);
 
+  const todayResultSummary = useMemo(() => {
+    return CALL_RESULTS.map(c => ({
+      result: c.result,
+      count: logs.filter(l => isToday(l.start_time || l.created_at) && l.result === c.result).length,
+    }));
+  }, [logs]);
+
   const refreshAfterWrite = async () => {
     if (!selectedConsultantKey) return;
     const [leadsRes, logsRes] = await Promise.all([
@@ -512,8 +519,33 @@ const PublicColdCall = () => {
             </div>
           </div>
 
-          {/* Resultados das ligações realizadas */}
+          {/* Status de resultado das ligações */}
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center gap-2 border-b px-5 py-4 dark:border-slate-800">
+                <BarChart3 className="h-5 w-5 text-brand-600" />
+                <h3 className="font-semibold">Status das ligações</h3>
+              </div>
+              <div className="space-y-2 px-5 py-4">
+                {CALL_RESULTS.map(c => {
+                  const count = todayResultSummary.find(s => s.result === c.result)?.count || 0;
+                  return (
+                    <div key={c.result} className="flex items-center justify-between gap-3">
+                      <span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${resultColor(c.result)}`}>
+                        <c.icon className="h-3.5 w-3.5" />
+                        {c.label}
+                      </span>
+                      <span className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{count}</span>
+                    </div>
+                  );
+                })}
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total</span>
+                  <span className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{todayLogsWithLead.length}</span>
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center gap-2 border-b px-5 py-4 dark:border-slate-800">
                 <PhoneCall className="h-5 w-5 text-emerald-600" />
