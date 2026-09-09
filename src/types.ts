@@ -627,6 +627,16 @@ export interface ColdCallGoals {
   meetings: number;
 }
 
+export interface ColdCallConsultant {
+  id: string;
+  user_id: string;
+  name: string;
+  email?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProcessAttachment {
   id: string;
   process_id: string;
@@ -706,6 +716,10 @@ export interface AppContextType {
   teamProductionGoals: TeamProductionGoal[];
   coldCallLeads: ColdCallLead[];
   coldCallLogs: ColdCallLog[];
+  coldCallConsultants: ColdCallConsultant[];
+  addColdCallConsultant: (consultant: { name: string; email: string }) => Promise<{ success: boolean; tempPassword: string; wasExistingUser: boolean }>;
+  updateColdCallConsultant: (id: string, updates: Partial<Pick<ColdCallConsultant, 'name' | 'email' | 'is_active'>>) => Promise<{ success: boolean }>;
+  deleteColdCallConsultant: (id: string) => Promise<void>;
   coldCallGoals: ColdCallGoals;
   updateColdCallGoals: (goals: Partial<ColdCallGoals>) => void;
   coldCallConsultantGoals: Record<string, ColdCallGoals>;

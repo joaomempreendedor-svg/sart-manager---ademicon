@@ -311,7 +311,7 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
               <div>
                 <Label className="flex items-center"><Users className="w-4 h-4 mr-1.5" /> Divisão automática entre consultores</Label>
                 {consultants.length === 0 ? (
-                  <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">Nenhum consultor de cold call ativo. Cadastre consultores com perfil CONSULTOR.</p>
+                  <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">Nenhum consultor de cold call ativo. Cadastre um consultor na tela do gestor.</p>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {consultants.map(c => {

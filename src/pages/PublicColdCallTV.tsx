@@ -67,7 +67,7 @@ const PublicColdCallTV = () => {
   const loadData = useCallback(async () => {
     if (!ownerId) return;
     const [membersRes, goalsRes, leadsRes, logsRes] = await Promise.all([
-      supabase.from('team_members').select('id, data').eq('user_id', ownerId),
+      supabase.from('cold_call_consultants').select('id, name, email, user_id, is_active'),
       supabase.rpc('get_cold_call_goals', { p_user: ownerId }),
       supabase.from('cold_call_leads').select('*'),
       supabase.from('cold_call_logs').select('*'),
@@ -75,17 +75,14 @@ const PublicColdCallTV = () => {
 
     if (!membersRes.error) {
       const members: PublicTeamMember[] = (membersRes.data || [])
-        .map((row: any) => {
-          const d = row.data || {};
-          return {
-            id: row.id,
-            name: String(d.name || ''),
-            roles: Array.isArray(d.roles) ? d.roles.map((r: string) => String(r).toUpperCase()) : [],
-            isActive: d.isActive !== false,
-            consultantKey: d.authUserId || d.id || row.id,
-          };
-        })
-        .filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')))
+        .map((row: any) => ({
+          id: row.id,
+          name: String(row.name || ''),
+          roles: ['CONSULTOR'],
+          isActive: row.is_active !== false,
+          consultantKey: row.user_id,
+        }))
+        .filter(m => m.isActive)
         .sort((a, b) => a.name.localeCompare(b.name));
       setConsultants(members);
     }

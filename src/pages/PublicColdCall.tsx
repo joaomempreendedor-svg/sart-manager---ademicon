@@ -88,28 +88,24 @@ const PublicColdCall = () => {
   const loadBaseData = useCallback(async () => {
     if (!ownerId) return;
     const { data, error } = await supabase
-      .from('team_members')
-      .select('id, data')
-      .eq('user_id', ownerId);
+      .from('cold_call_consultants')
+      .select('id, name, email, user_id, is_active');
 
     if (error) {
-      toast.error('Não foi possível carregar os consultores. Verifique se as políticas de acesso público foram aplicadas no banco.');
+      toast.error('Não foi possível carregar os consultores. Verifique se a tabela cold_call_consultants foi criada no banco.');
       setIsLoading(false);
       return;
     }
 
     const members: PublicTeamMember[] = (data || [])
-      .map((row: any) => {
-        const d = row.data || {};
-        return {
-          id: row.id,
-          name: String(d.name || ''),
-          roles: Array.isArray(d.roles) ? d.roles.map((r: string) => String(r).toUpperCase()) : [],
-          isActive: d.isActive !== false,
-          consultantKey: d.authUserId || d.id || row.id,
-        };
-      })
-      .filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')))
+      .map((row: any) => ({
+        id: row.id,
+        name: String(row.name || ''),
+        roles: ['CONSULTOR'],
+        isActive: row.is_active !== false,
+        consultantKey: row.user_id,
+      }))
+      .filter(m => m.isActive)
       .sort((a, b) => a.name.localeCompare(b.name));
 
     setConsultants(members);

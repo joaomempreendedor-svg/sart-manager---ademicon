@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, ArrowUpRight, Clock, TrendingUp, Target, Trophy, Settings2, ChevronRight, UploadCloud, Link2 } from 'lucide-react';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, ArrowUpRight, Clock, TrendingUp, Target, Trophy, Settings2, ChevronRight, UploadCloud, Link2, UserPlus, Trash2, KeyRound } from 'lucide-react';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import ImportColdCallLeadsDivisionModal, { ColdCallImportConsultant } from '@/components/gestor/ImportColdCallLeadsDivisionModal';
-import { ColdCallLead, ColdCallLog, ColdCallDetailType, ColdCallGoals } from '@/types';
+import { ColdCallLead, ColdCallLog, ColdCallDetailType, ColdCallGoals, ColdCallConsultant } from '@/types';
 import toast from 'react-hot-toast';
 import {
   Select,
@@ -21,6 +21,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { MetricCard } from '@/components/MetricCard';
 
 const formatDuration = (seconds: number) => {
@@ -84,7 +86,7 @@ const LiveKpiCard: React.FC<LiveKpiProps> = ({ title, value, meta, icon: Icon, i
 
 const ColdCallMetricsPage = () => {
   const { user } = useAuth();
-  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, addColdCallLeadsWithAssignments, teamMembers, isDataLoading } = useApp();
+  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, addColdCallLeadsWithAssignments, coldCallConsultants, addColdCallConsultant, updateColdCallConsultant, deleteColdCallConsultant, isDataLoading } = useApp();
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
@@ -103,20 +105,26 @@ const ColdCallMetricsPage = () => {
   const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
   const [goalsDraft, setGoalsDraft] = useState<ColdCallGoals>(coldCallGoals);
 
+  const [isManageConsultantsOpen, setIsManageConsultantsOpen] = useState(false);
+  const [newConsultantName, setNewConsultantName] = useState('');
+  const [newConsultantEmail, setNewConsultantEmail] = useState('');
+  const [isAddingConsultant, setIsAddingConsultant] = useState(false);
+  const [tempPasswordResult, setTempPasswordResult] = useState<{ name: string; password: string } | null>(null);
+
   const selectedColdCallConsultantName = useMemo(() => {
     if (!selectedColdCallConsultantId) {
       return 'Todos os Consultores';
     }
-    return teamMembers.find(m => (m.authUserId || m.id) === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido';
-  }, [selectedColdCallConsultantId, teamMembers]);
+    return coldCallConsultants.find(c => c.user_id === selectedColdCallConsultantId)?.name || 'Consultor Desconhecido';
+  }, [selectedColdCallConsultantId, coldCallConsultants]);
 
-  const coldCallConsultants = useMemo(() => {
-    return teamMembers.filter(m => m.isActive && (m.roles.includes('CONSULTOR') || m.roles.includes('PRÉVIA') || m.roles.includes('AUTORIZADO')));
-  }, [teamMembers]);
+  const activeColdCallConsultants = useMemo(() => {
+    return coldCallConsultants.filter(c => c.is_active);
+  }, [coldCallConsultants]);
 
   const coldCallImportConsultants: ColdCallImportConsultant[] = useMemo(() => {
-    return coldCallConsultants.map(m => ({ id: m.id, name: m.name, key: (m.authUserId || m.id) }));
-  }, [coldCallConsultants]);
+    return activeColdCallConsultants.map(c => ({ id: c.id, name: c.name, key: c.user_id }));
+  }, [activeColdCallConsultants]);
 
   const filteredColdCallLogs = useMemo(() => {
     let logs = coldCallLogs;
@@ -181,8 +189,8 @@ const ColdCallMetricsPage = () => {
 
   const perConsultantToday = useMemo(() => {
     const map: Record<string, { calls: number; contacts: number; meetings: number }> = {};
-    coldCallConsultants.forEach(m => {
-      const uid = m.authUserId || m.id;
+    activeColdCallConsultants.forEach(m => {
+      const uid = m.user_id;
       const logs = todayLogs.filter(l => l.user_id === uid);
       map[uid] = {
         calls: logs.length,
@@ -191,7 +199,7 @@ const ColdCallMetricsPage = () => {
       };
     });
     return map;
-  }, [todayLogs, coldCallConsultants]);
+  }, [todayLogs, activeColdCallConsultants]);
 
   const liveTotals = useMemo(() => {
     let calls = 0, contacts = 0, meetings = 0;
@@ -214,15 +222,15 @@ const ColdCallMetricsPage = () => {
   }, [liveTotals, coldCallGoals]);
 
   const ranking = useMemo(() => {
-    return coldCallConsultants
+    return activeColdCallConsultants
       .map(m => {
-        const uid = m.authUserId || m.id;
+        const uid = m.user_id;
         const metrics = perConsultantToday[uid] || { calls: 0, contacts: 0, meetings: 0 };
         const meetingsPct = coldCallGoals.meetings > 0 ? Math.min(100, Math.round((metrics.meetings / coldCallGoals.meetings) * 100)) : 0;
         return { consultant: m, uid, ...metrics, meetingsPct };
       })
       .sort((a, b) => b.meetings - a.meetings || b.contacts - a.contacts || b.calls - a.calls);
-  }, [coldCallConsultants, perConsultantToday, coldCallGoals.meetings]);
+  }, [activeColdCallConsultants, perConsultantToday, coldCallGoals.meetings]);
 
   const funnelAnalysis = useMemo(() => {
     const baseLeads = coldCallLeads.filter(l => l.current_stage === 'Base Fria').length;
@@ -288,6 +296,51 @@ const ColdCallMetricsPage = () => {
     });
     setIsGoalsModalOpen(false);
     toast.success('Metas diárias atualizadas');
+  };
+
+  const handleAddConsultant = async () => {
+    if (!newConsultantName.trim() || !newConsultantEmail.trim()) {
+      toast.error('Informe o nome e o e-mail do consultor.');
+      return;
+    }
+    setIsAddingConsultant(true);
+    try {
+      const result = await addColdCallConsultant({ name: newConsultantName.trim(), email: newConsultantEmail.trim() });
+      setTempPasswordResult({ name: newConsultantName.trim(), password: result.tempPassword });
+      setNewConsultantName('');
+      setNewConsultantEmail('');
+      toast.success(result.wasExistingUser ? 'Consultor vinculado (acesso já existente).' : 'Consultor adicionado com sucesso!');
+    } catch (err: any) {
+      toast.error(`Erro ao adicionar consultor: ${err.message}`);
+    } finally {
+      setIsAddingConsultant(false);
+    }
+  };
+
+  const handleToggleConsultantActive = async (c: ColdCallConsultant) => {
+    try {
+      await updateColdCallConsultant(c.id, { is_active: !c.is_active });
+      toast.success(c.is_active ? 'Consultor desativado.' : 'Consultor ativado.');
+    } catch (err: any) {
+      toast.error(`Erro ao atualizar consultor: ${err.message}`);
+    }
+  };
+
+  const handleDeleteConsultant = async (c: ColdCallConsultant) => {
+    if (!window.confirm(`Excluir o consultor "${c.name}" da lista de cold call? Scripts e metas antigos não serão apagados.`)) return;
+    try {
+      await deleteColdCallConsultant(c.id);
+      toast.success('Consultor removido da lista de cold call.');
+    } catch (err: any) {
+      toast.error(`Erro ao remover consultor: ${err.message}`);
+    }
+  };
+
+  const openManageConsultants = () => {
+    setTempPasswordResult(null);
+    setNewConsultantName('');
+    setNewConsultantEmail('');
+    setIsManageConsultantsOpen(true);
   };
 
   const todayLabel = useMemo(() => {
@@ -368,6 +421,14 @@ const ColdCallMetricsPage = () => {
           >
             <Settings2 className="w-4 h-4" />
             <span>Editar Meta do Dia</span>
+          </button>
+          <button
+            onClick={openManageConsultants}
+            className="flex items-center space-x-2 text-sm font-semibold text-sky-600 dark:text-sky-400 hover:underline"
+            title="Adicionar, ativar ou remover consultores de cold call"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Consultores</span>
           </button>
         </div>
       </div>
@@ -565,8 +626,8 @@ const ColdCallMetricsPage = () => {
               </SelectTrigger>
               <SelectContent className="bg-white text-gray-900 dark:bg-slate-800 dark:text-white dark:border-slate-700">
                 <SelectItem value="all">Todos os Consultores</SelectItem>
-                {coldCallConsultants.map(consultant => (
-                  <SelectItem key={consultant.id} value={consultant.authUserId || consultant.id}>
+                {activeColdCallConsultants.map(consultant => (
+                  <SelectItem key={consultant.id} value={consultant.user_id}>
                     {consultant.name}
                   </SelectItem>
                 ))}
@@ -689,6 +750,99 @@ const ColdCallMetricsPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* ===== MODAL GERENCIAR CONSULTORES ===== */}
+      <Dialog open={isManageConsultantsOpen} onOpenChange={setIsManageConsultantsOpen}>
+        <DialogContent className="sm:max-w-xl bg-white dark:bg-slate-800 dark:text-white p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Users className="w-6 h-6 text-brand-500" />
+              <span>Consultores de Cold Call</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <div className="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-3">
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center">
+                <UserPlus className="w-4 h-4 mr-1.5" /> Adicionar novo consultor
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="newConsultantName" className="text-xs text-gray-500 dark:text-gray-400">Nome completo</Label>
+                  <Input
+                    id="newConsultantName"
+                    value={newConsultantName}
+                    onChange={(e) => setNewConsultantName(e.target.value)}
+                    placeholder="Ex.: Maria Souza"
+                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newConsultantEmail" className="text-xs text-gray-500 dark:text-gray-400">E-mail de acesso</Label>
+                  <Input
+                    id="newConsultantEmail"
+                    type="email"
+                    value={newConsultantEmail}
+                    onChange={(e) => setNewConsultantEmail(e.target.value)}
+                    placeholder="Ex.: maria@email.com"
+                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  />
+                </div>
+              </div>
+              <Button type="button" onClick={handleAddConsultant} disabled={isAddingConsultant} className="bg-brand-600 hover:bg-brand-700 text-white">
+                {isAddingConsultant ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
+                Adicionar consultor
+              </Button>
+              {tempPasswordResult && (
+                <div className="rounded-lg bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 p-3 text-sm text-green-700 dark:text-green-300">
+                  <p className="flex items-center font-medium mb-1">
+                    <KeyRound className="w-4 h-4 mr-1.5" /> Acesso de {tempPasswordResult.name} criado!
+                  </p>
+                  <p className="text-xs">Senha temporária: <code className="font-mono font-bold">{tempPasswordResult.password}</code></p>
+                  <p className="text-xs mt-1">Comunique a senha ao consultor. Ele poderá trocar no primeiro login.</p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                <Users className="w-4 h-4 mr-1.5" /> Consultores cadastrados ({coldCallConsultants.length})
+              </p>
+              {coldCallConsultants.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum consultor cadastrado. Adicione o primeiro acima.</p>
+              ) : (
+                <div className="space-y-2">
+                  {coldCallConsultants.map(c => (
+                    <div key={c.id} className={`flex items-center justify-between gap-2 p-3 rounded-lg border ${c.is_active ? 'bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-600' : 'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 opacity-60'}`}>
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">{c.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{c.email || 'sem e-mail'}</p>
+                        <span className={`inline-flex items-center mt-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${c.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-200 text-gray-600 dark:bg-slate-600 dark:text-gray-300'}`}>
+                          {c.is_active ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleToggleConsultantActive(c)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                          {c.is_active ? 'Desativar' : 'Ativar'}
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteConsultant(c)} className="text-red-500 hover:text-red-700" title={`Excluir ${c.name}`}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+            <Button type="button" onClick={() => setIsManageConsultantsOpen(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200 w-full sm:w-auto">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ===== MODAL IMPORTAR LEADS ===== */}
       <ImportColdCallLeadsDivisionModal
         isOpen={isImportModalOpen}
@@ -708,7 +862,7 @@ const ColdCallMetricsPage = () => {
         leads={coldCallLeadsForModal}
         logs={coldCallLogsForModal}
         type={coldCallDetailType}
-        teamMembers={teamMembers}
+        teamMembers={coldCallConsultants as any}
         filterStartDate={modalFilterStartDate}
         filterEndDate={modalFilterEndDate}
       />
