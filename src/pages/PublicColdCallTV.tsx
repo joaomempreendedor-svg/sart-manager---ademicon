@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   PhoneCall, MessageSquare, CalendarCheck, Target, Trophy, BarChart3,
-  AlertTriangle, TrendingUp, Users,
+  AlertTriangle, TrendingUp, Users, Maximize, Minimize,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ColdCallLead, ColdCallLog, ColdCallGoals } from '@/types';
@@ -48,6 +48,21 @@ const PublicColdCallTV = () => {
   const [goals, setGoals] = useState<ColdCallGoals>(DEFAULT_GOALS);
   const [now, setNow] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!ownerId) return;
@@ -143,12 +158,10 @@ const PublicColdCallTV = () => {
         const calls = logsFor.length;
         const answered = logsFor.filter(l => l.result !== 'Não atendeu' && l.result !== 'Número inválido').length;
         const meetings = logsFor.filter(l => l.result === 'Agendar Reunião').length;
-        const callsPct = goals.calls > 0 ? Math.min(100, Math.round((calls / goals.calls) * 100)) : 0;
-        const meetingsPct = goals.meetings > 0 ? Math.min(100, Math.round((meetings / goals.meetings) * 100)) : 0;
-        return { consultant: m, uid, calls, answered, meetings, callsPct, meetingsPct };
+        return { consultant: m, uid, calls, answered, meetings };
       })
       .sort((a, b) => b.meetings - a.meetings || b.answered - a.answered || b.calls - a.calls);
-  }, [consultants, todayLogs, goals]);
+  }, [consultants, todayLogs]);
 
   const funnelAnalysis = useMemo(() => {
     const baseLeads = leads.filter(l => l.current_stage === 'Base Fria').length;
@@ -212,6 +225,13 @@ const PublicColdCallTV = () => {
               </span>
               <span className="font-bold text-green-300">AO VIVO</span>
             </div>
+            <button
+              onClick={toggleFullscreen}
+              className="rounded-full bg-white/10 p-3 text-slate-300 hover:bg-white/20 transition"
+              title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            >
+              {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+            </button>
             <div className="rounded-2xl bg-white/5 px-6 py-3 text-right backdrop-blur">
               <p className="text-3xl font-black tabular-nums">{timeLabel}</p>
               <p className="flex items-center justify-end gap-1 text-sm text-slate-400">
@@ -305,15 +325,6 @@ const PublicColdCallTV = () => {
                         <p className="text-[11px] font-bold uppercase">Reuniões</p>
                       </div>
                     </div>
-                    <div className="mt-3">
-                      <div className="mb-1 flex items-center justify-between text-xs font-bold">
-                        <span>Meta reuniões</span>
-                        <span>{r.meetingsPct}%</span>
-                      </div>
-                      <div className="h-2.5 overflow-hidden rounded-full bg-black/15">
-                        <div className={`h-full rounded-full ${r.meetingsPct >= 100 ? 'bg-green-600' : 'bg-slate-900'}`} style={{ width: `${r.meetingsPct}%` }} />
-                      </div>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -330,8 +341,6 @@ const PublicColdCallTV = () => {
                       <th className="px-5 py-3 text-center">Ligações</th>
                       <th className="px-5 py-3 text-center">Atendidas</th>
                       <th className="px-5 py-3 text-center">Reuniões</th>
-                      <th className="px-5 py-3">Meta Ligações</th>
-                      <th className="px-5 py-3">Meta Reuniões</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10">
@@ -344,12 +353,6 @@ const PublicColdCallTV = () => {
                         <td className="px-5 py-3 text-center font-black tabular-nums">{r.calls}</td>
                         <td className="px-5 py-3 text-center font-semibold tabular-nums">{r.answered}</td>
                         <td className="px-5 py-3 text-center font-black tabular-nums text-green-300">{r.meetings}</td>
-                        <td className="px-5 py-3">
-                          <ProgressBar pct={r.callsPct} />
-                        </td>
-                        <td className="px-5 py-3">
-                          <ProgressBar pct={r.meetingsPct} />
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -414,11 +417,5 @@ const PublicColdCallTV = () => {
     </div>
   );
 };
-
-const ProgressBar: React.FC<{ pct: number }> = ({ pct }) => (
-  <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
-    <div className={`h-full rounded-full ${pct >= 100 ? 'bg-green-400' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${pct}%` }} />
-  </div>
-);
 
 export default PublicColdCallTV;
