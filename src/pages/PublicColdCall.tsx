@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
-  PhoneCall, MessageSquare, CalendarCheck, Star, Loader2, Sun, Moon, TrendingUp,
-  UserRound, Play, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
-  Clock, BarChart3, Save, Target, PhoneForwarded,
+  PhoneCall, CalendarCheck, Star, Loader2, Sun, Moon,
+  UserRound, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
+  Clock, BarChart3, Save, PhoneForwarded,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,13 +45,11 @@ const STAGE_ORDER: Record<ColdCallLead['current_stage'], number> = {
   'Reunião Agendada': 3,
 };
 
-const QUICK_RESULTS: { result: ColdCallResult; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
+const CALL_RESULTS: { result: ColdCallResult; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
   { result: 'Não atendeu', label: 'Não atendeu', icon: PhoneOff, color: 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-gray-200' },
   { result: 'Número inválido', label: 'Nº inválido', icon: XCircle, color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
   { result: 'Sem interesse', label: 'Sem interesse', icon: ThumbsDown, color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
   { result: 'Pedir retorno', label: 'Pedir retorno', icon: RotateCcw, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
-  { result: 'Conversou', label: 'Conversou', icon: MessageSquare, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' },
-  { result: 'Demonstrou Interesse', label: 'Interessado', icon: Star, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
   { result: 'Agendar Reunião', label: 'Agendar reunião', icon: CalendarCheck, color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
 ];
 
@@ -77,11 +75,14 @@ const PublicColdCall = () => {
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogResult, setDialogResult] = useState<ColdCallResult>('Agendar Reunião');
+  const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
   const [contactName, setContactName] = useState('');
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingModality, setMeetingModality] = useState('');
   const [meetingNotes, setMeetingNotes] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [stageFilter, setStageFilter] = useState<string>('all');
 
   const selectedConsultant = consultants.find(c => c.id === selectedConsultantId);
   const selectedConsultantKey = selectedConsultant?.consultantKey || null;
@@ -168,6 +169,17 @@ const PublicColdCall = () => {
       });
   }, [leads]);
 
+  const filteredQueue = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return queue.filter(l => {
+      const matchesTerm = !term
+        || (l.name || '').toLowerCase().includes(term)
+        || l.phone.includes(term);
+      const matchesStage = stageFilter === 'all' || l.current_stage === stageFilter;
+      return matchesTerm && matchesStage;
+    });
+  }, [queue, searchTerm, stageFilter]);
+
   const activeLead = useMemo(() => {
     return queue.find(l => l.id === activeLeadId) || queue[0] || null;
   }, [queue, activeLeadId]);
@@ -246,9 +258,10 @@ const PublicColdCall = () => {
     }
   };
 
-  const handleQuickResult = async (result: ColdCallResult) => {
+  const handleCallResult = async (result: ColdCallResult) => {
     if (!activeLead || isSaving) return;
-    if (result === 'Agendar Reunião' || result === 'Demonstrou Interesse') {
+    setIsResultDialogOpen(false);
+    if (result === 'Agendar Reunião') {
       openDialog(result, activeLead);
       return;
     }
@@ -410,30 +423,17 @@ const PublicColdCall = () => {
                         </div>
                       </div>
                       <div className="flex flex-shrink-0 items-center gap-2">
-                        <a
-                          href={`tel:${activeLead.phone}`}
-                          className="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400"
+                        <button
+                          onClick={() => setIsResultDialogOpen(true)}
+                          disabled={isSaving}
+                          className="flex items-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 disabled:opacity-50"
                         >
                           <PhoneCall className="h-5 w-5" /> Ligar
-                        </a>
+                        </button>
                         <div className="rounded-xl bg-white/15 px-5 py-3 text-center backdrop-blur">
                           <p className="text-xs text-white/70">{queue.length - 1} na fila após este</p>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
-                      {QUICK_RESULTS.map(btn => (
-                        <button
-                          key={btn.result}
-                          disabled={isSaving}
-                          onClick={() => handleQuickResult(btn.result)}
-                          className={`flex flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-3 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 ${btn.color}`}
-                        >
-                          <btn.icon className="h-5 w-5" />
-                          {btn.label}
-                        </button>
-                      ))}
                     </div>
                   </>
                 ) : (
@@ -449,21 +449,41 @@ const PublicColdCall = () => {
 
             {/* Fila restante */}
             <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-center justify-between border-b px-5 py-4 dark:border-slate-800">
+              <div className="flex flex-col gap-3 border-b px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="flex items-center gap-2 font-semibold">
-                  <BarChart3 className="h-5 w-5 text-brand-600" /> Minha fila ({queue.length})
+                  <BarChart3 className="h-5 w-5 text-brand-600" /> Minha fila ({filteredQueue.length}/{queue.length})
                 </h3>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Select value={stageFilter} onValueChange={setStageFilter}>
+                    <SelectTrigger className="h-10 w-full sm:w-56 dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <SelectValue placeholder="Filtrar por etapa" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">
+                      <SelectItem value="all">Todas as etapas</SelectItem>
+                      <SelectItem value="Base Fria">Contato não realizado</SelectItem>
+                      <SelectItem value="Tentativa de Contato">Tentativa de contato</SelectItem>
+                      <SelectItem value="Conversou">Conversou</SelectItem>
+                      <SelectItem value="Reunião Agendada">Reunião agendada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="Buscar por nome ou telefone..."
+                    className="h-10 w-full sm:w-64 dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                  />
+                </div>
               </div>
-              {queue.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-slate-400">Nenhum prospect aguardando contato.</p>
+              {filteredQueue.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-slate-400">Nenhum prospect encontrado com o filtro atual.</p>
               ) : (
                 <div className="divide-y dark:divide-slate-800">
-                  {queue.map(lead => {
+                  {filteredQueue.map(lead => {
                     const last = lastLogForLead(lead.id);
                     return (
                       <div
                         key={lead.id}
-                        className={`flex w-full items-center justify-between gap-3 px-5 py-3 ${activeLead?.id === lead.id ? 'bg-brand-50 dark:bg-brand-950/40' : ''}`}
+                        className={`flex w-full items-center gap-3 px-5 py-3 ${activeLead?.id === lead.id ? 'bg-brand-50 dark:bg-brand-950/40' : ''}`}
                       >
                         <button
                           onClick={() => setActiveLeadId(lead.id)}
@@ -477,19 +497,12 @@ const PublicColdCall = () => {
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stageBadgeClass(lead.current_stage)}`}>
-                              {lead.current_stage}
+                              {lead.current_stage === 'Base Fria' ? 'Contato não realizado' : lead.current_stage}
                             </span>
                             {last && <span className="hidden text-xs text-slate-400 sm:inline">{last.result}</span>}
                             {activeLead?.id === lead.id && <ChevronRight className="h-4 w-4 text-brand-500" />}
                           </div>
                         </button>
-                        <a
-                          href={`tel:${lead.phone}`}
-                          title="Ligar"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 transition hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
-                        >
-                          <PhoneCall className="h-4 w-4" />
-                        </a>
                       </div>
                     );
                   })}
@@ -500,13 +513,13 @@ const PublicColdCall = () => {
         )}
       </main>
 
-      {/* Dialog de resultado detalhado (Interessado / Agendar Reunião) */}
+      {/* Dialog de resultado detalhado (Agendar Reunião) */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md bg-white p-6 dark:bg-slate-800 dark:text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Star className="h-6 w-6 text-brand-500" />
-              <span>{dialogResult === 'Agendar Reunião' ? 'Agendar reunião' : 'Demonstrou interesse'}</span>
+              <CalendarCheck className="h-6 w-6 text-green-500" />
+              <span>Agendar reunião</span>
             </DialogTitle>
             <DialogDescription>
               <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {activeLead?.phone}
@@ -565,6 +578,35 @@ const PublicColdCall = () => {
               Cancelar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de resultado da ligação */}
+      <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white p-6 dark:bg-slate-800 dark:text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PhoneCall className="h-6 w-6 text-emerald-500" />
+              <span>Resultado da ligação</span>
+            </DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {activeLead?.phone}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3 py-2">
+            {CALL_RESULTS.map(btn => (
+              <button
+                key={btn.result}
+                disabled={isSaving}
+                onClick={() => handleCallResult(btn.result)}
+                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 ${btn.color}`}
+              >
+                <btn.icon className="h-5 w-5 shrink-0" />
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
