@@ -32,7 +32,7 @@ import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { MetricCard } from '@/components/MetricCard';
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
-const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Agendar Reunião'];
+const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Foi para o WhatsApp', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
 const formatDuration = (seconds: number) => {
@@ -119,7 +119,7 @@ const ColdCallPage = () => {
     const totalAnswered = answeredLogs.length;
 
     const totalConversations = answeredLogs.filter(log =>
-      log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião'
+      log.result === 'Demonstrou Interesse' || log.result === 'Foi para o WhatsApp' || log.result === 'Agendar Reunião'
     ).length;
     const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
 
@@ -292,6 +292,7 @@ const ColdCallPage = () => {
         return 'bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
       case 'Conversou':
       case 'Demonstrou Interesse':
+      case 'Foi para o WhatsApp':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
       case 'Sem interesse':
       case 'Número inválido':

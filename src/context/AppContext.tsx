@@ -1270,7 +1270,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
   const getColdCallMetrics = useCallback((consultantId: string) => {
     const logs = coldCallLogs.filter(l => l.user_id === consultantId);
     const totalCalls = logs.length;
-    const totalConversations = logs.filter(l => l.result === 'Conversou' || l.result === 'Demonstrou Interesse' || l.result === 'Agendar Reunião').length;
+    const totalConversations = logs.filter(l => l.result === 'Conversou' || l.result === 'Demonstrou Interesse' || l.result === 'Foi para o WhatsApp' || l.result === 'Agendar Reunião').length;
     const totalMeetingsScheduled = logs.filter(l => l.result === 'Agendar Reunião').length;
     const conversationToMeetingRate = totalConversations > 0 ? (totalMeetingsScheduled / totalConversations) * 100 : 0;
     return { totalCalls, totalConversations, totalMeetingsScheduled, conversationToMeetingRate };

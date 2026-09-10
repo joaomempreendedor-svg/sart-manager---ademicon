@@ -61,7 +61,7 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
       ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     if (type === 'conversations') {
-      return logs.filter(log => (log.result === 'Demonstrou Interesse' || log.result === 'Agendar Reunião') && filterByDate(log.created_at))
+      return logs.filter(log => (log.result === 'Demonstrou Interesse' || log.result === 'Foi para o WhatsApp' || log.result === 'Agendar Reunião') && filterByDate(log.created_at))
                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     if (type === 'meetings') {

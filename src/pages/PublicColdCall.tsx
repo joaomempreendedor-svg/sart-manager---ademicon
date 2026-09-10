@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   PhoneCall, CalendarCheck, Star, Loader2, Sun, Moon,
   UserRound, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
-  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin,
+  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin, MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ interface PublicTeamMember {
 const RESULT_TO_STAGE: Record<ColdCallResult, ColdCallLead['current_stage']> = {
   'Agendar Reunião': 'Reunião Agendada',
   'Demonstrou Interesse': 'Conversou',
+  'Foi para o WhatsApp': 'Conversou',
   'Conversou': 'Conversou',
   'Pedir retorno': 'Tentativa de Contato',
   'Não atendeu': 'Tentativa de Contato',
@@ -50,6 +51,7 @@ const CALL_RESULTS: { result: ColdCallResult; label: string; icon: React.Compone
   { result: 'Número inválido', label: 'Nº inválido', icon: XCircle, color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
   { result: 'Sem interesse', label: 'Sem interesse', icon: ThumbsDown, color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
   { result: 'Pedir retorno', label: 'Pedir retorno', icon: RotateCcw, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+  { result: 'Foi para o WhatsApp', label: 'Foi para o WhatsApp', icon: MessageCircle, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
   { result: 'Agendar Reunião', label: 'Agendar reunião', icon: CalendarCheck, color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
 ];
 
@@ -171,7 +173,7 @@ const PublicColdCall = () => {
     logs.filter(l => isToday(l.start_time || l.created_at)).forEach(l => {
       calls += 1;
       if (l.result !== 'Não atendeu' && l.result !== 'Número inválido') contacts += 1;
-      if (l.result === 'Demonstrou Interesse') interested += 1;
+      if (l.result === 'Demonstrou Interesse' || l.result === 'Foi para o WhatsApp') interested += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
     return { calls, contacts, interested, meetings };

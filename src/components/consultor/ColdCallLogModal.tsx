@@ -25,7 +25,7 @@ import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
-const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Agendar Reunião'];
+const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Foi para o WhatsApp', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
 interface ColdCallLogModalProps {
@@ -159,6 +159,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       let newStageValue: ColdCallLead['current_stage'] = lead.current_stage;
       if (callResult === 'Agendar Reunião') newStageValue = 'Reunião Agendada';
       else if (callResult === 'Demonstrou Interesse') newStageValue = 'Conversou'; // Changed to 'Conversou' as 'Demonstrou Interesse' is not a stage
+      else if (callResult === 'Foi para o WhatsApp') newStageValue = 'Conversou';
       else if (callResult === 'Conversou') newStageValue = 'Conversou';
       else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu' || callResult === 'Número inválido' || callResult === 'Sem interesse') newStageValue = 'Tentativa de Contato';
 
@@ -220,7 +221,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
     return `${minutes}m ${remainingSeconds}s`;
   };
 
-  const shouldShowCrmActions = (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse');
+  const shouldShowCrmActions = (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse' || callResult === 'Foi para o WhatsApp');
   const showCreateCrmLeadButton = shouldShowCrmActions && !lead.crm_lead_id;
 
   return (
@@ -346,12 +347,12 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
             <Button type="button" variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto mb-2 sm:mb-0">
               Cancelar
             </Button>
-            {(callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse') && lead?.crm_lead_id ? (
+            {(callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse' || callResult === 'Foi para o WhatsApp') && lead?.crm_lead_id ? (
               <Button type="button" onClick={handleGoToCrmLead} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
                 <ChevronRight className="w-4 h-4 mr-2" />
                 <span>Ir para CRM</span>
               </Button>
-            ) : (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse') && !lead?.crm_lead_id ? (
+            ) : (callResult === 'Agendar Reunião' || callResult === 'Demonstrou Interesse' || callResult === 'Foi para o WhatsApp') && !lead?.crm_lead_id ? (
               <Button
                 type="button"
                 onClick={handleCreateCrmLeadClick}
