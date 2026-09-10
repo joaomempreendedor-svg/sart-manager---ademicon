@@ -151,7 +151,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
         meeting_date: callResult === 'Agendar Reunião' ? (meetingDate || undefined) : undefined,
         meeting_time: callResult === 'Agendar Reunião' ? (meetingTime || undefined) : undefined,
         meeting_modality: callResult === 'Agendar Reunião' ? (meetingModality || undefined) : undefined,
-        meeting_notes: callResult === 'Agendar Reunião' ? (meetingNotes || undefined) : undefined,
+        meeting_notes: (callResult === 'Agendar Reunião' || callResult === 'Pedir retorno') ? (meetingNotes || undefined) : undefined,
       };
 
       await onSaveLog(logData, lead.id);
@@ -336,6 +336,20 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
                         className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
                       />
                     </div>
+                  </div>
+                )}
+
+                {callResult === 'Pedir retorno' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="returnNotes">O que foi conversado?</Label>
+                    <Textarea
+                      id="returnNotes"
+                      rows={3}
+                      value={meetingNotes}
+                      onChange={(e) => setMeetingNotes(e.target.value)}
+                      placeholder="Descreva o que foi conversado para retomar o contato depois..."
+                      className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    />
                   </div>
                 )}
               </div>

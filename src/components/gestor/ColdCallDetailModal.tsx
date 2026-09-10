@@ -141,6 +141,11 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
                             <CalendarCheck className="w-3 h-3 mr-1" /> Reunião: {new Date(log.meeting_date).toLocaleDateString('pt-BR')}
                           </span>
                         )}
+                        {log.result === 'Pedir retorno' && log.meeting_notes && (
+                          <span className="flex items-center text-gray-600 dark:text-gray-300">
+                            <MessageSquare className="w-3 h-3 mr-1" /> O que foi conversado: {log.meeting_notes}
+                          </span>
+                        )}
                         {leads.find(l => l.id === log.cold_call_lead_id)?.crm_lead_id && (
                           <Button 
                             variant="link" 

@@ -126,6 +126,15 @@ export const ColdCallLeadHistoryModal: React.FC<ColdCallLeadHistoryModalProps> =
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Duração: {formatDuration(log.duration_seconds)}</p>
                   
+                  {log.result === 'Pedir retorno' && log.meeting_notes && (
+                    <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-600">
+                      <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-1 flex items-center space-x-1">
+                        <MessageSquare className="w-4 h-4" /> O que foi conversado
+                      </h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">{log.meeting_notes}</p>
+                    </div>
+                  )}
+
                   {log.result === 'Agendar Reunião' && (
                     <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                       <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center space-x-1">

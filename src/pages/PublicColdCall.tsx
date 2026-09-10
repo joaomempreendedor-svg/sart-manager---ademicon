@@ -257,7 +257,7 @@ const PublicColdCall = () => {
         meeting_date: result === 'Agendar Reunião' ? meeting?.date || null : null,
         meeting_time: result === 'Agendar Reunião' ? meeting?.time || null : null,
         meeting_modality: result === 'Agendar Reunião' ? meeting?.modality || null : null,
-        meeting_notes: result === 'Agendar Reunião' ? meeting?.notes || null : null,
+        meeting_notes: (result === 'Agendar Reunião' || result === 'Pedir retorno') ? meeting?.notes || null : null,
       });
       if (logError) throw logError;
 
@@ -280,7 +280,7 @@ const PublicColdCall = () => {
   const handleCallResult = async (result: ColdCallResult) => {
     if (!activeLead || isSaving) return;
     setIsResultDialogOpen(false);
-    if (result === 'Agendar Reunião') {
+    if (result === 'Agendar Reunião' || result === 'Pedir retorno') {
       openDialog(result, activeLead);
       return;
     }
@@ -627,7 +627,7 @@ const PublicColdCall = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarCheck className="h-6 w-6 text-green-500" />
-              <span>Agendar reunião</span>
+              <span>{dialogResult === 'Pedir retorno' ? 'Registrar retorno' : 'Agendar reunião'}</span>
             </DialogTitle>
             <DialogDescription>
               <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {activeLead?.phone}
@@ -674,6 +674,20 @@ const PublicColdCall = () => {
                   <Textarea id="meetingNotes" rows={2} value={meetingNotes} onChange={e => setMeetingNotes(e.target.value)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
                 </div>
               </>
+            )}
+
+            {dialogResult === 'Pedir retorno' && (
+              <div className="space-y-2">
+                <Label htmlFor="returnNotes">O que foi conversado?</Label>
+                <Textarea
+                  id="returnNotes"
+                  rows={3}
+                  value={meetingNotes}
+                  onChange={e => setMeetingNotes(e.target.value)}
+                  placeholder="Descreva o que foi conversado para retomar o contato depois..."
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+              </div>
             )}
           </div>
 
