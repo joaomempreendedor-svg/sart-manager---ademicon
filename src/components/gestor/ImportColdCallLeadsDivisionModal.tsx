@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { UploadCloud, Loader2, CheckCircle2, AlertTriangle, Save, Users, ShieldBan } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { UploadCloud, Loader2, CheckCircle2, AlertTriangle, Save, Users, ShieldBan, FileSpreadsheet } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -131,6 +132,7 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
   onImport,
 }) => {
   const [pastedData, setPastedData] = useState('');
+  const [fileName, setFileName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [parsedItems, setParsedItems] = useState<LeadInput[]>([]);
@@ -207,6 +209,38 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setIsProcessing(true);
+    try {
+      const text = await readSpreadsheet(file);
+      if (!text.trim()) {
+        toast.error('Nenhum dado encontrado no arquivo.');
+        return;
+      }
+      setPastedData(text);
+      setFileName(file.name);
+      toast.success(`Arquivo "${file.name}" carregado. Clique em "Processar dados".`);
+    } catch (err: any) {
+      toast.error(`Falha ao ler o arquivo: ${err.message || err}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const readSpreadsheet = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+    const lines = rows
+      .filter(row => row.some(cell => String(cell ?? '').trim() !== ''))
+      .map(row => row.map(cell => String(cell ?? '').trim()).join('\t'));
+    return lines.join('\n');
+  };
+
   const activeConsultants = consultants.filter(c => selectedConsultantKeys.includes(c.key));
 
   const assignments: ImportAssignment[] = useMemo(() => {
@@ -244,6 +278,7 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
   const handleClose = () => {
     setIsImporting(false);
     setPastedData('');
+    setFileName('');
     setParsedItems([]);
     setParseErrors([]);
     setDuplicatesInBase(0);
@@ -264,13 +299,49 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
             <span>Importar e Dividir Prospects</span>
           </DialogTitle>
           <DialogDescription>
-            Cole os dados da planilha (CSV ou tab-separated). Coluna obrigatória: Telefone. Colunas opcionais: Nome, Email, Cidade, Endereço, Nome da Empresa, Data de Abertura, Observações. Os leads são divididos automaticamente entre os consultores marcados.
+            Envie um arquivo de planilha (.xlsx, .xls, .csv) ou cole os dados copiados. Coluna obrigatória: Telefone. Colunas opcionais: Nome, Email, Cidade, Endereço, Nome da Empresa, Data de Abertura, Observações. Os leads são divididos automaticamente entre os consultores marcados.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
           <div>
-            <Label htmlFor="pastedData">Cole os dados da planilha aqui:</Label>
+            <Label htmlFor="spreadsheetFile" className="flex items-center gap-1.5">
+              <FileSpreadsheet className="w-4 h-4 text-brand-500" /> Enviar planilha (.xlsx, .xls ou .csv)
+            </Label>
+            <label
+              htmlFor="spreadsheetFile"
+              className={`mt-2 flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${fileName ? 'border-green-400 bg-green-50 dark:border-green-700 dark:bg-green-950/30' : 'border-gray-300 bg-gray-50 hover:border-brand-400 hover:bg-brand-50 dark:border-slate-600 dark:bg-slate-700/50 dark:hover:border-brand-500 dark:hover:bg-brand-950/30'}`}
+            >
+              {isProcessing ? (
+                <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+              ) : fileName ? (
+                <CheckCircle2 className="h-8 w-8 text-green-500" />
+              ) : (
+                <UploadCloud className="h-8 w-8 text-gray-400" />
+              )}
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                {fileName ? `Arquivo carregado: ${fileName}` : 'Clique para selecionar o arquivo'}
+              </span>
+              <span className="text-xs text-gray-400 dark:text-slate-400">A primeira linha do arquivo será considerada o cabeçalho</span>
+              <input
+                id="spreadsheetFile"
+                type="file"
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                onChange={handleFileChange}
+                className="hidden"
+                disabled={isProcessing}
+              />
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-gray-200 dark:bg-slate-700" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">ou cole</span>
+            <span className="h-px flex-1 bg-gray-200 dark:bg-slate-700" />
+          </div>
+
+          <div>
+            <Label htmlFor="pastedData">Cole os dados da planilha aqui (CSV ou copiado):</Label>
             <Textarea
               id="pastedData"
               value={pastedData}
