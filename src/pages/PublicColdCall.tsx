@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   PhoneCall, CalendarCheck, Star, Loader2, Sun, Moon,
   UserRound, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
-  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin, MessageCircle,
+  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin, MessageCircle, Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +84,11 @@ const PublicColdCall = () => {
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingModality, setMeetingModality] = useState('');
   const [meetingNotes, setMeetingNotes] = useState('');
+
+  const [editingLog, setEditingLog] = useState<ColdCallLog | null>(null);
+  const [isEditLogOpen, setIsEditLogOpen] = useState(false);
+  const [editLogResult, setEditLogResult] = useState<ColdCallResult>('Não atendeu');
+  const [editLogNotes, setEditLogNotes] = useState('');
 
   const selectedConsultant = consultants.find(c => c.id === selectedConsultantId);
   const selectedConsultantKey = selectedConsultant?.consultantKey || null;
@@ -229,6 +234,54 @@ const PublicColdCall = () => {
     ]);
     if (!leadsRes.error) setLeads((leadsRes.data || []) as ColdCallLead[]);
     if (!logsRes.error) setLogs((logsRes.data || []) as ColdCallLog[]);
+  };
+
+  const openEditLogDialog = (log: ColdCallLog) => {
+    setEditingLog(log);
+    setEditLogResult(log.result);
+    setEditLogNotes(log.meeting_notes || '');
+    setIsEditLogOpen(true);
+  };
+
+  const handleSaveEditLog = async () => {
+    if (!editingLog) return;
+    setIsSaving(true);
+    try {
+      const { error: logError } = await supabase
+        .from('cold_call_logs')
+        .update({
+          result: editLogResult,
+          meeting_notes: (editLogResult === 'Pedir retorno' || editLogResult === 'Agendar Reunião') ? (editLogNotes || null) : null,
+        })
+        .eq('id', editingLog.id);
+      if (logError) throw logError;
+
+      const { data: logsAfter } = await supabase
+        .from('cold_call_logs')
+        .select('*')
+        .eq('cold_call_lead_id', editingLog.cold_call_lead_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (logsAfter && logsAfter.length > 0 && logsAfter[0].id !== editingLog.id) {
+        // There's a newer log; its result should be kept as stage
+      } else {
+        const { error: stageError } = await supabase
+          .from('cold_call_leads')
+          .update({ current_stage: RESULT_TO_STAGE[editLogResult] })
+          .eq('id', editingLog.cold_call_lead_id);
+        if (stageError) throw stageError;
+      }
+
+      toast.success('Resultado atualizado!');
+      setIsEditLogOpen(false);
+      setEditingLog(null);
+      await refreshAfterWrite();
+    } catch (err: any) {
+      toast.error(`Erro ao atualizar: ${err.message || err}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const openDialog = (result: ColdCallResult, lead: ColdCallLead) => {
@@ -549,6 +602,15 @@ const PublicColdCall = () => {
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${resultColor(lastLog?.result || '')}`}>
                           {lastLog?.result || '—'}
                         </span>
+                        {lastLog && (
+                          <button
+                            onClick={() => openEditLogDialog(lastLog)}
+                            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                            title="Editar resultado"
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -697,6 +759,70 @@ const PublicColdCall = () => {
               {isSaving ? 'Salvando...' : 'Registrar'}
             </Button>
             <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de edição de resultado */}
+      <Dialog open={isEditLogOpen} onOpenChange={setIsEditLogOpen}>
+        <DialogContent className="sm:max-w-md bg-white p-6 dark:bg-slate-800 dark:text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-6 w-6 text-brand-600" />
+              <span>Editar resultado da ligação</span>
+            </DialogTitle>
+            <DialogDescription>
+              {editingLog ? (
+                <>{leads.find(l => l.id === editingLog.cold_call_lead_id)?.name || 'Contato'} ·{' '}
+                {leads.find(l => l.id === editingLog.cold_call_lead_id)?.phone || editingLog.cold_call_lead_id}</>
+              ) : '—'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 gap-2">
+              {CALL_RESULTS.map(btn => (
+                <button
+                  key={btn.result}
+                  disabled={isSaving}
+                  onClick={() => setEditLogResult(btn.result)}
+                  className={`flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 border ${
+                    editLogResult === btn.result
+                      ? 'border-brand-600 ring-2 ring-brand-600/30 bg-brand-50 dark:bg-brand-950'
+                      : 'border-slate-200 dark:border-slate-700'
+                  } ${btn.color}`}
+                >
+                  <btn.icon className="h-5 w-5 shrink-0" />
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
+            {(editLogResult === 'Pedir retorno' || editLogResult === 'Agendar Reunião') && (
+              <div className="space-y-2">
+                <Label htmlFor="editLogNotes">
+                  {editLogResult === 'Pedir retorno' ? 'O que foi conversado?' : 'Observações da reunião'}
+                </Label>
+                <Textarea
+                  id="editLogNotes"
+                  rows={3}
+                  value={editLogNotes}
+                  onChange={(e) => setEditLogNotes(e.target.value)}
+                  placeholder={editLogResult === 'Pedir retorno' ? 'Descreva o que foi conversado...' : 'Observações da reunião...'}
+                  className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 flex-col gap-2 sm:flex-row dark:border-slate-700">
+            <Button type="button" onClick={handleSaveEditLog} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setIsEditLogOpen(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600 w-full sm:w-auto">
               Cancelar
             </Button>
           </DialogFooter>
