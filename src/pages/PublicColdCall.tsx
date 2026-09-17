@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
-  PhoneCall, CalendarCheck, Star, Loader2, Sun, Moon,
+  PhoneCall, CalendarCheck, Loader2, Sun, Moon,
   UserRound, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
   Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin, MessageCircle, Pencil,
 } from 'lucide-react';
@@ -185,14 +185,13 @@ const PublicColdCall = () => {
   }, [queue, activeLeadId]);
 
   const todaysMetrics = useMemo(() => {
-    let calls = 0, contacts = 0, interested = 0, meetings = 0;
+    let calls = 0, contacts = 0, meetings = 0;
     logs.filter(l => isToday(l.start_time || l.created_at)).forEach(l => {
       calls += 1;
       if (l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido') contacts += 1;
-      if (l.result === 'Demonstrou Interesse' || l.result === 'Foi para o WhatsApp') interested += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
-    return { calls, contacts, interested, meetings };
+    return { calls, contacts, meetings };
   }, [logs]);
 
   const lastLogForLead = useCallback((leadId: string) => {
@@ -479,11 +478,10 @@ const PublicColdCall = () => {
             </div>
 
             {/* Métricas do dia */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {([
                 { label: 'Ligações hoje', value: todaysMetrics.calls, icon: PhoneCall, color: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300' },
                 { label: 'Reuniões hoje', value: todaysMetrics.meetings, icon: CalendarCheck, color: 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-300' },
-                { label: 'Interessados hoje', value: todaysMetrics.interested, icon: Star, color: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300' },
               ] as { label: string; value: number; icon: React.ComponentType<{ className?: string }>; color: string }[]).map(item => (
                 <div key={item.label} className="flex items-center gap-3 rounded-2xl border bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                   <div className={`shrink-0 rounded-xl p-3 ${item.color}`}>
