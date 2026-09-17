@@ -534,19 +534,19 @@ const PublicColdCall = () => {
                           <p className="text-xs text-white/70">{queue.length - 1} na fila após este</p>
                         </div>
                       </div>
-                      <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/15 pt-4">
-                        <div className="rounded-xl bg-white/10 px-3 py-2 text-center backdrop-blur">
-                          <p className="text-xl font-bold">{todaysMetrics.calls}</p>
-                          <p className="text-[11px] uppercase tracking-wide text-white/70">Ligados hoje</p>
-                        </div>
-                        <div className="rounded-xl bg-white/10 px-3 py-2 text-center backdrop-blur">
-                          <p className="text-xl font-bold">{todaysMetrics.contacts}</p>
-                          <p className="text-[11px] uppercase tracking-wide text-white/70">Contatos</p>
-                        </div>
-                        <div className="rounded-xl bg-white/10 px-3 py-2 text-center backdrop-blur">
-                          <p className="text-xl font-bold">{queue.length}</p>
-                          <p className="text-[11px] uppercase tracking-wide text-white/70">Na fila</p>
-                        </div>
+                    </div>
+                    <div className="mt-4 flex flex-col gap-3 border-t border-white/15 pt-4 sm:flex-row sm:items-center">
+                      <div className="flex flex-1 items-center justify-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-center backdrop-blur sm:justify-start">
+                        <p className="text-2xl font-bold leading-none">{todaysMetrics.calls}</p>
+                        <p className="text-[11px] uppercase tracking-wide text-white/70">Ligados hoje</p>
+                      </div>
+                      <div className="flex flex-1 items-center justify-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-center backdrop-blur sm:justify-center">
+                        <p className="text-2xl font-bold leading-none">{todaysMetrics.contacts}</p>
+                        <p className="text-[11px] uppercase tracking-wide text-white/70">Contatos</p>
+                      </div>
+                      <div className="flex flex-1 items-center justify-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-center backdrop-blur sm:justify-end">
+                        <p className="text-2xl font-bold leading-none">{queue.length}</p>
+                        <p className="text-[11px] uppercase tracking-wide text-white/70">Na fila</p>
                       </div>
                     </div>
                   </>
