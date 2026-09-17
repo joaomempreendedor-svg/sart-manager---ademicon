@@ -588,7 +588,7 @@ export interface TeamProductionGoal {
 }
 
 export type ColdCallStage = 'Base Fria' | 'Tentativa de Contato' | 'Conversou' | 'Reunião Agendada';
-export type ColdCallResult = 'Não atendeu' | 'Número inválido' | 'Sem interesse' | 'Pedir retorno' | 'Conversou' | 'Demonstrou Interesse' | 'Agendar Reunião' | 'Foi para o WhatsApp';
+export type ColdCallResult = 'Não atendeu' | 'Número inválido' | 'Sem interesse' | 'Pedir retorno' | 'Conversou' | 'Demonstrou Interesse' | 'Agendar Reunião' | 'Foi para o WhatsApp' | 'Não chamou';
 
 export interface ColdCallLead {
   id: string;

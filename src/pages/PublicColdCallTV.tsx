@@ -134,7 +134,7 @@ const PublicColdCallTV = () => {
     let calls = 0, answered = 0, meetings = 0;
     todayLogs.forEach(l => {
       calls += 1;
-      if (l.result !== 'Não atendeu' && l.result !== 'Número inválido') answered += 1;
+      if (l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido') answered += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
     return { calls, answered, meetings };
@@ -153,7 +153,7 @@ const PublicColdCallTV = () => {
         const uid = m.consultantKey;
         const logsFor = todayLogs.filter(l => l.user_id === uid);
         const calls = logsFor.length;
-        const answered = logsFor.filter(l => l.result !== 'Não atendeu' && l.result !== 'Número inválido').length;
+        const answered = logsFor.filter(l => l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido').length;
         const meetings = logsFor.filter(l => l.result === 'Agendar Reunião').length;
         return { consultant: m, uid, calls, answered, meetings };
       })

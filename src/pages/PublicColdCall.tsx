@@ -35,6 +35,7 @@ const RESULT_TO_STAGE: Record<ColdCallResult, ColdCallLead['current_stage']> = {
   'Conversou': 'Conversou',
   'Pedir retorno': 'Tentativa de Contato',
   'Não atendeu': 'Tentativa de Contato',
+  'Não chamou': 'Tentativa de Contato',
   'Sem interesse': 'Tentativa de Contato',
   'Número inválido': 'Tentativa de Contato',
 };
@@ -47,6 +48,7 @@ const STAGE_ORDER: Record<ColdCallLead['current_stage'], number> = {
 };
 
 const CALL_RESULTS: { result: ColdCallResult; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
+  { result: 'Não chamou', label: 'Não chamou', icon: PhoneOff, color: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200' },
   { result: 'Não atendeu', label: 'Não atendeu', icon: PhoneOff, color: 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-gray-200' },
   { result: 'Número inválido', label: 'Nº inválido', icon: XCircle, color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
   { result: 'Sem interesse', label: 'Sem interesse', icon: ThumbsDown, color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
@@ -62,6 +64,14 @@ const isToday = (dateStr?: string) => {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   return t >= todayStart.getTime() && t < todayStart.getTime() + 86400000;
+};
+
+const formatPhone = (phone?: string) => {
+  if (!phone) return '';
+  const d = phone.replace(/\D/g, '');
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return phone;
 };
 
 const PublicColdCall = () => {
@@ -178,7 +188,7 @@ const PublicColdCall = () => {
     let calls = 0, contacts = 0, interested = 0, meetings = 0;
     logs.filter(l => isToday(l.start_time || l.created_at)).forEach(l => {
       calls += 1;
-      if (l.result !== 'Não atendeu' && l.result !== 'Número inválido') contacts += 1;
+      if (l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido') contacts += 1;
       if (l.result === 'Demonstrou Interesse' || l.result === 'Foi para o WhatsApp') interested += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
@@ -501,7 +511,7 @@ const PublicColdCall = () => {
                       <div>
                         <h3 className="text-2xl font-bold sm:text-3xl">{activeLead.name || activeLead.phone}</h3>
                         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-white/85">
-                          <span className="flex items-center gap-1.5"><PhoneCall className="h-4 w-4" /> {activeLead.phone}</span>
+                          <span className="flex items-center gap-1.5"><PhoneCall className="h-4 w-4" /> {formatPhone(activeLead.phone)}</span>
                           {activeLead.company_name && (
                             <span className="flex items-center gap-1.5">
                               <Building2 className="h-4 w-4" /> {activeLead.company_name}
@@ -595,7 +605,7 @@ const PublicColdCall = () => {
                         <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                           {lead.name || lead.phone}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{lead.phone}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{formatPhone(lead.phone)}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         {lastLog && (
@@ -649,7 +659,7 @@ const PublicColdCall = () => {
                           <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                             {lead.name || lead.phone}
                           </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{lead.phone}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{formatPhone(lead.phone)}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stageBadgeClass(lead.current_stage)}`}>
@@ -711,7 +721,7 @@ const PublicColdCall = () => {
                           {lead?.name || lead?.phone || 'Contato'}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {lead?.phone || '—'}
+                          {formatPhone(lead?.phone) || '—'}
                           <span className="ml-2 text-slate-400">
                             {new Date(log.start_time || log.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </span>
@@ -739,7 +749,7 @@ const PublicColdCall = () => {
               <span>{dialogResult === 'Pedir retorno' ? 'Registrar retorno' : 'Agendar reunião'}</span>
             </DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {activeLead?.phone}
+              <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {formatPhone(activeLead?.phone)}
             </DialogDescription>
           </DialogHeader>
 
@@ -823,7 +833,7 @@ const PublicColdCall = () => {
             <DialogDescription>
               {editingLog ? (
                 <>{leads.find(l => l.id === editingLog.cold_call_lead_id)?.name || 'Contato'} ·{' '}
-                {leads.find(l => l.id === editingLog.cold_call_lead_id)?.phone || editingLog.cold_call_lead_id}</>
+                {formatPhone(leads.find(l => l.id === editingLog.cold_call_lead_id)?.phone) || editingLog.cold_call_lead_id}</>
               ) : '—'}
             </DialogDescription>
           </DialogHeader>
@@ -885,7 +895,7 @@ const PublicColdCall = () => {
               <span>Resultado da ligação</span>
             </DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {activeLead?.phone}
+              <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {formatPhone(activeLead?.phone)}
             </DialogDescription>
           </DialogHeader>
 

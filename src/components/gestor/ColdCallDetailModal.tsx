@@ -57,7 +57,7 @@ export const ColdCallDetailModal: React.FC<ColdCallDetailModalProps> = ({
     }
     if (type === 'answered') {
       return logs.filter(log => 
-        (log.result !== 'Não atendeu' && log.result !== 'Número inválido') && filterByDate(log.created_at)
+        (log.result !== 'Não atendeu' && log.result !== 'Não chamou' && log.result !== 'Número inválido') && filterByDate(log.created_at)
       ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     if (type === 'conversations') {

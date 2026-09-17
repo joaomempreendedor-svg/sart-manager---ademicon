@@ -162,7 +162,7 @@ const ColdCallMetricsPage = () => {
     const totalCalls = filteredColdCallLogs.length;
 
     const answeredLogs = filteredColdCallLogs.filter(log =>
-      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
+      log.result !== 'Não atendeu' && log.result !== 'Não chamou' && log.result !== 'Número inválido'
     );
     const totalAnswered = answeredLogs.length;
 
@@ -194,7 +194,7 @@ const ColdCallMetricsPage = () => {
       const logs = todayLogs.filter(l => l.user_id === uid);
       map[uid] = {
         calls: logs.length,
-        contacts: logs.filter(l => l.result !== 'Não atendeu' && l.result !== 'Número inválido').length,
+        contacts: logs.filter(l => l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido').length,
         meetings: logs.filter(l => l.result === 'Agendar Reunião').length,
       };
     });
@@ -205,7 +205,7 @@ const ColdCallMetricsPage = () => {
     let calls = 0, contacts = 0, meetings = 0;
     todayLogs.forEach(l => {
       calls += 1;
-      if (l.result !== 'Não atendeu' && l.result !== 'Número inválido') contacts += 1;
+      if (l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido') contacts += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
     return { calls, contacts, meetings };

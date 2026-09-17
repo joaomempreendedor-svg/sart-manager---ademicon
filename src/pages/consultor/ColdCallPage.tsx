@@ -32,7 +32,7 @@ import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { MetricCard } from '@/components/MetricCard';
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
-const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Foi para o WhatsApp', 'Agendar Reunião'];
+const COLD_CALL_RESULTS: ColdCallResult[] = ['Não chamou', 'Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Foi para o WhatsApp', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
 const formatDuration = (seconds: number) => {
@@ -114,7 +114,7 @@ const ColdCallPage = () => {
     const totalCalls = filteredColdCallLogsForMetrics.length;
     
     const answeredLogs = filteredColdCallLogsForMetrics.filter(log => 
-      log.result !== 'Não atendeu' && log.result !== 'Número inválido'
+      log.result !== 'Não atendeu' && log.result !== 'Não chamou' && log.result !== 'Número inválido'
     );
     const totalAnswered = answeredLogs.length;
 
@@ -297,6 +297,7 @@ const ColdCallPage = () => {
       case 'Sem interesse':
       case 'Número inválido':
       case 'Não atendeu':
+      case 'Não chamou':
         return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
       default:
         return 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';

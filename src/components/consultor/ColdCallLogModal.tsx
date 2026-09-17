@@ -25,7 +25,7 @@ import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 
 const COLD_CALL_STAGES: ColdCallStage[] = ['Base Fria', 'Tentativa de Contato', 'Conversou', 'Reunião Agendada'];
-const COLD_CALL_RESULTS: ColdCallResult[] = ['Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Foi para o WhatsApp', 'Agendar Reunião'];
+const COLD_CALL_RESULTS: ColdCallResult[] = ['Não chamou', 'Não atendeu', 'Número inválido', 'Sem interesse', 'Pedir retorno', 'Conversou', 'Demonstrou Interesse', 'Foi para o WhatsApp', 'Agendar Reunião'];
 const MEETING_MODALITIES = ['Online', 'Presencial', 'Telefone'];
 
 interface ColdCallLogModalProps {
@@ -161,7 +161,7 @@ export const ColdCallLogModal: React.FC<ColdCallLogModalProps> = ({
       else if (callResult === 'Demonstrou Interesse') newStageValue = 'Conversou'; // Changed to 'Conversou' as 'Demonstrou Interesse' is not a stage
       else if (callResult === 'Foi para o WhatsApp') newStageValue = 'Conversou';
       else if (callResult === 'Conversou') newStageValue = 'Conversou';
-      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu' || callResult === 'Número inválido' || callResult === 'Sem interesse') newStageValue = 'Tentativa de Contato';
+      else if (callResult === 'Pedir retorno' || callResult === 'Não atendeu' || callResult === 'Não chamou' || callResult === 'Número inválido' || callResult === 'Sem interesse') newStageValue = 'Tentativa de Contato';
 
       await onUpdateLeadStage(lead.id, { current_stage: newStageValue });
       toast.success("Ligação registrada e etapa atualizada!");
