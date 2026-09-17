@@ -247,14 +247,21 @@ const PublicColdCall = () => {
     if (!editingLog) return;
     setIsSaving(true);
     try {
-      const { error: logError } = await supabase
+      const { data: updatedRows, error: logError } = await supabase
         .from('cold_call_logs')
         .update({
           result: editLogResult,
           meeting_notes: (editLogResult === 'Pedir retorno' || editLogResult === 'Agendar Reunião') ? (editLogNotes || null) : null,
         })
-        .eq('id', editingLog.id);
+        .eq('id', editingLog.id)
+        .select('id');
       if (logError) throw logError;
+
+      if (!updatedRows || updatedRows.length === 0) {
+        toast.error('Não foi possível salvar: falta a permissão de UPDATE na tabela cold_call_logs. Rode o SQL supabase/cold_call_logs_update_policy.sql no Supabase.');
+        setIsSaving(false);
+        return;
+      }
 
       const { data: logsAfter } = await supabase
         .from('cold_call_logs')
@@ -518,46 +525,6 @@ const PublicColdCall = () => {
               </div>
             </div>
 
-            {/* Fila restante */}
-            <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-center justify-between border-b px-5 py-4 dark:border-slate-800">
-                <h3 className="flex items-center gap-2 font-semibold">
-                  <BarChart3 className="h-5 w-5 text-brand-600" /> Minha fila ({queue.length})
-                </h3>
-                <span className="text-xs font-medium text-slate-400">Só números ainda não ligados</span>
-              </div>
-              {queue.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-slate-400">Você ligou para todos os números da fila. Peça ao gestor para importar novos leads.</p>
-              ) : (
-                <div className="divide-y dark:divide-slate-800">
-                  {queue.map(lead => (
-                    <div
-                      key={lead.id}
-                      className={`flex w-full items-center gap-3 px-5 py-3 ${activeLead?.id === lead.id ? 'bg-brand-50 dark:bg-brand-950/40' : ''}`}
-                    >
-                      <button
-                        onClick={() => setActiveLeadId(lead.id)}
-                        className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                            {lead.name || lead.phone}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{lead.phone}</p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stageBadgeClass(lead.current_stage)}`}>
-                            {lead.current_stage === 'Base Fria' ? 'Contato não realizado' : lead.current_stage}
-                          </span>
-                          {activeLead?.id === lead.id && <ChevronRight className="h-4 w-4 text-brand-500" />}
-                        </div>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Ligações realizadas */}
             <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
@@ -612,6 +579,46 @@ const PublicColdCall = () => {
                           </button>
                         )}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Minha fila */}
+            <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between border-b px-5 py-4 dark:border-slate-800">
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <BarChart3 className="h-5 w-5 text-brand-600" /> Minha fila ({queue.length})
+                </h3>
+                <span className="text-xs font-medium text-slate-400">Só números ainda não ligados</span>
+              </div>
+              {queue.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-slate-400">Você ligou para todos os números da fila. Peça ao gestor para importar novos leads.</p>
+              ) : (
+                <div className="divide-y dark:divide-slate-800">
+                  {queue.map(lead => (
+                    <div
+                      key={lead.id}
+                      className={`flex w-full items-center gap-3 px-5 py-3 ${activeLead?.id === lead.id ? 'bg-brand-50 dark:bg-brand-950/40' : ''}`}
+                    >
+                      <button
+                        onClick={() => setActiveLeadId(lead.id)}
+                        className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                            {lead.name || lead.phone}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{lead.phone}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stageBadgeClass(lead.current_stage)}`}>
+                            {lead.current_stage === 'Base Fria' ? 'Contato não realizado' : lead.current_stage}
+                          </span>
+                          {activeLead?.id === lead.id && <ChevronRight className="h-4 w-4 text-brand-500" />}
+                        </div>
+                      </button>
                     </div>
                   ))}
                 </div>
