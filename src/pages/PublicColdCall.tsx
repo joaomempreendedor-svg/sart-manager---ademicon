@@ -76,6 +76,7 @@ const PublicColdCall = () => {
 
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | ColdCallResult>('all');
+  const [mainTab, setMainTab] = useState<'fila' | 'ligacoes'>('fila');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogResult, setDialogResult] = useState<ColdCallResult>('Agendar Reunião');
   const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
@@ -440,25 +441,46 @@ const PublicColdCall = () => {
         ) : (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
-            {/* Resumo do dia */}
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                Fila de {selectedConsultant.name}
-              </h2>
-              <p className="text-sm text-slate-500">{queue.length} prospect(s) aguardando na fila hoje.</p>
+            {/* Cabeçalho da operação */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-white shadow-lg shadow-brand-600/20">
+                  <PhoneCall className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedConsultant.name}</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Sua operação de hoje</p>
+                </div>
+              </div>
+              <div className="inline-flex rounded-2xl border bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <button
+                  onClick={() => setMainTab('fila')}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${mainTab === 'fila' ? 'bg-brand-600 text-white shadow' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'}`}
+                >
+                  <PhoneCall className="h-4 w-4" /> A ligar ({queue.length})
+                </button>
+                <button
+                  onClick={() => setMainTab('ligacoes')}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${mainTab === 'ligacoes' ? 'bg-emerald-600 text-white shadow' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'}`}
+                >
+                  <CalendarCheck className="h-4 w-4" /> Já liguei ({filteredRealized.length})
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Métricas do dia */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {([
                 { label: 'Ligações hoje', value: todaysMetrics.calls, icon: PhoneCall, color: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300' },
                 { label: 'Reuniões hoje', value: todaysMetrics.meetings, icon: CalendarCheck, color: 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-300' },
+                { label: 'Interessados hoje', value: todaysMetrics.interested, icon: Star, color: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300' },
               ] as { label: string; value: number; icon: React.ComponentType<{ className?: string }>; color: string }[]).map(item => (
                 <div key={item.label} className="flex items-center gap-3 rounded-2xl border bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                   <div className={`shrink-0 rounded-xl p-3 ${item.color}`}>
                     <item.icon className="h-5 w-5" />
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{item.label}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold uppercase tracking-wider text-slate-400">{item.label}</p>
                     <p className="text-2xl font-bold text-slate-900 dark:text-white">{item.value}</p>
                   </div>
                 </div>
@@ -512,6 +534,20 @@ const PublicColdCall = () => {
                           <p className="text-xs text-white/70">{queue.length - 1} na fila após este</p>
                         </div>
                       </div>
+                      <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/15 pt-4">
+                        <div className="rounded-xl bg-white/10 px-3 py-2 text-center backdrop-blur">
+                          <p className="text-xl font-bold">{todaysMetrics.calls}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-white/70">Ligados hoje</p>
+                        </div>
+                        <div className="rounded-xl bg-white/10 px-3 py-2 text-center backdrop-blur">
+                          <p className="text-xl font-bold">{todaysMetrics.contacts}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-white/70">Contatos</p>
+                        </div>
+                        <div className="rounded-xl bg-white/10 px-3 py-2 text-center backdrop-blur">
+                          <p className="text-xl font-bold">{queue.length}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-white/70">Na fila</p>
+                        </div>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -526,6 +562,7 @@ const PublicColdCall = () => {
             </div>
 
             {/* Ligações realizadas */}
+            {mainTab === 'ligacoes' && (
             <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
                 <h3 className="flex items-center gap-2 font-semibold">
@@ -584,8 +621,10 @@ const PublicColdCall = () => {
                 </div>
               )}
             </div>
+            )}
 
             {/* Minha fila */}
+            {mainTab === 'fila' && (
             <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center justify-between border-b px-5 py-4 dark:border-slate-800">
                 <h3 className="flex items-center gap-2 font-semibold">
@@ -624,6 +663,7 @@ const PublicColdCall = () => {
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Status de resultado das ligações */}
