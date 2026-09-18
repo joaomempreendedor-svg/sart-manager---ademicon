@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   PhoneCall, CalendarCheck, Loader2, Sun, Moon,
   UserRound, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
-  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin, MessageCircle, Pencil,
+  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin, MessageCircle, Pencil, Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,6 +86,9 @@ const PublicColdCall = () => {
 
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | ColdCallResult>('all');
+  const [dateFrom, setDateFrom] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [statusSearch, setStatusSearch] = useState('');
   const [mainTab, setMainTab] = useState<'fila' | 'ligacoes'>('fila');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogResult, setDialogResult] = useState<ColdCallResult>('Agendar Reunião');
@@ -221,6 +224,29 @@ const PublicColdCall = () => {
     return CALL_RESULTS.find(c => c.result === result)?.color || 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-gray-300';
   }, []);
 
+  const withinDateRange = useCallback((dateStr: string) => {
+    if (!dateFrom && !dateTo) return true;
+    const t = new Date(dateStr).getTime();
+    if (isNaN(t)) return false;
+    if (dateFrom && t < new Date(dateFrom + 'T00:00:00').getTime()) return false;
+    if (dateTo && t > new Date(dateTo + 'T23:59:59').getTime()) return false;
+    return true;
+  }, [dateFrom, dateTo]);
+
+  const filteredStatusLogs = useMemo(() => {
+    const leadById = new Map(leads.map(l => [l.id, l]));
+    const term = statusSearch.trim().toLowerCase();
+    return logs
+      .filter(l => withinDateRange(l.start_time || l.created_at))
+      .filter(l => {
+        if (!term) return true;
+        const lead = leadById.get(l.cold_call_lead_id);
+        return (lead?.name || '').toLowerCase().includes(term) || (lead?.phone || '').toLowerCase().includes(term) || l.result.toLowerCase().includes(term);
+      })
+      .map(l => ({ log: l, lead: leadById.get(l.cold_call_lead_id) || null }))
+      .sort((a, b) => new Date(b.log.start_time || b.log.created_at).getTime() - new Date(a.log.start_time || a.log.created_at).getTime());
+  }, [logs, leads, withinDateRange, statusSearch]);
+
   const todayLogsWithLead = useMemo(() => {
     const leadById = new Map(leads.map(l => [l.id, l]));
     return logs
@@ -232,9 +258,9 @@ const PublicColdCall = () => {
   const todayResultSummary = useMemo(() => {
     return CALL_RESULTS.map(c => ({
       result: c.result,
-      count: logs.filter(l => isToday(l.start_time || l.created_at) && l.result === c.result).length,
+      count: filteredStatusLogs.filter(i => i.log.result === c.result).length,
     }));
-  }, [logs]);
+  }, [filteredStatusLogs]);
 
   const refreshAfterWrite = async () => {
     if (!selectedConsultantKey) return;
@@ -682,21 +708,59 @@ const PublicColdCall = () => {
                 <h3 className="font-semibold">Status das ligações</h3>
               </div>
               <div className="space-y-2 px-5 py-4">
-                {CALL_RESULTS.map(c => {
-                  const count = todayResultSummary.find(s => s.result === c.result)?.count || 0;
-                  return (
-                    <div key={c.result} className="flex items-center justify-between gap-3">
-                      <span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${resultColor(c.result)}`}>
-                        <c.icon className="h-3.5 w-3.5" />
-                        {c.label}
-                      </span>
-                      <span className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{count}</span>
-                    </div>
-                  );
-                })}
-                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total</span>
-                  <span className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{todayLogsWithLead.length}</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      value={statusSearch}
+                      onChange={(e) => setStatusSearch(e.target.value)}
+                      placeholder="Buscar nome, telefone ou resultado..."
+                      className="h-9 pl-8 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+                  {(statusSearch || dateFrom !== new Date().toISOString().split('T')[0] || dateTo !== new Date().toISOString().split('T')[0]) && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { setStatusSearch(''); const today = new Date().toISOString().split('T')[0]; setDateFrom(today); setDateTo(today); }}
+                      className="h-9 w-9 shrink-0"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="h-9 flex-1 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:[color-scheme:dark]"
+                  />
+                  <span className="text-slate-400">até</span>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="h-9 flex-1 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:[color-scheme:dark]"
+                  />
+                </div>
+                <div className="pt-1">
+                  {CALL_RESULTS.map(c => {
+                    const count = todayResultSummary.find(s => s.result === c.result)?.count || 0;
+                    return (
+                      <div key={c.result} className="flex items-center justify-between gap-3">
+                        <span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ${resultColor(c.result)}`}>
+                          <c.icon className="h-3.5 w-3.5" />
+                          {c.label}
+                        </span>
+                        <span className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{count}</span>
+                      </div>
+                    );
+                  })}
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total</span>
+                    <span className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{filteredStatusLogs.length}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -704,15 +768,19 @@ const PublicColdCall = () => {
             <div className="rounded-2xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center gap-2 border-b px-5 py-4 dark:border-slate-800">
                 <PhoneCall className="h-5 w-5 text-emerald-600" />
-                <h3 className="font-semibold">Ligações realizadas hoje</h3>
+                <h3 className="font-semibold">
+                  {dateFrom === dateTo && dateFrom === new Date().toISOString().split('T')[0]
+                    ? 'Ligações realizadas hoje'
+                    : 'Ligações realizadas'}
+                </h3>
               </div>
-              {todayLogsWithLead.length === 0 ? (
+              {filteredStatusLogs.length === 0 ? (
                 <p className="px-5 py-10 text-center text-sm text-slate-400">
-                  Nenhuma ligação registrada hoje ainda.
+                  Nenhuma ligação registrada no período.
                 </p>
               ) : (
                 <div className="max-h-[600px] divide-y overflow-y-auto dark:divide-slate-800">
-                  {todayLogsWithLead.map(({ log, lead }) => (
+                  {filteredStatusLogs.map(({ log, lead }) => (
                     <div key={log.id} className="flex items-center justify-between gap-3 px-5 py-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
@@ -721,6 +789,7 @@ const PublicColdCall = () => {
                         <p className="text-xs text-slate-500 dark:text-slate-400">
                           {formatPhone(lead?.phone) || '—'}
                           <span className="ml-2 text-slate-400">
+                            {new Date(log.start_time || log.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ·{' '}
                             {new Date(log.start_time || log.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </p>
