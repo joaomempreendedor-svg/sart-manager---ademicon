@@ -708,41 +708,44 @@ const PublicColdCall = () => {
                 <h3 className="font-semibold">Status das ligações</h3>
               </div>
               <div className="space-y-2 px-5 py-4">
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        value={statusSearch}
+                        onChange={(e) => setStatusSearch(e.target.value)}
+                        placeholder="Buscar nome, telefone ou resultado..."
+                        className="pl-9"
+                      />
+                    </div>
+                    {(statusSearch || dateFrom !== new Date().toISOString().split('T')[0] || dateTo !== new Date().toISOString().split('T')[0]) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { setStatusSearch(''); const today = new Date().toISOString().split('T')[0]; setDateFrom(today); setDateTo(today); }}
+                        className="h-10 w-10 shrink-0"
+                        title="Limpar filtros"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Input
-                      value={statusSearch}
-                      onChange={(e) => setStatusSearch(e.target.value)}
-                      placeholder="Buscar nome, telefone ou resultado..."
-                      className="h-9 pl-8 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="flex-1"
+                    />
+                    <span className="shrink-0 text-xs font-medium text-slate-400">até</span>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="flex-1"
                     />
                   </div>
-                  {(statusSearch || dateFrom !== new Date().toISOString().split('T')[0] || dateTo !== new Date().toISOString().split('T')[0]) && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => { setStatusSearch(''); const today = new Date().toISOString().split('T')[0]; setDateFrom(today); setDateTo(today); }}
-                      className="h-9 w-9 shrink-0"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="h-9 flex-1 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:[color-scheme:dark]"
-                  />
-                  <span className="text-slate-400">até</span>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="h-9 flex-1 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:[color-scheme:dark]"
-                  />
                 </div>
                 <div className="pt-1">
                   {CALL_RESULTS.map(c => {
