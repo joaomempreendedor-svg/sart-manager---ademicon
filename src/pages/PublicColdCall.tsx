@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   PhoneCall, CalendarCheck, Loader2, Sun, Moon,
   UserRound, PhoneOff, XCircle, ThumbsDown, RotateCcw, ChevronRight,
-  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin, MessageCircle, Pencil, Search,
+  Clock, BarChart3, Save, PhoneForwarded, Building2, MapPin, MessageCircle, Pencil, Search, History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,6 +103,9 @@ const PublicColdCall = () => {
   const [isEditLogOpen, setIsEditLogOpen] = useState(false);
   const [editLogResult, setEditLogResult] = useState<ColdCallResult>('Não atendeu');
   const [editLogNotes, setEditLogNotes] = useState('');
+
+  const [callTarget, setCallTarget] = useState<ColdCallLead | null>(null);
+  const [historyLead, setHistoryLead] = useState<ColdCallLead | null>(null);
 
   const selectedConsultant = consultants.find(c => c.id === selectedConsultantId);
   const selectedConsultantKey = selectedConsultant?.consultantKey || null;
@@ -374,33 +377,37 @@ const PublicColdCall = () => {
   };
 
   const handleCallResult = async (result: ColdCallResult) => {
-    if (!activeLead || isSaving) return;
+    const lead = callTarget || activeLead;
+    if (!lead || isSaving) return;
     setIsResultDialogOpen(false);
     if (result === 'Agendar Reunião' || result === 'Pedir retorno') {
-      openDialog(result, activeLead);
+      openDialog(result, lead);
       return;
     }
-    await recordResult(activeLead, result);
+    const ok = await recordResult(lead, result);
+    if (ok) setCallTarget(null);
   };
 
   const handleDialogSave = async () => {
-    if (!activeLead) return;
+    const lead = callTarget || activeLead;
+    if (!lead) return;
     if (dialogResult === 'Agendar Reunião' && (!meetingDate || !meetingTime)) {
       toast.error('Informe data e horário da reunião.');
       return;
     }
-    const ok = await recordResult(activeLead, dialogResult, {
+    const ok = await recordResult(lead, dialogResult, {
       date: meetingDate || undefined,
       time: meetingTime || undefined,
       modality: meetingModality || undefined,
       notes: meetingNotes || undefined,
     });
     if (ok) {
-      if (contactName.trim() && contactName.trim() !== activeLead.name) {
-        await supabase.from('cold_call_leads').update({ name: contactName.trim() }).eq('id', activeLead.id);
+      if (contactName.trim() && contactName.trim() !== lead.name) {
+        await supabase.from('cold_call_leads').update({ name: contactName.trim() }).eq('id', lead.id);
         await refreshAfterWrite();
       }
       setIsDialogOpen(false);
+      setCallTarget(null);
     }
   };
 
@@ -632,6 +639,20 @@ const PublicColdCall = () => {
                         <p className="text-xs text-slate-500 dark:text-slate-400">{formatPhone(lead.phone)}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          onClick={() => { setCallTarget(lead); setIsResultDialogOpen(true); }}
+                          className="p-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition"
+                          title="Ligar novamente"
+                        >
+                          <PhoneForwarded className="h-3.5 w-3.5 text-emerald-500" />
+                        </button>
+                        <button
+                          onClick={() => setHistoryLead(lead)}
+                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                          title="Ver histórico de ligações"
+                        >
+                          <History className="h-3.5 w-3.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" />
+                        </button>
                         {lastLog && (
                           <span className="text-xs text-slate-400">
                             {new Date(lastLog.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
@@ -819,7 +840,7 @@ const PublicColdCall = () => {
               <span>{dialogResult === 'Pedir retorno' ? 'Registrar retorno' : 'Agendar reunião'}</span>
             </DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {formatPhone(activeLead?.phone)}
+              <span className="font-medium text-slate-900 dark:text-white">{(callTarget || activeLead)?.name || (callTarget || activeLead)?.phone}</span> · {formatPhone((callTarget || activeLead)?.phone)}
             </DialogDescription>
           </DialogHeader>
 
@@ -956,16 +977,67 @@ const PublicColdCall = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog de histórico de ligações */}
+      <Dialog open={!!historyLead} onOpenChange={(open) => { if (!open) setHistoryLead(null); }}>
+        <DialogContent className="sm:max-w-lg bg-white p-6 dark:bg-slate-800 dark:text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-brand-600" />
+              <span>Histórico: {historyLead?.name || historyLead?.phone}</span>
+            </DialogTitle>
+            <DialogDescription>
+              {formatPhone(historyLead?.phone)} · {historyLead?.current_stage || '—'} · {logs.filter(l => l.cold_call_lead_id === historyLead?.id).length} ligação(ões)
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[50vh] space-y-3 overflow-y-auto py-2 pr-1">
+            {historyLead && logs.filter(l => l.cold_call_lead_id === historyLead.id)
+              .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+              .map((log, i) => (
+                <div key={log.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Ligação {i + 1}</span>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${resultColor(log.result)}`}>
+                      {log.result}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                    {new Date(log.start_time || log.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} ·{' '}
+                    {new Date(log.start_time || log.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  {log.meeting_notes && (
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{log.meeting_notes}</p>
+                  )}
+                  {log.meeting_date && (
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Reunião: {new Date(log.meeting_date + 'T' + (log.meeting_time || '00:00')).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {log.meeting_time} · {log.meeting_modality}
+                    </p>
+                  )}
+                </div>
+              ))}
+            {historyLead && logs.filter(l => l.cold_call_lead_id === historyLead.id).length === 0 && (
+              <p className="py-8 text-center text-sm text-slate-400">Nenhuma ligação registrada para este número.</p>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+            <Button type="button" variant="outline" onClick={() => setHistoryLead(null)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de resultado da ligação */}
       <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
         <DialogContent className="sm:max-w-md bg-white p-6 dark:bg-slate-800 dark:text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PhoneCall className="h-6 w-6 text-emerald-500" />
-              <span>Resultado da ligação</span>
+              <span>{callTarget ? 'Ligar novamente' : 'Resultado da ligação'}</span>
             </DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-slate-900 dark:text-white">{activeLead?.name || activeLead?.phone}</span> · {formatPhone(activeLead?.phone)}
+              <span className="font-medium text-slate-900 dark:text-white">{(callTarget || activeLead)?.name || (callTarget || activeLead)?.phone}</span> · {formatPhone((callTarget || activeLead)?.phone)}
             </DialogDescription>
           </DialogHeader>
 
