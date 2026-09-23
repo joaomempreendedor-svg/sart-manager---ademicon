@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Moon, Phone, Plus, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -47,6 +47,11 @@ const formatPhone = (phone: string) => {
   if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   return phone;
+};
+
+const isIndicationsMetric = (metric: DailyMetricConfig) => {
+  const key = metric.metric_key.toLowerCase();
+  return key === 'indicacoes' || key === 'indications' || key.includes('indicac') || metric.label.toLowerCase().includes('indicaç');
 };
 
 const getToday = () => {
@@ -160,6 +165,7 @@ const PublicDailyMetrics = () => {
   const [indicationPhone, setIndicationPhone] = useState('');
   const [isSavingIndication, setIsSavingIndication] = useState(false);
   const [indicationsFilter, setIndicationsFilter] = useState('');
+  const [indicationRows, setIndicationRows] = useState<{ name: string; phone: string }[]>([]);
 
   const loadPublicData = useCallback(async (showRefresh = false) => {
     if (!ownerId) return;
@@ -296,6 +302,23 @@ const PublicDailyMetrics = () => {
     setValues(existingValues);
   }, [selectedConsultantId, metrics, entries]);
 
+  const indicationsMetric = metrics.find(isIndicationsMetric);
+  const isOnIndicationsStep = step >= 1 && step <= metrics.length && Boolean(metrics[step - 1] && isIndicationsMetric(metrics[step - 1]));
+  const indicationPreloadKeyRef = useRef('');
+
+  useEffect(() => {
+    if (!isOnIndicationsStep) return;
+    const key = `${selectedConsultantId}|${selectedDate}`;
+    if (indicationPreloadKeyRef.current === key) return;
+    indicationPreloadKeyRef.current = key;
+    setIndicationRows(
+      indications
+        .filter(item => item.consultant_id === selectedConsultantId && item.entry_date === selectedDate)
+        .map(item => ({ name: item.name, phone: item.phone || '' }))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnIndicationsStep, selectedConsultantId, selectedDate]);
+
   const selectedConsultant = consultants.find(consultant => consultant.id === selectedConsultantId);
 
   const rangeDays = useMemo(() => {
@@ -343,6 +366,15 @@ const PublicDailyMetrics = () => {
     indications.forEach(item => counts.set(item.consultant_id, (counts.get(item.consultant_id) || 0) + 1));
     return counts;
   }, [indications]);
+
+  const periodIndications = useMemo(() => {
+    const range = period === 'daily'
+      ? { start: selectedDate, end: selectedDate }
+      : period === 'weekly'
+        ? getWeekRange(selectedWeek)
+        : { start: monthStart, end: monthEnd };
+    return indications.filter(item => item.entry_date >= range.start && item.entry_date <= range.end);
+  }, [indications, period, selectedDate, selectedWeek, monthStart, monthEnd]);
 
   const todayIso = toLocalISODate(new Date());
 
@@ -398,6 +430,35 @@ const PublicDailyMetrics = () => {
 
   const goBack = () => setStep(current => Math.max(current - 1, 0));
 
+  const setIndicationRow = (index: number, field: 'name' | 'phone', value: string) => {
+    setIndicationRows(prev => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  };
+
+  const handleIndicationsCountChange = (metricId: string, raw: string) => {
+    const count = Math.max(0, Math.min(30, Math.round(Number(raw) || 0)));
+    setValues(prev => ({ ...prev, [metricId]: String(count) }));
+    setIndicationRows(prev => {
+      if (count >= prev.length) return [...prev, ...Array.from({ length: count - prev.length }, () => ({ name: '', phone: '' }))];
+      return prev.slice(0, count);
+    });
+  };
+
+  const addIndicationRow = () => {
+    setIndicationRows(prev => [...prev, { name: '', phone: '' }]);
+    if (indicationsMetric && isOnIndicationsStep) {
+      const count = Math.min(30, indicationRows.length + 1);
+      setValues(prev => ({ ...prev, [indicationsMetric.id]: String(count) }));
+    }
+  };
+
+  const removeIndicationRow = (index: number) => {
+    setIndicationRows(prev => prev.filter((_, i) => i !== index));
+    if (indicationsMetric && isOnIndicationsStep) {
+      const count = Math.max(0, indicationRows.length - 1);
+      setValues(prev => ({ ...prev, [indicationsMetric.id]: String(count) }));
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedConsultantId) {
       toast.error('Selecione quem está preenchendo.');
@@ -421,14 +482,49 @@ const PublicDailyMetrics = () => {
       .from('public_metric_entries')
       .upsert(payload, { onConflict: 'consultant_id,metric_config_id,entry_date' });
 
-    setIsSaving(false);
     if (error) {
+      setIsSaving(false);
       toast.error('Não foi possível salvar os resultados. Tente novamente.');
       return;
     }
 
-    toast.success(`Resultados de ${selectedConsultant?.name} salvos!`);
+    if (indicationsMetric) {
+      const { error: deleteError } = await supabase
+        .from('public_metric_indications')
+        .delete()
+        .eq('consultant_id', selectedConsultantId)
+        .eq('entry_date', selectedDate);
+
+      if (!deleteError) {
+        const rowsToSave = indicationRows
+          .map(row => ({ name: row.name.trim(), phone: row.phone.trim() }))
+          .filter(row => row.name !== '');
+
+        if (rowsToSave.length > 0) {
+          const { error: insertError } = await supabase
+            .from('public_metric_indications')
+            .insert(rowsToSave.map(row => ({
+              user_id: ownerId,
+              consultant_id: selectedConsultantId,
+              name: row.name,
+              phone: row.phone || null,
+              entry_date: selectedDate,
+            })));
+
+          if (insertError) {
+            toast.error('Resultados salvos, mas houve erro ao registrar as indicações.');
+            await loadPublicData();
+            setStep(0);
+            setView('dashboard');
+            return;
+          }
+        }
+      }
+    }
+
+    setIsSaving(false);
     await loadPublicData();
+    toast.success(`Resultados de ${selectedConsultant?.name} salvos!`);
     setStep(0);
     setView('dashboard');
   };
@@ -724,6 +820,7 @@ const PublicDailyMetrics = () => {
                 {step > 0 && step <= metrics.length && (() => {
                   const metric = metrics[step - 1];
                   if (!metric) return null;
+                  const isIndicationStep = isIndicationsMetric(metric);
                   return (
                     <div className="space-y-2">
                       <Label htmlFor={metric.id}>{metric.label} *</Label>
@@ -731,15 +828,14 @@ const PublicDailyMetrics = () => {
                         <Input
                           id={metric.id}
                           autoFocus
-                          type={metric.type === 'currency' ? 'text' : 'number'}
-                          min={metric.type === 'currency' ? undefined : '0'}
-                          step={metric.type === 'currency' ? undefined : '1'}
+                          type="number"
+                          min="0"
+                          step="1"
                           inputMode="numeric"
                           value={values[metric.id] || ''}
-                          onChange={event => setValues(prev => ({
-                            ...prev,
-                            [metric.id]: metric.type === 'currency' ? formatBRLInput(event.target.value) : event.target.value,
-                          }))}
+                          onChange={event => isIndicationStep
+                            ? handleIndicationsCountChange(metric.id, event.target.value)
+                            : setValues(prev => ({ ...prev, [metric.id]: metric.type === 'currency' ? formatBRLInput(event.target.value) : event.target.value }))}
                           onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
                           placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
                           className="h-12 text-lg"
@@ -747,6 +843,50 @@ const PublicDailyMetrics = () => {
                       </div>
                       {metric.target_value > 0 && (
                         <p className="text-xs text-slate-500">Meta diária da equipe: {formatValue(metric.target_value, metric.type)}</p>
+                      )}
+                      {isIndicationStep && (
+                        <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
+                          <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+                            <Users className="h-4 w-4" /> Quem você indicou?
+                          </p>
+                          <p className="mb-3 text-xs text-slate-500">
+                            Quando informar a quantidade acima, abra os campos para registrar nome e telefone (opcional).
+                          </p>
+                          <div className="space-y-2">
+                            {indicationRows.map((row, index) => (
+                              <div key={index} className="flex flex-col gap-2 sm:flex-row">
+                                <Input
+                                  value={row.name}
+                                  onChange={e => setIndicationRow(index, 'name', e.target.value)}
+                                  placeholder={`Nome da ${index + 1}ª indicação`}
+                                  className="h-10 flex-1"
+                                />
+                                <Input
+                                  value={row.phone}
+                                  onChange={e => setIndicationRow(index, 'phone', e.target.value)}
+                                  placeholder="Telefone (opcional)"
+                                  inputMode="tel"
+                                  className="h-10 w-full sm:w-44"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  type="button"
+                                  onClick={() => removeIndicationRow(index)}
+                                  className="text-red-500 hover:text-red-600"
+                                  aria-label="Remover indicação"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            {indicationRows.length < 30 && (
+                              <Button variant="outline" size="sm" type="button" onClick={addIndicationRow} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                                <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar nome
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
@@ -1076,6 +1216,74 @@ const PublicDailyMetrics = () => {
                     })}
                   </tbody>
                 </table>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-lg">Indicações no período</CardTitle>
+                <CardDescription>
+                  Pessoas indicadas por cada consultor em {periodLabel}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {periodIndications.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-slate-500">
+                    Nenhuma indicação registrada no período ainda.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {consultants.map(consultant => {
+                        const count = periodIndications.filter(item => item.consultant_id === consultant.id).length;
+                        return (
+                          <span key={consultant.id} className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                            {consultant.name} · {count}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[560px] text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-slate-500 dark:border-slate-800">
+                            <th className="pb-3 pr-4 font-semibold">Indicado</th>
+                            <th className="px-4 pb-3 font-semibold">Telefone</th>
+                            <th className="px-4 pb-3 font-semibold">Consultor</th>
+                            <th className="px-4 pb-3 font-semibold">Dia</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...periodIndications].sort((a, b) => b.entry_date.localeCompare(a.entry_date)).map(item => (
+                            <tr key={item.id} className="border-b transition-colors hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                              <td className="py-3 pr-4 font-medium">{item.name}</td>
+                              <td className="px-4 py-3">
+                                {item.phone ? (
+                                  <a
+                                    href={`https://wa.me/55${item.phone.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-brand-600 hover:underline dark:text-brand-400"
+                                  >
+                                    <Phone className="h-3.5 w-3.5" /> {formatPhone(item.phone)}
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                {consultants.find(consultant => consultant.id === item.consultant_id)?.name || '—'}
+                              </td>
+                              <td className="px-4 py-3 text-slate-500">
+                                {new Date(`${item.entry_date}T12:00:00`).toLocaleDateString('pt-BR')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
