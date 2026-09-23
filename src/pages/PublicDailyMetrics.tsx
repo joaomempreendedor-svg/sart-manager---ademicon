@@ -49,12 +49,6 @@ const getISOWeekValue = (date = new Date()) => {
 
 const getISOYearMonth = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-const daysInMonth = (monthValue: string) => {
-  const match = /^(\d{4})-(\d{2})$/.exec(monthValue);
-  if (!match) return 30;
-  return new Date(Number(match[1]), Number(match[2]), 0).getDate();
-};
-
 const getMonthRange = (monthValue: string) => {
   const normalized = /^\d{4}-\d{2}$/.test(monthValue) ? monthValue : getISOYearMonth();
   const [year, month] = normalized.split('-').map(Number);
@@ -62,11 +56,6 @@ const getMonthRange = (monthValue: string) => {
   const lastDay = new Date(year, month, 0).getDate();
   const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
   return { start, end };
-};
-
-const formatMonthLabel = (monthValue: string) => {
-  const [year, month] = (getMonthRange(monthValue).start).split('-').map(Number);
-  return new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 };
 
 const getWeekRange = (weekValue: string) => {
@@ -133,7 +122,9 @@ const PublicDailyMetrics = () => {
   const [selectedConsultantId, setSelectedConsultantId] = useState('');
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [selectedWeek, setSelectedWeek] = useState(getISOWeekValue());
-  const [selectedMonth, setSelectedMonth] = useState(getISOYearMonth());
+  const [selectedMonthRange, setSelectedMonthRange] = useState(() => getMonthRange(getISOYearMonth()));
+  const monthStart = selectedMonthRange.start;
+  const monthEnd = selectedMonthRange.end;
   const [values, setValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -181,7 +172,7 @@ const PublicDailyMetrics = () => {
         ? { start: selectedDate, end: selectedDate }
         : period === 'weekly'
           ? getWeekRange(selectedWeek)
-          : getMonthRange(selectedMonth);
+          : { start: monthStart, end: monthEnd };
       const statusStart = shiftDays(selectedDate, -(STATUS_WINDOW_DAYS - 1));
 
       const [periodResult, statusResult] = await Promise.all([
@@ -208,7 +199,7 @@ const PublicDailyMetrics = () => {
 
     setIsLoading(false);
     setIsRefreshing(false);
-  }, [ownerId, period, selectedDate, selectedWeek, selectedMonth]);
+  }, [ownerId, period, selectedDate, selectedWeek, monthStart, monthEnd]);
 
   useEffect(() => {
     loadPublicData();
@@ -229,6 +220,12 @@ const PublicDailyMetrics = () => {
 
   const selectedConsultant = consultants.find(consultant => consultant.id === selectedConsultantId);
 
+  const rangeDays = useMemo(() => {
+    const start = new Date(`${monthStart}T12:00:00`).getTime();
+    const end = new Date(`${monthEnd}T12:00:00`).getTime();
+    return Math.max(1, Math.round((end - start) / 86_400_000) + 1);
+  }, [monthStart, monthEnd]);
+
   const metricSummaries = useMemo(() => metrics.map(metric => {
     const total = entries
       .filter(entry => entry.metric_config_id === metric.id)
@@ -236,20 +233,21 @@ const PublicDailyMetrics = () => {
     const teamTarget = period === 'weekly'
       ? Number(metric.weekly_target_value || 0)
       : period === 'monthly'
-        ? Number(metric.target_value || 0) * daysInMonth(selectedMonth)
+        ? Number(metric.target_value || 0) * rangeDays
         : Number(metric.target_value || 0);
     const progress = teamTarget > 0 ? Math.round((total / teamTarget) * 100) : 0;
     const remaining = Math.max(0, teamTarget - total);
     return { metric, total, teamTarget, progress, remaining };
-  }), [metrics, entries, period, selectedMonth]);
+  }), [metrics, entries, period, rangeDays]);
 
   const submittedConsultants = useMemo(() => new Set(entries.map(entry => entry.consultant_id)).size, [entries]);
   const selectedWeekRange = useMemo(() => getWeekRange(selectedWeek), [selectedWeek]);
+
   const periodLabel = period === 'daily'
     ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-BR')
     : period === 'weekly'
       ? `${new Date(`${selectedWeekRange.start}T12:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${selectedWeekRange.end}T12:00:00`).toLocaleDateString('pt-BR')}`
-      : formatMonthLabel(selectedMonth);
+      : `${formatDayLabel(monthStart, true)} a ${formatDayLabel(monthEnd, true)} (${rangeDays} dias)`;
 
   const statusWindowDays = useMemo(() => {
     const days: string[] = [];
@@ -271,10 +269,12 @@ const PublicDailyMetrics = () => {
     setSelectedWeek(getISOWeekValue(new Date(`${shiftDays(start, 7)}T12:00:00`)));
   };
 
-  const shiftMonth = (offset: number) => {
-    const [year, month] = selectedMonth.split('-').map(Number);
-    const date = new Date(year, month - 1 + offset, 1);
-    setSelectedMonth(getISOYearMonth(date));
+  const shiftMonthOffset = (offset: number) => {
+    const days = offset * Math.max(1, rangeDays);
+    setSelectedMonthRange(prev => ({
+      start: shiftDays(prev.start, days),
+      end: shiftDays(prev.end, days),
+    }));
   };
 
   const filledDaysSet = useMemo(() => new Set<string>(statusEntries.map(e => `${e.consultant_id}|${e.entry_date}`)), [statusEntries]);
@@ -465,14 +465,25 @@ const PublicDailyMetrics = () => {
                 </Button>
               </div>
             ) : period === 'monthly' ? (
-              <div className="flex items-center gap-1.5">
-                <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} title="Mês anterior" className="h-9 w-9 shrink-0">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Input type="month" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} className="w-full sm:w-auto" />
-                <Button variant="outline" size="icon" onClick={() => shiftMonth(1)} title="Próximo mês" className="h-9 w-9 shrink-0">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="icon" onClick={() => shiftMonthOffset(-1)} title="Período anterior" className="h-9 w-9 shrink-0">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-semibold text-slate-400">De</span>
+                      <Input type="date" value={monthStart} onChange={event => setSelectedMonthRange(prev => ({ ...prev, start: event.target.value }))} className="w-full sm:w-auto" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-semibold text-slate-400">até</span>
+                      <Input type="date" value={monthEnd} onChange={event => setSelectedMonthRange(prev => ({ ...prev, end: event.target.value }))} className="w-full sm:w-auto" />
+                    </div>
+                  </div>
+                  <Button variant="outline" size="icon" onClick={() => shiftMonthOffset(1)} title="Próximo período" className="h-9 w-9 shrink-0">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
