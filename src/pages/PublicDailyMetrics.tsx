@@ -233,6 +233,15 @@ const PublicDailyMetrics = () => {
   const goPrevDay = () => setSelectedDate(shiftDays(selectedDate, -1));
   const goNextDay = () => setSelectedDate(shiftDays(selectedDate, 1));
 
+  const goPrevWeek = () => {
+    const { start } = getWeekRange(selectedWeek);
+    setSelectedWeek(getISOWeekValue(new Date(`${shiftDays(start, -7)}T12:00:00`)));
+  };
+  const goNextWeek = () => {
+    const { start } = getWeekRange(selectedWeek);
+    setSelectedWeek(getISOWeekValue(new Date(`${shiftDays(start, 7)}T12:00:00`)));
+  };
+
   const filledDaysSet = useMemo(() => new Set<string>(statusEntries.map(e => `${e.consultant_id}|${e.entry_date}`)), [statusEntries]);
 
   const hasFilled = useCallback((consultantId: string, day: string) => filledDaysSet.has(`${consultantId}|${day}`), [filledDaysSet]);
@@ -410,9 +419,25 @@ const PublicDailyMetrics = () => {
               </div>
             )}
             {view === 'dashboard' && (period === 'weekly' ? (
-              <Input type="week" value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} className="w-full sm:w-auto" />
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="icon" onClick={goPrevWeek} title="Semana anterior" className="h-9 w-9 shrink-0">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Input type="week" value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} className="w-full sm:w-auto" />
+                <Button variant="outline" size="icon" onClick={goNextWeek} title="Próxima semana" className="h-9 w-9 shrink-0">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             ) : (
-              <Input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} className="w-full sm:w-auto" />
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="icon" onClick={goPrevDay} title="Dia anterior" className="h-9 w-9 shrink-0">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} className="w-full sm:w-auto" />
+                <Button variant="outline" size="icon" onClick={goNextDay} title="Dia seguinte" className="h-9 w-9 shrink-0">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             ))}
             <Button variant="outline" size="icon" onClick={() => loadPublicData(true)} disabled={isRefreshing} className="shrink-0">
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
