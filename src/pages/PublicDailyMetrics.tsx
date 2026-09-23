@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ClipboardCheck, Edit3, Loader2, Moon, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ClipboardCheck, Edit3, Info, Loader2, Moon, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -223,6 +223,8 @@ const PublicDailyMetrics = () => {
     for (let i = STATUS_WINDOW_DAYS - 1; i >= 0; i -= 1) days.push(shiftDays(selectedDate, -i));
     return days;
   }, [selectedDate]);
+
+  const todayIso = toLocalISODate(new Date());
 
   const filledDaysSet = useMemo(() => new Set<string>(statusEntries.map(e => `${e.consultant_id}|${e.entry_date}`)), [statusEntries]);
 
@@ -458,25 +460,41 @@ const PublicDailyMetrics = () => {
                     <p className="text-xs text-slate-500">Um novo envio na mesma data atualizará os valores anteriores.</p>
 
                     <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-                      <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        <CalendarDays className="h-4 w-4 text-brand-600" /> Últimos {STATUS_WINDOW_DAYS} dias
+                      <p className="mb-3 flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        <span className="flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4 text-brand-600" /> Últimos {STATUS_WINDOW_DAYS} dias
+                        </span>
+                        <span className="flex items-center gap-3 text-[10px] font-medium text-slate-500">
+                          <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> Preencheu</span>
+                          <span className="flex items-center gap-1"><X className="h-3 w-3 text-red-500" /> Não preencheu</span>
+                          <span className="flex items-center gap-1"><span className="text-slate-300">—</span> Futuro</span>
+                        </span>
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {statusWindowDays.map(day => {
                           const filled = selectedConsultantId ? hasFilled(selectedConsultantId, day) : false;
+                          const isFuture = day > todayIso;
+                          const isSelectedDate = day === selectedDate;
+                          const cellColor = filled
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900'
+                            : isFuture
+                              ? 'text-slate-300 border-slate-200 dark:text-slate-600 dark:border-slate-700'
+                              : 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/60 dark:text-red-300 dark:border-red-900';
                           return (
                             <div
                               key={day}
-                              title={`${formatDayLabel(day, true)}${selectedConsultantId ? (filled ? ' — preencheu' : ' — não preencheu') : ''}`}
-                              className={`flex h-9 w-11 flex-col items-center justify-center rounded-lg border text-[10px] leading-tight ${
-                                day === selectedDate
-                                  ? 'border-brand-500 bg-brand-50 font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300'
-                                  : 'border-slate-200 dark:border-slate-700'
-                              } ${filled ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'text-slate-400'}`}
+                              title={`${formatDayLabel(day, true)}${selectedConsultantId ? (filled ? ' — preencheu' : isFuture ? ' — dia futuro' : ' — não preencheu') : ''}`}
+                              className={`flex h-9 w-11 flex-col items-center justify-center rounded-lg border text-[10px] leading-tight ${cellColor}`}
                             >
-                              <span className="font-bold">{formatDayLabel(day).split('/')[0]}</span>
+                              <span className={`font-bold ${isSelectedDate ? 'text-inherit' : ''}`}>{formatDayLabel(day).split('/')[0]}</span>
                               <span className="opacity-70">{formatDayLabel(day).split('/')[1]}</span>
-                              <CheckCircle2 className="h-3 w-3" />
+                              {filled ? (
+                                <CheckCircle2 className="h-3 w-3" />
+                              ) : isFuture ? (
+                                <span className="text-[8px] opacity-60">—</span>
+                              ) : (
+                                <X className="h-3 w-3" />
+                              )}
                             </div>
                           );
                         })}
@@ -485,7 +503,7 @@ const PublicDailyMetrics = () => {
                         {selectedConsultantId
                           ? (hasFilled(selectedConsultantId, selectedDate)
                               ? 'Você já preencheu nesta data. Um novo envio atualizará os valores.'
-                              : 'Você ainda não preencheu nesta data.')
+                              : <span className="font-semibold text-red-600 dark:text-red-400">Atenção: você ainda não preencheu nesta data.</span>)
                           : 'Selecione seu nome para ver seus dias preenchidos.'}
                       </p>
                     </div>
@@ -561,10 +579,11 @@ const PublicDailyMetrics = () => {
             <div className="mx-auto max-w-2xl">
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                 <p className="flex items-center gap-2 font-semibold">
-                  <CheckCircle2 className="h-4 w-4" /> Controle de preenchimento
+                  <Info className="h-4 w-4" /> Controle de preenchimento
                 </p>
                 <p className="mt-1 text-xs">
-                  No card acima, cada dia com fundo verde indica que a pessoa preencheu. Dias em cinza = não preencheu.
+                  No card acima, dias <span className="font-semibold text-emerald-600 dark:text-emerald-400">verdes</span> = a pessoa preencheu;{' '}
+                  <span className="font-semibold text-red-600 dark:text-red-400">vermelhos</span> = não preencheu; cinza = dia futuro.
                 </p>
               </div>
             </div>
