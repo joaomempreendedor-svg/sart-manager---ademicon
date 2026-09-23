@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Edit3, Loader2, Moon, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ClipboardCheck, Edit3, Loader2, Moon, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -71,6 +71,29 @@ const parseInputValue = (value: string, type: DailyMetricConfig['type']) => {
   return Math.round(Number(value) || 0);
 };
 
+const toLocalISODate = (date: Date) => {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().split('T')[0];
+};
+
+const shiftDays = (isoDate: string, days: number) => {
+  const date = new Date(`${isoDate}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return toLocalISODate(date);
+};
+
+const formatDayLabel = (isoDate: string, withYear = false) =>
+  new Date(`${isoDate}T12:00:00`).toLocaleDateString('pt-BR', withYear
+    ? { day: '2-digit', month: '2-digit', year: 'numeric' }
+    : { day: '2-digit', month: '2-digit' });
+
+const STATUS_WINDOW_DAYS = 14;
+
+interface PublicMetricStatusEntry {
+  consultant_id: string;
+  entry_date: string;
+}
+
 const PublicDailyMetrics = () => {
   const { ownerId } = useParams<{ ownerId: string }>();
   const { user } = useAuth();
@@ -91,6 +114,8 @@ const PublicDailyMetrics = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingConsultantId, setEditingConsultantId] = useState('');
   const [editingConsultantName, setEditingConsultantName] = useState('');
+  const [step, setStep] = useState(0);
+  const [statusEntries, setStatusEntries] = useState<PublicMetricStatusEntry[]>([]);
 
   const loadPublicData = useCallback(async (showRefresh = false) => {
     if (!ownerId) return;
@@ -124,19 +149,32 @@ const PublicDailyMetrics = () => {
     setMetrics(loadedMetrics);
 
     if (loadedMetrics.length > 0) {
+      const metricIds = loadedMetrics.map(metric => metric.id);
       const range = period === 'daily'
         ? { start: selectedDate, end: selectedDate }
         : getWeekRange(selectedWeek);
-      const { data, error } = await supabase
-        .from('public_metric_entries')
-        .select('*')
-        .gte('entry_date', range.start)
-        .lte('entry_date', range.end)
-        .in('metric_config_id', loadedMetrics.map(metric => metric.id));
+      const statusStart = shiftDays(selectedDate, -(STATUS_WINDOW_DAYS - 1));
 
-      if (!error) setEntries(data || []);
+      const [periodResult, statusResult] = await Promise.all([
+        supabase
+          .from('public_metric_entries')
+          .select('*')
+          .gte('entry_date', range.start)
+          .lte('entry_date', range.end)
+          .in('metric_config_id', metricIds),
+        supabase
+          .from('public_metric_entries')
+          .select('consultant_id, entry_date')
+          .gte('entry_date', statusStart)
+          .lte('entry_date', selectedDate)
+          .in('metric_config_id', metricIds),
+      ]);
+
+      setEntries(periodResult.error ? [] : periodResult.data || []);
+      setStatusEntries(statusResult.error ? [] : statusResult.data || []);
     } else {
       setEntries([]);
+      setStatusEntries([]);
     }
 
     setIsLoading(false);
@@ -180,6 +218,44 @@ const PublicDailyMetrics = () => {
     ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-BR')
     : `${new Date(`${selectedWeekRange.start}T12:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${selectedWeekRange.end}T12:00:00`).toLocaleDateString('pt-BR')}`;
 
+  const statusWindowDays = useMemo(() => {
+    const days: string[] = [];
+    for (let i = STATUS_WINDOW_DAYS - 1; i >= 0; i -= 1) days.push(shiftDays(selectedDate, -i));
+    return days;
+  }, [selectedDate]);
+
+  const filledDaysSet = useMemo(() => new Set<string>(statusEntries.map(e => `${e.consultant_id}|${e.entry_date}`)), [statusEntries]);
+
+  const hasFilled = useCallback((consultantId: string, day: string) => filledDaysSet.has(`${consultantId}|${day}`), [filledDaysSet]);
+
+  const totalFormSteps = 1 + metrics.length + 1;
+  const currentFormStep = Math.min(step, totalFormSteps - 1);
+  const wizardProgress = metrics.length > 0 ? Math.round(((step + 1) / totalFormSteps) * 100) : 0;
+
+  const canProceed = () => {
+    if (step === 0) return Boolean(selectedConsultantId);
+    if (step <= metrics.length) {
+      const metric = metrics[step - 1];
+      if (!metric) return false;
+      return (values[metric.id] || '').trim() !== '';
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    if (!canProceed()) {
+      if (step === 0) toast.error('Selecione quem está preenchendo.');
+      else {
+        const metric = metrics[step - 1];
+        if (metric) toast.error(`Informe o valor de ${metric.label}.`);
+      }
+      return;
+    }
+    setStep(current => Math.min(current + 1, totalFormSteps - 1));
+  };
+
+  const goBack = () => setStep(current => Math.max(current - 1, 0));
+
   const handleSave = async () => {
     if (!selectedConsultantId) {
       toast.error('Selecione quem está preenchendo.');
@@ -211,6 +287,7 @@ const PublicDailyMetrics = () => {
 
     toast.success(`Resultados de ${selectedConsultant?.name} salvos!`);
     await loadPublicData();
+    setStep(0);
     setView('dashboard');
   };
 
@@ -291,13 +368,13 @@ const PublicDailyMetrics = () => {
             </Button>
             <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
               <button
-                onClick={() => { setView('form'); setPeriod('daily'); }}
+                onClick={() => { setView('form'); setPeriod('daily'); setStep(0); }}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'form' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500 dark:text-slate-400'}`}
               >
                 <ClipboardCheck className="h-4 w-4" /> Preencher
               </button>
               <button
-                onClick={() => setView('dashboard')}
+                onClick={() => { setView('dashboard'); setStep(0); }}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'dashboard' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500 dark:text-slate-400'}`}
               >
                 <BarChart3 className="h-4 w-4" /> Dashboard
@@ -343,60 +420,155 @@ const PublicDailyMetrics = () => {
             </CardContent>
           </Card>
         ) : view === 'form' ? (
-          <Card className="mx-auto max-w-2xl overflow-hidden">
-            <CardHeader className="border-b bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
-              <CardTitle className="flex items-center gap-2">
-                <UserRound className="h-5 w-5 text-brand-600" /> Informe seus resultados
-              </CardTitle>
-              <CardDescription>Selecione seu nome. Um novo envio na mesma data atualizará os valores anteriores.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="space-y-2">
-                <Label>Quem está preenchendo?</Label>
-                <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Selecione seu nome" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {consultants.map(consultant => (
-                      <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <>
+            <Card className="mx-auto max-w-2xl overflow-hidden">
+              <div className="h-1.5 bg-slate-100 dark:bg-slate-800">
+                <div
+                  className="h-full bg-gradient-to-r from-brand-500 to-violet-500 transition-all duration-300"
+                  style={{ width: `${wizardProgress}%` }}
+                />
               </div>
+              <CardHeader className="border-b bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
+                <CardTitle className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <UserRound className="h-5 w-5 text-brand-600" /> Informe seus resultados
+                  </span>
+                  <span className="text-sm font-semibold text-slate-400">{step + 1} de {totalFormSteps}</span>
+                </CardTitle>
+                <CardDescription>
+                  {step === 0 && 'Para começar, selecione quem está preenchendo.'}
+                  {step > 0 && step <= metrics.length && `Pergunta ${step + 1}: informe o resultado de "${metrics[step - 1]?.label}".`}
+                  {step > metrics.length && 'Confira os valores informados e salve.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {step === 0 && (
+                  <div className="space-y-2">
+                    <Label>Quem está preenchendo?</Label>
+                    <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Selecione seu nome" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {consultants.map(consultant => (
+                          <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">Um novo envio na mesma data atualizará os valores anteriores.</p>
 
-              <div className="grid gap-5 sm:grid-cols-2">
-                {metrics.map(metric => (
-                  <div key={metric.id} className="space-y-2">
-                    <Label htmlFor={metric.id}>{metric.label}</Label>
-                    <div className="relative">
-                      <Input
-                        id={metric.id}
-                        type={metric.type === 'currency' ? 'text' : 'number'}
-                        min={metric.type === 'currency' ? undefined : '0'}
-                        step={metric.type === 'currency' ? undefined : '1'}
-                        inputMode={metric.type === 'currency' ? 'numeric' : 'numeric'}
-                        value={values[metric.id] || ''}
-                        onChange={event => setValues(prev => ({
-                          ...prev,
-                          [metric.id]: metric.type === 'currency' ? formatBRLInput(event.target.value) : event.target.value,
-                        }))}
-                        placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
-                      />
+                    <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                      <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        <CalendarDays className="h-4 w-4 text-brand-600" /> Últimos {STATUS_WINDOW_DAYS} dias
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {statusWindowDays.map(day => {
+                          const filled = selectedConsultantId ? hasFilled(selectedConsultantId, day) : false;
+                          return (
+                            <div
+                              key={day}
+                              title={`${formatDayLabel(day, true)}${selectedConsultantId ? (filled ? ' — preencheu' : ' — não preencheu') : ''}`}
+                              className={`flex h-9 w-11 flex-col items-center justify-center rounded-lg border text-[10px] leading-tight ${
+                                day === selectedDate
+                                  ? 'border-brand-500 bg-brand-50 font-bold text-brand-700 dark:bg-brand-950 dark:text-brand-300'
+                                  : 'border-slate-200 dark:border-slate-700'
+                              } ${filled ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'text-slate-400'}`}
+                            >
+                              <span className="font-bold">{formatDayLabel(day).split('/')[0]}</span>
+                              <span className="opacity-70">{formatDayLabel(day).split('/')[1]}</span>
+                              <CheckCircle2 className="h-3 w-3" />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-3 text-xs text-slate-500">
+                        {selectedConsultantId
+                          ? (hasFilled(selectedConsultantId, selectedDate)
+                              ? 'Você já preencheu nesta data. Um novo envio atualizará os valores.'
+                              : 'Você ainda não preencheu nesta data.')
+                          : 'Selecione seu nome para ver seus dias preenchidos.'}
+                      </p>
                     </div>
-                    {metric.target_value > 0 && (
-                      <p className="text-xs text-slate-500">Meta diária da equipe: {formatValue(metric.target_value, metric.type)}</p>
-                    )}
                   </div>
-                ))}
-              </div>
+                )}
 
-              <Button onClick={handleSave} disabled={!selectedConsultantId || isSaving} className="h-11 w-full text-base">
-                {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
-                {isSaving ? 'Salvando...' : 'Salvar resultados'}
-              </Button>
-            </CardContent>
-          </Card>
+                {step > 0 && step <= metrics.length && (() => {
+                  const metric = metrics[step - 1];
+                  if (!metric) return null;
+                  return (
+                    <div className="space-y-2">
+                      <Label htmlFor={metric.id}>{metric.label} *</Label>
+                      <div className="relative">
+                        <Input
+                          id={metric.id}
+                          autoFocus
+                          type={metric.type === 'currency' ? 'text' : 'number'}
+                          min={metric.type === 'currency' ? undefined : '0'}
+                          step={metric.type === 'currency' ? undefined : '1'}
+                          inputMode="numeric"
+                          value={values[metric.id] || ''}
+                          onChange={event => setValues(prev => ({
+                            ...prev,
+                            [metric.id]: metric.type === 'currency' ? formatBRLInput(event.target.value) : event.target.value,
+                          }))}
+                          onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
+                          placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
+                          className="h-12 text-lg"
+                        />
+                      </div>
+                      {metric.target_value > 0 && (
+                        <p className="text-xs text-slate-500">Meta diária da equipe: {formatValue(metric.target_value, metric.type)}</p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {step > metrics.length && (
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-700">
+                      {metrics.map(metric => (
+                        <div key={metric.id} className="flex items-center justify-between border-b px-4 py-3 last:border-0 dark:border-slate-700">
+                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{metric.label}</span>
+                          <span className="text-sm font-bold">{values[metric.id] ? formatValue(parseInputValue(values[metric.id], metric.type), metric.type) : '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Salvando os resultados de <span className="font-semibold">{selectedConsultant?.name}</span> para{' '}
+                      <span className="font-semibold">{formatDayLabel(selectedDate, true)}</span>.
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-6 flex items-center justify-between gap-3">
+                  <Button variant="outline" onClick={goBack} disabled={step === 0} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+                  </Button>
+                  {step < totalFormSteps - 1 ? (
+                    <Button onClick={goNext} disabled={(step === 0 && !selectedConsultantId) || isSaving} className="bg-brand-600 hover:bg-brand-700 text-white">
+                      {step === totalFormSteps - 2 ? 'Revisar' : 'Continuar'} <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button onClick={handleSave} disabled={isSaving} className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white">
+                      {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
+                      {isSaving ? 'Salvando...' : 'Salvar resultados'}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="mx-auto max-w-2xl">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                <p className="flex items-center gap-2 font-semibold">
+                  <CheckCircle2 className="h-4 w-4" /> Controle de preenchimento
+                </p>
+                <p className="mt-1 text-xs">
+                  No card acima, cada dia com fundo verde indica que a pessoa preencheu. Dias em cinza = não preencheu.
+                </p>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="space-y-6">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-violet-600 px-8 py-8 text-white shadow-xl shadow-brand-600/20">
@@ -495,6 +667,57 @@ const PublicDailyMetrics = () => {
                 );
               })}
             </div>
+
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="rounded-lg bg-amber-100 p-2 text-amber-600 dark:bg-amber-950 dark:text-amber-300"><CalendarCheck2 className="h-5 w-5" /></div>
+                  <div>
+                    <CardTitle className="text-lg">Preenchimento da equipe</CardTitle>
+                    <CardDescription>Quem preencheu nos últimos {STATUS_WINDOW_DAYS} dias (até {formatDayLabel(selectedDate, true)}).</CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> Preencheu</span>
+                  <span className="flex items-center gap-1.5"><X className="h-4 w-4 text-red-400" /> Não preencheu</span>
+                </div>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead>
+                    <tr className="border-b text-slate-500 dark:border-slate-800">
+                      <th className="pb-3 pr-4 text-left font-semibold">Consultor</th>
+                      {statusWindowDays.map(day => (
+                        <th key={day} className={`pb-3 px-1 text-center font-semibold ${day === selectedDate ? 'text-brand-600 dark:text-brand-300' : ''}`}>
+                          <span className="block text-xs">{formatDayLabel(day).split('/')[0]}</span>
+                          <span className="block text-[10px] font-normal text-slate-400">{formatDayLabel(day).split('/')[1]}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {consultants.map(consultant => (
+                      <tr key={consultant.id} className="border-b transition-colors hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                        <td className="py-3 pr-4 font-medium">{consultant.name}</td>
+                        {statusWindowDays.map(day => {
+                          const filled = hasFilled(consultant.id, day);
+                          return (
+                            <td key={day} className="px-1 py-3 text-center">
+                              <span
+                                title={`${consultant.name} — ${formatDayLabel(day, true)}: ${filled ? 'preencheu' : 'não preencheu'}`}
+                                className={`inline-flex h-6 w-6 items-center justify-center rounded-full ${filled ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-50 text-red-400 dark:bg-red-950/50'}`}
+                              >
+                                {filled ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
 
             <Card className="border-0 shadow-lg">
               <CardHeader>
