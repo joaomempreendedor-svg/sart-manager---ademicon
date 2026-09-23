@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Moon, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Moon, Phone, Plus, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,8 +30,24 @@ interface PublicMetricEntry {
   value: number;
 }
 
-type ViewMode = 'form' | 'dashboard';
+type ViewMode = 'form' | 'dashboard' | 'indications';
 type PeriodMode = 'daily' | 'weekly' | 'monthly';
+
+interface PublicMetricIndication {
+  id: string;
+  consultant_id: string;
+  name: string;
+  phone: string | null;
+  entry_date: string;
+  created_at: string;
+}
+
+const formatPhone = (phone: string) => {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return phone;
+};
 
 const getToday = () => {
   const now = new Date();
@@ -136,6 +153,13 @@ const PublicDailyMetrics = () => {
   const [editingConsultantName, setEditingConsultantName] = useState('');
   const [step, setStep] = useState(0);
   const [statusEntries, setStatusEntries] = useState<PublicMetricStatusEntry[]>([]);
+  const [indications, setIndications] = useState<PublicMetricIndication[]>([]);
+  const [isIndicationModalOpen, setIsIndicationModalOpen] = useState(false);
+  const [indicationConsultantId, setIndicationConsultantId] = useState('');
+  const [indicationName, setIndicationName] = useState('');
+  const [indicationPhone, setIndicationPhone] = useState('');
+  const [isSavingIndication, setIsSavingIndication] = useState(false);
+  const [indicationsFilter, setIndicationsFilter] = useState('');
 
   const loadPublicData = useCallback(async (showRefresh = false) => {
     if (!ownerId) return;
@@ -207,6 +231,58 @@ const PublicDailyMetrics = () => {
     loadPublicData();
   }, [loadPublicData]);
 
+  const loadIndications = useCallback(async () => {
+    if (!ownerId) return;
+    const { data, error } = await supabase
+      .from('public_metric_indications')
+      .select('*')
+      .eq('user_id', ownerId)
+      .order('entry_date', { ascending: false });
+    if (!error) setIndications(data || []);
+  }, [ownerId]);
+
+  useEffect(() => {
+    loadIndications();
+  }, [loadIndications]);
+
+  const openIndicationModal = () => {
+    setIndicationConsultantId(selectedConsultantId);
+    setIndicationName('');
+    setIndicationPhone('');
+    setIsIndicationModalOpen(true);
+  };
+
+  const handleRegisterIndication = async () => {
+    if (!indicationConsultantId) {
+      toast.error('Selecione o consultor que registrou a indicação.');
+      return;
+    }
+    if (!indicationName.trim()) {
+      toast.error('Informe o nome da pessoa indicada.');
+      return;
+    }
+    setIsSavingIndication(true);
+    const { error } = await supabase
+      .from('public_metric_indications')
+      .insert({
+        user_id: ownerId,
+        consultant_id: indicationConsultantId,
+        name: indicationName.trim(),
+        phone: indicationPhone.trim() || null,
+        entry_date: selectedDate,
+      });
+    setIsSavingIndication(false);
+    if (error) {
+      toast.error('Não foi possível registrar a indicação. Tente novamente.');
+      return;
+    }
+    toast.success('Indicação registrada!');
+    setIndicationName('');
+    setIndicationPhone('');
+    setIsIndicationModalOpen(false);
+    await loadIndications();
+  };
+
   useEffect(() => {
     const existingValues: Record<string, string> = {};
     metrics.forEach(metric => {
@@ -256,6 +332,17 @@ const PublicDailyMetrics = () => {
     for (let i = STATUS_WINDOW_DAYS - 1; i >= 0; i -= 1) days.push(shiftDays(selectedDate, -i));
     return days;
   }, [selectedDate]);
+
+  const filteredIndications = useMemo(() => {
+    if (!indicationsFilter) return indications;
+    return indications.filter(item => item.consultant_id === indicationsFilter);
+  }, [indications, indicationsFilter]);
+
+  const consultantIndicationCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    indications.forEach(item => counts.set(item.consultant_id, (counts.get(item.consultant_id) || 0) + 1));
+    return counts;
+  }, [indications]);
 
   const todayIso = toLocalISODate(new Date());
 
@@ -434,6 +521,12 @@ const PublicDailyMetrics = () => {
               >
                 <BarChart3 className="h-4 w-4" /> Dashboard
               </button>
+              <button
+                onClick={() => setView('indications')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'indications' ? 'bg-white text-indigo-700 shadow-sm dark:bg-slate-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}`}
+              >
+                <Users className="h-4 w-4" /> Indicações
+              </button>
             </div>
           </div>
         </div>
@@ -444,7 +537,7 @@ const PublicDailyMetrics = () => {
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               <CalendarDays className="h-4 w-4 text-brand-600" />
-              {view === 'form' ? 'Data dos resultados' : 'Período do dashboard'}
+              {view === 'form' ? 'Data dos resultados' : view === 'indications' ? 'Indicações registradas' : 'Período do dashboard'}
             </div>
             {view === 'dashboard' && <p className="mt-1 text-xs text-slate-500">Visualizando {periodLabel}</p>}
           </div>
@@ -504,7 +597,7 @@ const PublicDailyMetrics = () => {
           </div>
         </div>
 
-        {consultants.length === 0 || metrics.length === 0 ? (
+        {consultants.length === 0 || (view !== 'indications' && metrics.length === 0) ? (
           <Card>
             <CardContent className="py-16 text-center">
               <BarChart3 className="mx-auto mb-4 h-12 w-12 text-slate-300" />
@@ -526,7 +619,12 @@ const PublicDailyMetrics = () => {
                   <span className="flex items-center gap-2">
                     <UserRound className="h-5 w-5 text-brand-600" /> Informe seus resultados
                   </span>
-                  <span className="text-sm font-semibold text-slate-400">{step + 1} de {totalFormSteps}</span>
+                  <span className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={openIndicationModal} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Indicar
+                    </Button>
+                    <span className="text-sm font-semibold text-slate-400">{step + 1} de {totalFormSteps}</span>
+                  </span>
                 </CardTitle>
                 <CardDescription>
                   {step === 0 && 'Para começar, selecione quem está preenchendo.'}
@@ -701,6 +799,87 @@ const PublicDailyMetrics = () => {
               </div>
             </div>
           </>
+        ) : view === 'indications' ? (
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-lg bg-indigo-100 p-2 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"><Users className="h-5 w-5" /></div>
+                <div>
+                  <CardTitle className="text-lg">Indicações da equipe</CardTitle>
+                  <CardDescription>Registre aqui o nome e o telefone de quem você indicou.</CardDescription>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Select value={indicationsFilter} onValueChange={setIndicationsFilter}>
+                  <SelectTrigger className="h-10 gap-2 w-full sm:w-auto">
+                    <SelectValue placeholder="Todos os consultores" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos os consultores</SelectItem>
+                    {consultants.map(consultant => (
+                      <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={openIndicationModal} className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white">
+                  <Plus className="mr-2 h-4 w-4" /> Registrar indicação
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  Total: {indications.length} indicação{indications.length === 1 ? '' : 'ões'}
+                </span>
+                {consultants
+                  .filter(consultant => (consultantIndicationCounts.get(consultant.id) || 0) > 0)
+                  .map(consultant => (
+                    <span key={consultant.id} className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                      {consultant.name}: {consultantIndicationCounts.get(consultant.id)}
+                    </span>
+                  ))}
+              </div>
+
+              {filteredIndications.length === 0 ? (
+                <div className="py-14 text-center">
+                  <Users className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+                  <h3 className="text-base font-semibold">
+                    {indications.length === 0 ? 'Nenhuma indicação registrada ainda' : 'Nenhuma indicação para este filtro'}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">Toque em "Registrar indicação" para adicionar o nome e o telefone de quem você indicou.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-slate-500 dark:border-slate-800">
+                        <th className="pb-3 pr-4 font-semibold">Indicado(a)</th>
+                        <th className="px-4 pb-3 font-semibold">Telefone</th>
+                        <th className="px-4 pb-3 font-semibold">Consultor</th>
+                        <th className="px-4 pb-3 font-semibold">Dia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredIndications.map(item => (
+                        <tr key={item.id} className="border-b transition-colors hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                          <td className="py-3 pr-4 font-medium">{item.name}</td>
+                          <td className="px-4 py-3">
+                            {item.phone ? (
+                              <a href={`https://wa.me/55${(item.phone || '').replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-brand-600 hover:underline dark:text-brand-300">
+                                <Phone className="h-3.5 w-3.5" /> {formatPhone(item.phone)}
+                              </a>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-3">{consultants.find(consultant => consultant.id === item.consultant_id)?.name || '—'}</td>
+                          <td className="px-4 py-3">{formatDayLabel(item.entry_date, true)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-6">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-violet-600 px-8 py-8 text-white shadow-xl shadow-brand-600/20">
@@ -913,6 +1092,60 @@ const PublicDailyMetrics = () => {
         entries={entries}
         onSave={handleSaveEditedEntries}
       />
+
+      <Dialog open={isIndicationModalOpen} onOpenChange={setIsIndicationModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Registrar indicação</DialogTitle>
+            <DialogDescription>
+              Nome e telefone de quem você indicou. Fica vinculado ao dia {formatDayLabel(selectedDate, true)}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Consultor que indicou</Label>
+              <Select value={indicationConsultantId} onValueChange={setIndicationConsultantId}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Selecione o consultor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {consultants.map(consultant => (
+                    <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="indication-name">Nome da pessoa indicada *</Label>
+              <Input
+                id="indication-name"
+                value={indicationName}
+                onChange={event => setIndicationName(event.target.value)}
+                placeholder="Nome completo"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="indication-phone">Telefone</Label>
+              <Input
+                id="indication-phone"
+                value={indicationPhone}
+                onChange={event => setIndicationPhone(event.target.value)}
+                placeholder="(00) 00000-0000"
+                inputMode="tel"
+                className="h-10"
+              />
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button variant="outline" onClick={() => setIsIndicationModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleRegisterIndication} disabled={isSavingIndication} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              {isSavingIndication ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+              {isSavingIndication ? 'Salvando...' : 'Registrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
