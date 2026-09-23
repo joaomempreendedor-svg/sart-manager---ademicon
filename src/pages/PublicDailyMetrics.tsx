@@ -70,6 +70,17 @@ const getWeekRange = (weekValue: string) => {
   return { start: monday.toISOString().split('T')[0], end: sunday.toISOString().split('T')[0] };
 };
 
+const countWeekdays = (startIso: string, endIso: string) => {
+  let count = 0;
+  const start = new Date(`${startIso}T12:00:00`);
+  const end = new Date(`${endIso}T12:00:00`);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) count += 1;
+  }
+  return count;
+};
+
 const formatValue = (value: number, type: DailyMetricConfig['type']) => {
   if (type === 'currency') {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value / 100);
@@ -226,6 +237,8 @@ const PublicDailyMetrics = () => {
     return Math.max(1, Math.round((end - start) / 86_400_000) + 1);
   }, [monthStart, monthEnd]);
 
+  const rangeWeekdays = useMemo(() => countWeekdays(monthStart, monthEnd), [monthStart, monthEnd]);
+
   const metricSummaries = useMemo(() => metrics.map(metric => {
     const total = entries
       .filter(entry => entry.metric_config_id === metric.id)
@@ -233,12 +246,12 @@ const PublicDailyMetrics = () => {
     const teamTarget = period === 'weekly'
       ? Number(metric.weekly_target_value || 0)
       : period === 'monthly'
-        ? Number(metric.target_value || 0) * rangeDays
+        ? Number(metric.target_value || 0) * rangeWeekdays
         : Number(metric.target_value || 0);
     const progress = teamTarget > 0 ? Math.round((total / teamTarget) * 100) : 0;
     const remaining = Math.max(0, teamTarget - total);
     return { metric, total, teamTarget, progress, remaining };
-  }), [metrics, entries, period, rangeDays]);
+  }), [metrics, entries, period, rangeWeekdays]);
 
   const submittedConsultants = useMemo(() => new Set(entries.map(entry => entry.consultant_id)).size, [entries]);
   const selectedWeekRange = useMemo(() => getWeekRange(selectedWeek), [selectedWeek]);
@@ -247,7 +260,7 @@ const PublicDailyMetrics = () => {
     ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-BR')
     : period === 'weekly'
       ? `${new Date(`${selectedWeekRange.start}T12:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${selectedWeekRange.end}T12:00:00`).toLocaleDateString('pt-BR')}`
-      : `${formatDayLabel(monthStart, true)} a ${formatDayLabel(monthEnd, true)} (${rangeDays} dias)`;
+      : `${formatDayLabel(monthStart, true)} a ${formatDayLabel(monthEnd, true)} · ${rangeWeekdays} dias úteis`;
 
   const statusWindowDays = useMemo(() => {
     const days: string[] = [];
