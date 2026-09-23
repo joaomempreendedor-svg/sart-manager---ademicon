@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ClipboardCheck, Edit3, Info, Loader2, Moon, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Moon, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -230,6 +230,9 @@ const PublicDailyMetrics = () => {
 
   const todayIso = toLocalISODate(new Date());
 
+  const goPrevDay = () => setSelectedDate(shiftDays(selectedDate, -1));
+  const goNextDay = () => setSelectedDate(shiftDays(selectedDate, 1));
+
   const filledDaysSet = useMemo(() => new Set<string>(statusEntries.map(e => `${e.consultant_id}|${e.entry_date}`)), [statusEntries]);
 
   const hasFilled = useCallback((consultantId: string, day: string) => filledDaysSet.has(`${consultantId}|${day}`), [filledDaysSet]);
@@ -406,11 +409,11 @@ const PublicDailyMetrics = () => {
                 <button onClick={() => setPeriod('weekly')} className={`rounded-md px-4 py-2 text-sm font-medium transition ${period === 'weekly' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500'}`}>Semana</button>
               </div>
             )}
-            {period === 'weekly' && view === 'dashboard' ? (
+            {view === 'dashboard' && (period === 'weekly' ? (
               <Input type="week" value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} className="w-full sm:w-auto" />
             ) : (
               <Input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} className="w-full sm:w-auto" />
-            )}
+            ))}
             <Button variant="outline" size="icon" onClick={() => loadPublicData(true)} disabled={isRefreshing} className="shrink-0">
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
@@ -448,6 +451,29 @@ const PublicDailyMetrics = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
+                <div className="mb-5 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/50">
+                  <Button variant="outline" size="icon" onClick={goPrevDay} disabled={isSaving} title="Dia anterior" className="dark:bg-slate-700 dark:text-white dark:border-slate-600 shrink-0">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex flex-col items-center gap-1 px-1">
+                    <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      <CalendarDays className="h-3 w-3" /> Preenchendo o dia
+                    </span>
+                    <span className="text-sm font-bold capitalize text-slate-800 dark:text-white">
+                      {selectedDate === todayIso ? 'Hoje · ' : ''}{new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}
+                    </span>
+                    <Input
+                      type="date"
+                      value={selectedDate}
+                      onChange={event => setSelectedDate(event.target.value)}
+                      className="h-8 w-44 text-center text-xs"
+                    />
+                  </div>
+                  <Button variant="outline" size="icon" onClick={goNextDay} disabled={isSaving || selectedDate >= todayIso} title="Dia seguinte" className="dark:bg-slate-700 dark:text-white dark:border-slate-600 shrink-0">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+
                 {step === 0 && (
                   <div className="space-y-2">
                     <Label>Quem está preenchendo?</Label>
