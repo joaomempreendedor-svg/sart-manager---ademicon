@@ -30,7 +30,7 @@ interface PublicMetricEntry {
 }
 
 type ViewMode = 'form' | 'dashboard';
-type PeriodMode = 'daily' | 'weekly';
+type PeriodMode = 'daily' | 'weekly' | 'monthly';
 
 const getToday = () => {
   const now = new Date();
@@ -45,6 +45,28 @@ const getISOWeekValue = (date = new Date()) => {
   const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
   const week = Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
   return `${target.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+};
+
+const getISOYearMonth = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+const daysInMonth = (monthValue: string) => {
+  const match = /^(\d{4})-(\d{2})$/.exec(monthValue);
+  if (!match) return 30;
+  return new Date(Number(match[1]), Number(match[2]), 0).getDate();
+};
+
+const getMonthRange = (monthValue: string) => {
+  const normalized = /^\d{4}-\d{2}$/.test(monthValue) ? monthValue : getISOYearMonth();
+  const [year, month] = normalized.split('-').map(Number);
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { start, end };
+};
+
+const formatMonthLabel = (monthValue: string) => {
+  const [year, month] = (getMonthRange(monthValue).start).split('-').map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 };
 
 const getWeekRange = (weekValue: string) => {
@@ -111,6 +133,7 @@ const PublicDailyMetrics = () => {
   const [selectedConsultantId, setSelectedConsultantId] = useState('');
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [selectedWeek, setSelectedWeek] = useState(getISOWeekValue());
+  const [selectedMonth, setSelectedMonth] = useState(getISOYearMonth());
   const [values, setValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -156,7 +179,9 @@ const PublicDailyMetrics = () => {
       const metricIds = loadedMetrics.map(metric => metric.id);
       const range = period === 'daily'
         ? { start: selectedDate, end: selectedDate }
-        : getWeekRange(selectedWeek);
+        : period === 'weekly'
+          ? getWeekRange(selectedWeek)
+          : getMonthRange(selectedMonth);
       const statusStart = shiftDays(selectedDate, -(STATUS_WINDOW_DAYS - 1));
 
       const [periodResult, statusResult] = await Promise.all([
@@ -183,7 +208,7 @@ const PublicDailyMetrics = () => {
 
     setIsLoading(false);
     setIsRefreshing(false);
-  }, [ownerId, period, selectedDate, selectedWeek]);
+  }, [ownerId, period, selectedDate, selectedWeek, selectedMonth]);
 
   useEffect(() => {
     loadPublicData();
@@ -210,17 +235,21 @@ const PublicDailyMetrics = () => {
       .reduce((sum, entry) => sum + Number(entry.value), 0);
     const teamTarget = period === 'weekly'
       ? Number(metric.weekly_target_value || 0)
-      : Number(metric.target_value || 0);
+      : period === 'monthly'
+        ? Number(metric.target_value || 0) * daysInMonth(selectedMonth)
+        : Number(metric.target_value || 0);
     const progress = teamTarget > 0 ? Math.round((total / teamTarget) * 100) : 0;
     const remaining = Math.max(0, teamTarget - total);
     return { metric, total, teamTarget, progress, remaining };
-  }), [metrics, entries, period]);
+  }), [metrics, entries, period, selectedMonth]);
 
   const submittedConsultants = useMemo(() => new Set(entries.map(entry => entry.consultant_id)).size, [entries]);
   const selectedWeekRange = useMemo(() => getWeekRange(selectedWeek), [selectedWeek]);
   const periodLabel = period === 'daily'
     ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-BR')
-    : `${new Date(`${selectedWeekRange.start}T12:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${selectedWeekRange.end}T12:00:00`).toLocaleDateString('pt-BR')}`;
+    : period === 'weekly'
+      ? `${new Date(`${selectedWeekRange.start}T12:00:00`).toLocaleDateString('pt-BR')} a ${new Date(`${selectedWeekRange.end}T12:00:00`).toLocaleDateString('pt-BR')}`
+      : formatMonthLabel(selectedMonth);
 
   const statusWindowDays = useMemo(() => {
     const days: string[] = [];
@@ -240,6 +269,12 @@ const PublicDailyMetrics = () => {
   const goNextWeek = () => {
     const { start } = getWeekRange(selectedWeek);
     setSelectedWeek(getISOWeekValue(new Date(`${shiftDays(start, 7)}T12:00:00`)));
+  };
+
+  const shiftMonth = (offset: number) => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const date = new Date(year, month - 1 + offset, 1);
+    setSelectedMonth(getISOYearMonth(date));
   };
 
   const filledDaysSet = useMemo(() => new Set<string>(statusEntries.map(e => `${e.consultant_id}|${e.entry_date}`)), [statusEntries]);
@@ -416,6 +451,7 @@ const PublicDailyMetrics = () => {
               <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
                 <button onClick={() => setPeriod('daily')} className={`rounded-md px-4 py-2 text-sm font-medium transition ${period === 'daily' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500'}`}>Dia</button>
                 <button onClick={() => setPeriod('weekly')} className={`rounded-md px-4 py-2 text-sm font-medium transition ${period === 'weekly' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500'}`}>Semana</button>
+                <button onClick={() => setPeriod('monthly')} className={`rounded-md px-4 py-2 text-sm font-medium transition ${period === 'monthly' ? 'bg-white text-brand-700 shadow-sm dark:bg-slate-700 dark:text-brand-300' : 'text-slate-500'}`}>Mês</button>
               </div>
             )}
             {view === 'dashboard' && (period === 'weekly' ? (
@@ -425,6 +461,16 @@ const PublicDailyMetrics = () => {
                 </Button>
                 <Input type="week" value={selectedWeek} onChange={event => setSelectedWeek(event.target.value)} className="w-full sm:w-auto" />
                 <Button variant="outline" size="icon" onClick={goNextWeek} title="Próxima semana" className="h-9 w-9 shrink-0">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : period === 'monthly' ? (
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} title="Mês anterior" className="h-9 w-9 shrink-0">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Input type="month" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} className="w-full sm:w-auto" />
+                <Button variant="outline" size="icon" onClick={() => shiftMonth(1)} title="Próximo mês" className="h-9 w-9 shrink-0">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -650,7 +696,7 @@ const PublicDailyMetrics = () => {
               <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/80">
-                    <Sparkles className="h-4 w-4" /> Desempenho {period === 'weekly' ? 'semanal' : 'diário'}
+                    <Sparkles className="h-4 w-4" /> Desempenho {period === 'weekly' ? 'semanal' : period === 'monthly' ? 'mensal' : 'diário'}
                   </div>
                   <h2 className="text-3xl font-bold sm:text-4xl">Progresso da equipe</h2>
                   <p className="mt-2 text-sm text-white/75">{periodLabel}</p>
@@ -675,7 +721,7 @@ const PublicDailyMetrics = () => {
               <Card className="border-0 shadow-md transition-shadow hover:shadow-lg">
                 <CardContent className="flex items-center gap-4 p-6">
                   <div className="rounded-xl bg-emerald-100 p-3.5 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300"><CheckCircle2 className="h-6 w-6" /></div>
-                  <div><p className="text-sm text-slate-500">{period === 'weekly' ? 'Participaram' : 'Responderam'}</p><p className="text-3xl font-bold">{submittedConsultants}</p></div>
+                  <div><p className="text-sm text-slate-500">{period !== 'daily' ? 'Participaram' : 'Responderam'}</p><p className="text-3xl font-bold">{submittedConsultants}</p></div>
                 </CardContent>
               </Card>
               <Card className="border-0 shadow-md transition-shadow hover:shadow-lg">
@@ -709,7 +755,7 @@ const PublicDailyMetrics = () => {
                           </div>
                           <div>
                             <h3 className="text-sm font-bold text-slate-900 dark:text-white">{metric.label}</h3>
-                            <p className="text-xs text-slate-500">Meta {period === 'weekly' ? 'semanal' : 'diária'} da equipe</p>
+                            <p className="text-xs text-slate-500">Meta {period === 'weekly' ? 'semanal' : period === 'monthly' ? 'mensal' : 'diária'} da equipe</p>
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-bold ${reached ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
