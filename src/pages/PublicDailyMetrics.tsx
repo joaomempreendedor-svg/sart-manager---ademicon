@@ -87,7 +87,11 @@ const formatDayLabel = (isoDate: string, withYear = false) =>
     ? { day: '2-digit', month: '2-digit', year: 'numeric' }
     : { day: '2-digit', month: '2-digit' });
 
-const STATUS_WINDOW_DAYS = 14;
+const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+const getWeekdayShort = (isoDate: string) => WEEKDAYS[new Date(`${isoDate}T12:00:00`).getDay()];
+
+const STATUS_WINDOW_DAYS = 7;
 
 interface PublicMetricStatusEntry {
   consultant_id: string;
@@ -470,11 +474,10 @@ const PublicDailyMetrics = () => {
                           <span className="flex items-center gap-1"><span className="text-slate-300">—</span> Futuro</span>
                         </span>
                       </p>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="grid grid-cols-7 gap-1.5">
                         {statusWindowDays.map(day => {
                           const filled = selectedConsultantId ? hasFilled(selectedConsultantId, day) : false;
                           const isFuture = day > todayIso;
-                          const isSelectedDate = day === selectedDate;
                           const cellColor = filled
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900'
                             : isFuture
@@ -483,11 +486,11 @@ const PublicDailyMetrics = () => {
                           return (
                             <div
                               key={day}
-                              title={`${formatDayLabel(day, true)}${selectedConsultantId ? (filled ? ' — preencheu' : isFuture ? ' — dia futuro' : ' — não preencheu') : ''}`}
-                              className={`flex h-9 w-11 flex-col items-center justify-center rounded-lg border text-[10px] leading-tight ${cellColor}`}
+                              title={`${formatDayLabel(day, true)} · ${getWeekdayShort(day)}${selectedConsultantId ? (filled ? ' — preencheu' : isFuture ? ' — dia futuro' : ' — não preencheu') : ''}`}
+                              className={`flex h-14 flex-col items-center justify-center gap-0.5 rounded-lg border text-[10px] leading-tight ${day === selectedDate ? 'ring-2 ring-brand-500' : ''} ${cellColor}`}
                             >
-                              <span className={`font-bold ${isSelectedDate ? 'text-inherit' : ''}`}>{formatDayLabel(day).split('/')[0]}</span>
-                              <span className="opacity-70">{formatDayLabel(day).split('/')[1]}</span>
+                              <span className="text-[9px] font-bold uppercase tracking-wide opacity-80">{getWeekdayShort(day)}</span>
+                              <span className="text-sm font-bold leading-none">{formatDayLabel(day).split('/')[0]}</span>
                               {filled ? (
                                 <CheckCircle2 className="h-3 w-3" />
                               ) : isFuture ? (
@@ -707,9 +710,9 @@ const PublicDailyMetrics = () => {
                     <tr className="border-b text-slate-500 dark:border-slate-800">
                       <th className="pb-3 pr-4 text-left font-semibold">Consultor</th>
                       {statusWindowDays.map(day => (
-                        <th key={day} className={`pb-3 px-1 text-center font-semibold ${day === selectedDate ? 'text-brand-600 dark:text-brand-300' : ''}`}>
+                        <th key={day} className={`pb-3 px-1 text-center font-semibold ${day === selectedDate ? 'text-brand-600 dark:text-brand-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                          <span className="block text-[10px] uppercase tracking-wide">{getWeekdayShort(day)}</span>
                           <span className="block text-xs">{formatDayLabel(day).split('/')[0]}</span>
-                          <span className="block text-[10px] font-normal text-slate-400">{formatDayLabel(day).split('/')[1]}</span>
                         </th>
                       ))}
                     </tr>
