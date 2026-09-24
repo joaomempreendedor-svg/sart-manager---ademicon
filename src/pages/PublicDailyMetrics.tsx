@@ -370,11 +370,12 @@ const PublicDailyMetrics = () => {
 
   const handleRemoveIndication = async (item: PublicMetricIndication) => {
     if (!window.confirm(`Remover a indicação de ${item.name}?`)) return;
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('public_metric_indications')
       .delete()
-      .eq('id', item.id);
-    if (error) {
+      .eq('id', item.id)
+      .select('id');
+    if (error || !data || data.length === 0) {
       toast.error('Não foi possível remover a indicação. Tente novamente.');
       return;
     }
