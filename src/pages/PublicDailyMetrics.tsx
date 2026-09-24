@@ -143,11 +143,11 @@ const parseInputValue = (value: string, type: DailyMetricConfig['type']) => {
 };
 
 const plainReais = (str: string) => {
-  const s = String(str || '').trim();
-  if (!s) return '';
-  if (s.includes(',')) return s.replace(/\./g, '').replace(',', '.');
-  if ((s.match(/\./g) || []).length > 1) return s.replace(/\./g, '');
-  return s;
+  const cleaned = String(str || '').replace(/[^\d.,]/g, '');
+  if (!cleaned) return '';
+  const norm = cleaned.replace(/\./g, '').replace(',', '.');
+  const n = Number(norm || '0');
+  return Number.isFinite(n) ? String(n) : '';
 };
 
 const formatReais = (value: string | number) => {
@@ -156,6 +156,16 @@ const formatReais = (value: string | number) => {
   const n = Number(str.includes(',') ? str.replace(/\./g, '').replace(',', '.') : str);
   if (!Number.isFinite(n)) return '';
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatLiveReais = (value: string | number) => {
+  const cleaned = String(value ?? '').replace(/[^\d.]/g, '');
+  if (!/\d/.test(cleaned)) return '';
+  const dotIdx = cleaned.indexOf('.');
+  const intDigits = (dotIdx >= 0 ? cleaned.slice(0, dotIdx) : cleaned).replace(/^0+(?=\d)/, '') || '0';
+  const frac = dotIdx >= 0 ? cleaned.slice(dotIdx + 1).replace(/\D/g, '').slice(0, 2) : '';
+  const grouped = intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${grouped}${frac ? `,${frac}` : ''}`;
 };
 
 const toLocalISODate = (date: Date) => {
@@ -958,7 +968,9 @@ const PublicDailyMetrics = () => {
                           value={isIndicationStep
                             ? (values[metric.id] || '')
                             : metric.type === 'currency'
-                              ? (focusedMetricId === metric.id ? (values[metric.id] || '') : formatReais(values[metric.id] || ''))
+                              ? (focusedMetricId === metric.id
+                                  ? (values[metric.id] ? `R$ ${formatLiveReais(values[metric.id])}` : 'R$ ')
+                                  : (values[metric.id] ? `R$ ${formatReais(values[metric.id])}` : ''))
                               : (values[metric.id] || '')}
                           onChange={event => isIndicationStep
                             ? handleIndicationsCountChange(metric.id, event.target.value)
@@ -966,7 +978,7 @@ const PublicDailyMetrics = () => {
                           onFocus={() => setFocusedMetricId(metric.id)}
                           onBlur={() => setFocusedMetricId(null)}
                           onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
-                          placeholder={metric.type === 'currency' ? '0,00' : '0'}
+                          placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
                           className="h-12 text-lg"
                         />
                       </div>
