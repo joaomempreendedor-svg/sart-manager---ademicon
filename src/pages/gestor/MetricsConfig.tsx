@@ -231,7 +231,7 @@ const MetricsConfig = () => {
                     <Input
                       value={tokenDrafts[consultant.id] ?? ''}
                       onChange={event => setTokenDrafts(prev => ({ ...prev, [consultant.id]: event.target.value }))}
-                      placeholder="Código de indicações"
+                      placeholder="3 primeiros dígitos do CPF"
                       className="h-8 font-mono text-xs uppercase"
                     />
                     <Button
@@ -247,7 +247,7 @@ const MetricsConfig = () => {
                   </div>
                   <div className="mt-1.5 flex items-center justify-between gap-2">
                     <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                      Código usado no link pessoal: <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-300">{consultant.indication_token || '—'}</span>
+                      Digite os 3 primeiros dígitos do CPF do consultor e salve. Link pessoal: <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-300">{consultant.indication_token || '—'}</span>
                     </p>
                     <Button
                       variant="ghost"

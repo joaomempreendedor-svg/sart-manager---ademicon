@@ -1069,7 +1069,7 @@ const PublicDailyMetrics = () => {
                   <div className="rounded-lg bg-indigo-100 p-2 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"><Lock className="h-5 w-5" /></div>
                   Indicações protegidas
                 </CardTitle>
-                <CardDescription>Cada consultor tem um código de acesso. Informe o seu para ver apenas as suas indicações.</CardDescription>
+                <CardDescription>O código de acesso é formado pelos 3 primeiros dígitos do seu CPF (sem pontos). Digite e veja apenas as suas indicações.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mx-auto flex max-w-md flex-col gap-3">
@@ -1077,10 +1077,10 @@ const PublicDailyMetrics = () => {
                     value={accessCode}
                     onChange={event => { setAccessCode(event.target.value); setAccessError(false); }}
                     onKeyDown={event => event.key === 'Enter' && handleAccess()}
-                    placeholder="Informe seu código de acesso"
+                    placeholder="3 primeiros dígitos do CPF"
                     className="h-11 text-center font-mono uppercase"
                   />
-                  {accessError && <p className="text-sm text-red-500">Código inválido. Peça o código certo ao gestor.</p>}
+                  {accessError && <p className="text-sm text-red-500">Código inválido. Confira os 3 primeiros dígitos do seu CPF ou peça ajuda ao gestor.</p>}
                   <Button onClick={handleAccess} className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white">
                     <Lock className="mr-2 h-4 w-4" /> Ver minhas indicações
                   </Button>
