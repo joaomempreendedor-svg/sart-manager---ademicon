@@ -135,10 +135,27 @@ const formatValue = (value: number, type: DailyMetricConfig['type']) => {
 
 const parseInputValue = (value: string, type: DailyMetricConfig['type']) => {
   if (type === 'currency') {
-    const normalized = String(value || '').replace(/\./g, '').replace(',', '.');
-    return Math.round((Number(normalized) || 0) * 100);
+    const str = String(value ?? '0').trim();
+    const n = Number(str.includes(',') ? str.replace(/\./g, '').replace(',', '.') : str);
+    return Math.round((Number.isFinite(n) ? n : 0) * 100);
   }
   return Math.round(Number(value) || 0);
+};
+
+const plainReais = (str: string) => {
+  const s = String(str || '').trim();
+  if (!s) return '';
+  if (s.includes(',')) return s.replace(/\./g, '').replace(',', '.');
+  if ((s.match(/\./g) || []).length > 1) return s.replace(/\./g, '');
+  return s;
+};
+
+const formatReais = (value: string | number) => {
+  const str = String(value ?? '');
+  if (!str.trim() || !/\d/.test(str)) return '';
+  const n = Number(str.includes(',') ? str.replace(/\./g, '').replace(',', '.') : str);
+  if (!Number.isFinite(n)) return '';
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const toLocalISODate = (date: Date) => {
@@ -903,14 +920,14 @@ const PublicDailyMetrics = () => {
                         <Input
                           id={metric.id}
                           autoFocus
-                          type="number"
-                          min="0"
-                          step={metric.type === 'currency' ? '0.01' : '1'}
+                          type={metric.type === 'currency' ? 'text' : 'number'}
+                          min={metric.type === 'currency' ? undefined : '0'}
+                          step={metric.type === 'currency' ? undefined : '1'}
                           inputMode={metric.type === 'currency' ? 'decimal' : 'numeric'}
-                          value={values[metric.id] || ''}
+                          value={isIndicationStep ? (values[metric.id] || '') : metric.type === 'currency' ? formatReais(values[metric.id] || '') : (values[metric.id] || '')}
                           onChange={event => isIndicationStep
                             ? handleIndicationsCountChange(metric.id, event.target.value)
-                            : setValues(prev => ({ ...prev, [metric.id]: event.target.value }))}
+                            : setValues(prev => ({ ...prev, [metric.id]: metric.type === 'currency' ? plainReais(event.target.value) : event.target.value }))}
                           onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
                           placeholder={metric.type === 'currency' ? '0,00' : '0'}
                           className="h-12 text-lg"
@@ -922,7 +939,7 @@ const PublicDailyMetrics = () => {
                       {isIndicationStep && (
                         <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
                           <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
-                            <Users className="h-4 w-4" /> Quem você indicou?
+                            <Users className="h-4 w-4" /> Nome e telefone das indicações
                           </p>
                           <p className="mb-3 text-xs text-slate-500">
                             Quando informar a quantidade acima, abra os campos para registrar nome e telefone (opcional).
