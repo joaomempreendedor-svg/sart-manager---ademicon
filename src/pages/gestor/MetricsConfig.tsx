@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Edit, ExternalLink, GripVertical, PlusCircle, Trash2, RefreshCw, UserPlus, Users } from 'lucide-react';
+import { Check, Copy, Edit, ExternalLink, GripVertical, PlusCircle, Trash2, UserPlus, Users } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import toast from 'react-hot-toast';
 
@@ -21,8 +21,6 @@ interface PublicMetricConsultant {
   indication_token?: string | null;
 }
 
-const generateToken = () => Math.random().toString(36).slice(2, 10).toUpperCase();
-
 const formatTarget = (config: DailyMetricConfig) => {
   if (config.type === 'currency') {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(config.target_value / 100);
@@ -38,6 +36,8 @@ const MetricsConfig = () => {
   const [consultants, setConsultants] = useState<PublicMetricConsultant[]>([]);
   const [consultantName, setConsultantName] = useState('');
   const [isAddingConsultant, setIsAddingConsultant] = useState(false);
+  const [savingTokenId, setSavingTokenId] = useState<string | null>(null);
+  const [tokenDrafts, setTokenDrafts] = useState<Record<string, string>>({});
 
   const publicUrl = useMemo(() => {
     if (!user) return '';
@@ -66,6 +66,12 @@ const MetricsConfig = () => {
 
     loadConsultants();
   }, [user]);
+
+  useEffect(() => {
+    const drafts: Record<string, string> = {};
+    consultants.forEach(consultant => { drafts[consultant.id] = consultant.indication_token || ''; });
+    setTokenDrafts(drafts);
+  }, [consultants]);
 
   const handleOnDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -106,7 +112,7 @@ const MetricsConfig = () => {
     setIsAddingConsultant(true);
     const { data, error } = await supabase
       .from('public_metric_consultants')
-      .insert({ user_id: user.id, name, order_index: consultants.length, indication_token: generateToken() })
+      .insert({ user_id: user.id, name, order_index: consultants.length })
       .select()
       .single();
     setIsAddingConsultant(false);
@@ -145,18 +151,20 @@ const MetricsConfig = () => {
     toast.success(`Link de indicações de ${consultant.name} copiado!`);
   };
 
-  const handleRegenerateToken = async (consultant: PublicMetricConsultant) => {
-    const newToken = generateToken();
+  const handleSaveToken = async (consultant: PublicMetricConsultant) => {
+    const tokenValue = (tokenDrafts[consultant.id] || '').trim().toUpperCase();
+    setSavingTokenId(consultant.id);
     const { error } = await supabase
       .from('public_metric_consultants')
-      .update({ indication_token: newToken })
+      .update({ indication_token: tokenValue || null })
       .eq('id', consultant.id);
+    setSavingTokenId(null);
     if (error) {
-      toast.error('Erro ao gerar novo código.');
+      toast.error('Erro ao salvar o código.');
       return;
     }
-    setConsultants(prev => prev.map(item => (item.id === consultant.id ? { ...item, indication_token: newToken } : item)));
-    toast.success('Novo código gerado. Reenvie o link ao consultor.');
+    setConsultants(prev => prev.map(item => (item.id === consultant.id ? { ...item, indication_token: tokenValue || null } : item)));
+    toast.success('Código de indicações salvo.');
   };
 
   return (
@@ -215,24 +223,43 @@ const MetricsConfig = () => {
                 <div key={consultant.id} className="flex flex-col rounded-lg border bg-gray-50 px-4 py-3 dark:bg-slate-800">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{consultant.name}</span>
-                    <div className="flex items-center">
-                      <Button variant="ghost" size="icon" onClick={() => handleCopyIndicationLink(consultant)} disabled={!consultant.indication_token} title="Copiar link das indicações">
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleRegenerateToken(consultant)} title="Gerar novo código" className="hover:text-brand-600">
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveConsultant(consultant)} className="text-red-500 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveConsultant(consultant)} className="text-red-500 hover:text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Código de indicações: <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-300">{consultant.indication_token || '—'}</span>
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-                    Envie o link com o código para o consultor ver só as indicações dele.
-                  </p>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <Input
+                      value={tokenDrafts[consultant.id] ?? ''}
+                      onChange={event => setTokenDrafts(prev => ({ ...prev, [consultant.id]: event.target.value }))}
+                      placeholder="Código de indicações"
+                      className="h-8 font-mono text-xs uppercase"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => handleSaveToken(consultant)}
+                      disabled={savingTokenId === consultant.id}
+                      title="Salvar código"
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                      Código usado no link pessoal: <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-300">{consultant.indication_token || '—'}</span>
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleCopyIndicationLink(consultant)}
+                      disabled={!consultant.indication_token}
+                      title="Copiar link das indicações"
+                    >
+                      <Copy className="mr-1 h-3.5 w-3.5" /> Copiar link
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

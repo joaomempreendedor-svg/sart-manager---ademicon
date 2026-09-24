@@ -453,19 +453,6 @@ const PublicDailyMetrics = () => {
     return counts;
   }, [indications]);
 
-  const periodIndications = useMemo(() => {
-    const range = period === 'daily'
-      ? { start: selectedDate, end: selectedDate }
-      : period === 'weekly'
-        ? getWeekRange(selectedWeek)
-        : { start: monthStart, end: monthEnd };
-    return indications.filter(item =>
-      item.entry_date >= range.start &&
-      item.entry_date <= range.end &&
-      (!lockedConsultant || item.consultant_id === lockedConsultant)
-    );
-  }, [indications, period, selectedDate, selectedWeek, monthStart, monthEnd, lockedConsultant]);
-
   const todayIso = toLocalISODate(new Date());
 
   const goPrevDay = () => setSelectedDate(shiftDays(selectedDate, -1));
@@ -1353,74 +1340,6 @@ const PublicDailyMetrics = () => {
                     })}
                   </tbody>
                 </table>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-lg">Indicações no período</CardTitle>
-                <CardDescription>
-                  Pessoas indicadas por cada consultor em {periodLabel}.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {periodIndications.length === 0 ? (
-                  <div className="py-6 text-center text-sm text-slate-500">
-                    Nenhuma indicação registrada no período ainda.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      {consultants.map(consultant => {
-                        const count = periodIndications.filter(item => item.consultant_id === consultant.id).length;
-                        return (
-                          <span key={consultant.id} className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                            {consultant.name} · {count}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[560px] text-sm">
-                        <thead>
-                          <tr className="border-b text-left text-slate-500 dark:border-slate-800">
-                            <th className="pb-3 pr-4 font-semibold">Indicado</th>
-                            <th className="px-4 pb-3 font-semibold">Telefone</th>
-                            <th className="px-4 pb-3 font-semibold">Consultor</th>
-                            <th className="px-4 pb-3 font-semibold">Dia</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[...periodIndications].sort((a, b) => b.entry_date.localeCompare(a.entry_date)).map(item => (
-                            <tr key={item.id} className="border-b transition-colors hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
-                              <td className="py-3 pr-4 font-medium">{item.name}</td>
-                              <td className="px-4 py-3">
-                                {item.phone ? (
-                                  <a
-                                    href={`https://wa.me/55${item.phone.replace(/\D/g, '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-brand-600 hover:underline dark:text-brand-400"
-                                  >
-                                    <Phone className="h-3.5 w-3.5" /> {formatPhone(item.phone)}
-                                  </a>
-                                ) : (
-                                  <span className="text-slate-400">—</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                {consultants.find(consultant => consultant.id === item.consultant_id)?.name || '—'}
-                              </td>
-                              <td className="px-4 py-3 text-slate-500">
-                                {new Date(`${item.entry_date}T12:00:00`).toLocaleDateString('pt-BR')}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
