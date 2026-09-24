@@ -13,8 +13,39 @@ import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DailyMetricConfig } from '@/types';
-import { formatBRLFromCents, formatBRLInput, parseBRLInputToCents } from '@/utils/currencyUtils';
 import { EditMetricEntryModal } from '@/components/gestor/EditMetricEntryModal';
+
+class MetricsErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; message: string }> {
+  state = { hasError: false, message: '' };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { hasError: true, message: error instanceof Error ? error.message : String(error) };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error('PublicDailyMetrics crash:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+          <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm dark:border-red-900 dark:bg-slate-900">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400">
+              <X className="h-6 w-6" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-800 dark:text-white">Algo deu errado ao abrir esta tela</h2>
+            <p className="mt-1 text-sm break-words text-slate-500">{this.state.message || 'Erro desconhecido.'}</p>
+            <Button onClick={() => this.setState({ hasError: false, message: '' })} className="mt-4 bg-brand-600 hover:bg-brand-700 text-white">
+              Tentar novamente
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface PublicMetricConsultant {
   id: string;
@@ -102,7 +133,10 @@ const formatValue = (value: number, type: DailyMetricConfig['type']) => {
 };
 
 const parseInputValue = (value: string, type: DailyMetricConfig['type']) => {
-  if (type === 'currency') return parseBRLInputToCents(value);
+  if (type === 'currency') {
+    const normalized = String(value || '').replace(/\./g, '').replace(',', '.');
+    return Math.round((Number(normalized) || 0) * 100);
+  }
   return Math.round(Number(value) || 0);
 };
 
@@ -296,7 +330,7 @@ const PublicDailyMetrics = () => {
       if (!entry) {
         existingValues[metric.id] = '';
       } else {
-        existingValues[metric.id] = metric.type === 'currency' ? formatBRLFromCents(entry.value) : String(entry.value);
+        existingValues[metric.id] = metric.type === 'currency' ? String(entry.value / 100) : String(entry.value);
       }
     });
     setValues(existingValues);
@@ -583,7 +617,8 @@ const PublicDailyMetrics = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <MetricsErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <header className="border-b bg-white/90 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -716,9 +751,6 @@ const PublicDailyMetrics = () => {
                     <UserRound className="h-5 w-5 text-brand-600" /> Informe seus resultados
                   </span>
                   <span className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={openIndicationModal} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                      <Plus className="mr-1 h-3.5 w-3.5" /> Indicar
-                    </Button>
                     <span className="text-sm font-semibold text-slate-400">{step + 1} de {totalFormSteps}</span>
                   </span>
                 </CardTitle>
@@ -830,14 +862,14 @@ const PublicDailyMetrics = () => {
                           autoFocus
                           type="number"
                           min="0"
-                          step="1"
-                          inputMode="numeric"
+                          step={metric.type === 'currency' ? '0.01' : '1'}
+                          inputMode={metric.type === 'currency' ? 'decimal' : 'numeric'}
                           value={values[metric.id] || ''}
                           onChange={event => isIndicationStep
                             ? handleIndicationsCountChange(metric.id, event.target.value)
-                            : setValues(prev => ({ ...prev, [metric.id]: metric.type === 'currency' ? formatBRLInput(event.target.value) : event.target.value }))}
+                            : setValues(prev => ({ ...prev, [metric.id]: event.target.value }))}
                           onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
-                          placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
+                          placeholder={metric.type === 'currency' ? '0,00' : '0'}
                           className="h-12 text-lg"
                         />
                       </div>
@@ -1354,7 +1386,8 @@ const PublicDailyMetrics = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </MetricsErrorBoundary>
   );
 };
 
