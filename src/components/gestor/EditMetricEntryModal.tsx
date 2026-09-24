@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DailyMetricConfig } from '@/types';
-import { formatBRLFromCents, formatBRLInput, parseBRLInputToCents } from '@/utils/currencyUtils';
+import { formatBRLFromCents, parseBRLInputToCents } from '@/utils/currencyUtils';
 
 interface MetricEntry {
   id: string;
@@ -40,6 +40,7 @@ export const EditMetricEntryModal: React.FC<EditMetricEntryModalProps> = ({
 }) => {
   const [values, setValues] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [focusedMetricId, setFocusedMetricId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +62,7 @@ export const EditMetricEntryModal: React.FC<EditMetricEntryModalProps> = ({
   const handleValueChange = (metricId: string, type: DailyMetricConfig['type'], newValue: string) => {
     setValues(prev => ({
       ...prev,
-      [metricId]: type === 'currency' ? formatBRLInput(newValue) : newValue,
+      [metricId]: newValue,
     }));
   };
 
@@ -120,8 +121,12 @@ export const EditMetricEntryModal: React.FC<EditMetricEntryModalProps> = ({
                   min={metric.type === 'currency' ? undefined : '0'}
                   step={metric.type === 'currency' ? undefined : '1'}
                   inputMode={metric.type === 'currency' ? 'numeric' : 'numeric'}
-                  value={values[metric.id] || ''}
+                  value={metric.type === 'currency' && focusedMetricId !== metric.id
+                    ? formatBRLFromCents(parseBRLInputToCents(values[metric.id] || ''))
+                    : (values[metric.id] || '')}
                   onChange={event => handleValueChange(metric.id, metric.type, event.target.value)}
+                  onFocus={() => setFocusedMetricId(metric.id)}
+                  onBlur={() => setFocusedMetricId(null)}
                   placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
                 />
               </div>

@@ -222,6 +222,7 @@ const PublicDailyMetrics = () => {
   const [lockedConsultant, setLockedConsultant] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState('');
   const [accessError, setAccessError] = useState(false);
+  const [focusedMetricId, setFocusedMetricId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const loadPublicData = useCallback(async (showRefresh = false) => {
@@ -954,10 +955,16 @@ const PublicDailyMetrics = () => {
                           min={metric.type === 'currency' ? undefined : '0'}
                           step={metric.type === 'currency' ? undefined : '1'}
                           inputMode={metric.type === 'currency' ? 'decimal' : 'numeric'}
-                          value={isIndicationStep ? (values[metric.id] || '') : metric.type === 'currency' ? formatReais(values[metric.id] || '') : (values[metric.id] || '')}
+                          value={isIndicationStep
+                            ? (values[metric.id] || '')
+                            : metric.type === 'currency'
+                              ? (focusedMetricId === metric.id ? (values[metric.id] || '') : formatReais(values[metric.id] || ''))
+                              : (values[metric.id] || '')}
                           onChange={event => isIndicationStep
                             ? handleIndicationsCountChange(metric.id, event.target.value)
                             : setValues(prev => ({ ...prev, [metric.id]: metric.type === 'currency' ? plainReais(event.target.value) : event.target.value }))}
+                          onFocus={() => setFocusedMetricId(metric.id)}
+                          onBlur={() => setFocusedMetricId(null)}
                           onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
                           placeholder={metric.type === 'currency' ? '0,00' : '0'}
                           className="h-12 text-lg"
