@@ -232,7 +232,7 @@ const PublicDailyMetrics = () => {
   const [lockedConsultant, setLockedConsultant] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState('');
   const [accessError, setAccessError] = useState(false);
-  const [focusedMetricId, setFocusedMetricId] = useState<string | null>(null);
+  const currencyInputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const loadPublicData = useCallback(async (showRefresh = false) => {
@@ -968,15 +968,20 @@ const PublicDailyMetrics = () => {
                           value={isIndicationStep
                             ? (values[metric.id] || '')
                             : metric.type === 'currency'
-                              ? (focusedMetricId === metric.id
+                              ? ((document.activeElement === currencyInputRef.current)
                                   ? (values[metric.id] ? `R$ ${formatLiveReais(values[metric.id])}` : 'R$ ')
                                   : (values[metric.id] ? `R$ ${formatReais(values[metric.id])}` : ''))
                               : (values[metric.id] || '')}
                           onChange={event => isIndicationStep
                             ? handleIndicationsCountChange(metric.id, event.target.value)
                             : setValues(prev => ({ ...prev, [metric.id]: metric.type === 'currency' ? plainReais(event.target.value) : event.target.value }))}
-                          onFocus={() => setFocusedMetricId(metric.id)}
-                          onBlur={() => setFocusedMetricId(null)}
+                          ref={metric.type === 'currency' ? currencyInputRef : undefined}
+                          onFocus={event => {
+                            requestAnimationFrame(() => {
+                              const el = event.currentTarget;
+                              el.setSelectionRange(el.value.length, el.value.length);
+                            });
+                          }}
                           onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
                           placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
                           className="h-12 text-lg"
