@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Moon, Phone, Plus, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,7 @@ interface PublicMetricConsultant {
   id: string;
   name: string;
   order_index: number;
+  indication_token?: string | null;
 }
 
 interface PublicMetricEntry {
@@ -200,6 +201,10 @@ const PublicDailyMetrics = () => {
   const [isSavingIndication, setIsSavingIndication] = useState(false);
   const [indicationsFilter, setIndicationsFilter] = useState('');
   const [indicationRows, setIndicationRows] = useState<{ name: string; phone: string }[]>([]);
+  const [lockedConsultant, setLockedConsultant] = useState<string | null>(null);
+  const [accessCode, setAccessCode] = useState('');
+  const [accessError, setAccessError] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const loadPublicData = useCallback(async (showRefresh = false) => {
     if (!ownerId) return;
@@ -208,7 +213,7 @@ const PublicDailyMetrics = () => {
     const [consultantsResult, metricsResult] = await Promise.all([
       supabase
         .from('public_metric_consultants')
-        .select('id, name, order_index')
+        .select('id, name, order_index, indication_token')
         .eq('user_id', ownerId)
         .eq('is_active', true)
         .order('order_index'),
@@ -285,8 +290,52 @@ const PublicDailyMetrics = () => {
     loadIndications();
   }, [loadIndications]);
 
+  const tryUnlock = useCallback((consultorId: string, token: string) => {
+    if (!consultorId || !token) return false;
+    const match = consultants.find(consultant => consultant.id === consultorId && consultant.indication_token && consultant.indication_token === token);
+    if (match) {
+      setLockedConsultant(match.id);
+      sessionStorage.setItem(`mm-ind-token-${ownerId}`, `${match.id}::${match.indication_token}`);
+      return true;
+    }
+    return false;
+  }, [consultants, ownerId]);
+
+  useEffect(() => {
+    if (!ownerId || consultants.length === 0 || lockedConsultant) return;
+    const stored = sessionStorage.getItem(`mm-ind-token-${ownerId}`);
+    if (stored) {
+      const [storedId, storedToken] = stored.split('::');
+      if (tryUnlock(storedId, storedToken)) return;
+    }
+    const urlConsultor = searchParams.get('consultor');
+    const urlToken = searchParams.get('token');
+    if (urlConsultor && urlToken) tryUnlock(urlConsultor, urlToken);
+  }, [consultants, ownerId, lockedConsultant, searchParams, tryUnlock]);
+
+  const handleAccess = () => {
+    const token = accessCode.trim().toUpperCase();
+    const match = consultants.find(consultant => consultant.indication_token && consultant.indication_token === token);
+    if (!match) {
+      setAccessError(true);
+      return;
+    }
+    setAccessError(false);
+    setLockedConsultant(match.id);
+    sessionStorage.setItem(`mm-ind-token-${ownerId}`, `${match.id}::${match.indication_token}`);
+    setSearchParams({ consultor: match.id, token: match.indication_token as string }, { replace: true });
+    setAccessCode('');
+    toast.success(`Olá, ${match.name}! Mostrando suas indicações.`);
+  };
+
+  const handleLockout = () => {
+    setLockedConsultant(null);
+    sessionStorage.removeItem(`mm-ind-token-${ownerId}`);
+    setSearchParams({}, { replace: true });
+  };
+
   const openIndicationModal = () => {
-    setIndicationConsultantId(selectedConsultantId);
+    setIndicationConsultantId(lockedConsultant || selectedConsultantId);
     setIndicationName('');
     setIndicationPhone('');
     setIsIndicationModalOpen(true);
@@ -391,9 +440,12 @@ const PublicDailyMetrics = () => {
   }, [selectedDate]);
 
   const filteredIndications = useMemo(() => {
-    if (!indicationsFilter) return indications;
-    return indications.filter(item => item.consultant_id === indicationsFilter);
-  }, [indications, indicationsFilter]);
+    const base = lockedConsultant
+      ? indications.filter(item => item.consultant_id === lockedConsultant)
+      : indications;
+    if (!indicationsFilter) return base;
+    return base.filter(item => item.consultant_id === indicationsFilter);
+  }, [indications, indicationsFilter, lockedConsultant]);
 
   const consultantIndicationCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -407,8 +459,12 @@ const PublicDailyMetrics = () => {
       : period === 'weekly'
         ? getWeekRange(selectedWeek)
         : { start: monthStart, end: monthEnd };
-    return indications.filter(item => item.entry_date >= range.start && item.entry_date <= range.end);
-  }, [indications, period, selectedDate, selectedWeek, monthStart, monthEnd]);
+    return indications.filter(item =>
+      item.entry_date >= range.start &&
+      item.entry_date <= range.end &&
+      (!lockedConsultant || item.consultant_id === lockedConsultant)
+    );
+  }, [indications, period, selectedDate, selectedWeek, monthStart, monthEnd, lockedConsultant]);
 
   const todayIso = toLocalISODate(new Date());
 
@@ -972,44 +1028,92 @@ const PublicDailyMetrics = () => {
             </div>
           </>
         ) : view === 'indications' ? (
+          !isManager && !lockedConsultant ? (
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <div className="rounded-lg bg-indigo-100 p-2 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"><Lock className="h-5 w-5" /></div>
+                  Indicações protegidas
+                </CardTitle>
+                <CardDescription>Cada consultor tem um código de acesso. Informe o seu para ver apenas as suas indicações.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mx-auto flex max-w-md flex-col gap-3">
+                  <Input
+                    value={accessCode}
+                    onChange={event => { setAccessCode(event.target.value); setAccessError(false); }}
+                    onKeyDown={event => event.key === 'Enter' && handleAccess()}
+                    placeholder="Informe seu código de acesso"
+                    className="h-11 text-center font-mono uppercase"
+                  />
+                  {accessError && <p className="text-sm text-red-500">Código inválido. Peça o código certo ao gestor.</p>}
+                  <Button onClick={handleAccess} className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Lock className="mr-2 h-4 w-4" /> Ver minhas indicações
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
           <Card className="border-0 shadow-lg">
             <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="rounded-lg bg-indigo-100 p-2 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"><Users className="h-5 w-5" /></div>
                 <div>
                   <CardTitle className="text-lg">Indicações da equipe</CardTitle>
-                  <CardDescription>Registre aqui o nome e o telefone de quem você indicou.</CardDescription>
+                  <CardDescription>{lockedConsultant ? 'Somente as suas indicações aparecem abaixo.' : 'Registre aqui o nome e o telefone de quem você indicou.'}</CardDescription>
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Select value={indicationsFilter} onValueChange={setIndicationsFilter}>
-                  <SelectTrigger className="h-10 gap-2 w-full sm:w-auto">
-                    <SelectValue placeholder="Todos os consultores" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Todos os consultores</SelectItem>
-                    {consultants.map(consultant => (
-                      <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={openIndicationModal} className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white">
-                  <Plus className="mr-2 h-4 w-4" /> Registrar indicação
-                </Button>
+                {lockedConsultant ? (
+                  <>
+                    <span className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-indigo-100 px-3 text-sm font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                      <UserRound className="h-4 w-4" /> {consultants.find(consultant => consultant.id === lockedConsultant)?.name}
+                    </span>
+                    <Button variant="outline" className="h-10" onClick={handleLockout}>Sair</Button>
+                    <Button onClick={openIndicationModal} className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white">
+                      <Plus className="mr-2 h-4 w-4" /> Registrar indicação
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Select value={indicationsFilter} onValueChange={setIndicationsFilter}>
+                      <SelectTrigger className="h-10 gap-2 w-full sm:w-auto">
+                        <SelectValue placeholder="Todos os consultores" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos os consultores</SelectItem>
+                        {consultants.map(consultant => (
+                          <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={openIndicationModal} className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white">
+                      <Plus className="mr-2 h-4 w-4" /> Registrar indicação
+                    </Button>
+                  </>
+                )}
               </div>
             </CardHeader>
             <CardContent>
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  Total: {indications.length} indicação{indications.length === 1 ? '' : 'ões'}
-                </span>
-                {consultants
-                  .filter(consultant => (consultantIndicationCounts.get(consultant.id) || 0) > 0)
-                  .map(consultant => (
-                    <span key={consultant.id} className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                      {consultant.name}: {consultantIndicationCounts.get(consultant.id)}
+                {lockedConsultant ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    Suas indicações: {consultantIndicationCounts.get(lockedConsultant) || 0}
+                  </span>
+                ) : (
+                  <>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      Total: {indications.length} indicação{indications.length === 1 ? '' : 'ões'}
                     </span>
-                  ))}
+                    {consultants
+                      .filter(consultant => (consultantIndicationCounts.get(consultant.id) || 0) > 0)
+                      .map(consultant => (
+                        <span key={consultant.id} className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                          {consultant.name}: {consultantIndicationCounts.get(consultant.id)}
+                        </span>
+                      ))}
+                  </>
+                )}
               </div>
 
               {filteredIndications.length === 0 ? (
@@ -1052,6 +1156,7 @@ const PublicDailyMetrics = () => {
               )}
             </CardContent>
           </Card>
+          )
         ) : (
           <div className="space-y-6">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-violet-600 px-8 py-8 text-white shadow-xl shadow-brand-600/20">
