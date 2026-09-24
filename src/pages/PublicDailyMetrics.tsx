@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Save, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -218,6 +218,7 @@ const PublicDailyMetrics = () => {
   const [isSavingIndication, setIsSavingIndication] = useState(false);
   const [indicationsFilter, setIndicationsFilter] = useState('');
   const [indicationRows, setIndicationRows] = useState<{ name: string; phone: string }[]>([]);
+  const [editingIndicationId, setEditingIndicationId] = useState<string | null>(null);
   const [lockedConsultant, setLockedConsultant] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState('');
   const [accessError, setAccessError] = useState(false);
@@ -352,10 +353,33 @@ const PublicDailyMetrics = () => {
   };
 
   const openIndicationModal = () => {
+    setEditingIndicationId(null);
     setIndicationConsultantId(lockedConsultant || selectedConsultantId);
     setIndicationName('');
     setIndicationPhone('');
     setIsIndicationModalOpen(true);
+  };
+
+  const startEditIndication = (item: PublicMetricIndication) => {
+    setEditingIndicationId(item.id);
+    setIndicationConsultantId(item.consultant_id);
+    setIndicationName(item.name);
+    setIndicationPhone(item.phone || '');
+    setIsIndicationModalOpen(true);
+  };
+
+  const handleRemoveIndication = async (item: PublicMetricIndication) => {
+    if (!window.confirm(`Remover a indicação de ${item.name}?`)) return;
+    const { error } = await supabase
+      .from('public_metric_indications')
+      .delete()
+      .eq('id', item.id);
+    if (error) {
+      toast.error('Não foi possível remover a indicação. Tente novamente.');
+      return;
+    }
+    toast.success('Indicação removida.');
+    await loadIndications();
   };
 
   const handleRegisterIndication = async () => {
@@ -368,21 +392,26 @@ const PublicDailyMetrics = () => {
       return;
     }
     setIsSavingIndication(true);
-    const { error } = await supabase
-      .from('public_metric_indications')
-      .insert({
-        user_id: ownerId,
-        consultant_id: indicationConsultantId,
-        name: indicationName.trim(),
-        phone: indicationPhone.trim() || null,
-        entry_date: selectedDate,
-      });
+    const payload = {
+      consultant_id: indicationConsultantId,
+      name: indicationName.trim(),
+      phone: indicationPhone.trim() || null,
+    };
+    const { error } = editingIndicationId
+      ? await supabase
+          .from('public_metric_indications')
+          .update(payload)
+          .eq('id', editingIndicationId)
+      : await supabase
+          .from('public_metric_indications')
+          .insert({ ...payload, user_id: ownerId, entry_date: selectedDate });
     setIsSavingIndication(false);
     if (error) {
-      toast.error('Não foi possível registrar a indicação. Tente novamente.');
+      toast.error('Não foi possível salvar a indicação. Tente novamente.');
       return;
     }
-    toast.success('Indicação registrada!');
+    toast.success(editingIndicationId ? 'Indicação atualizada!' : 'Indicação registrada!');
+    setEditingIndicationId(null);
     setIndicationName('');
     setIndicationPhone('');
     setIsIndicationModalOpen(false);
@@ -1137,6 +1166,7 @@ const PublicDailyMetrics = () => {
                         <th className="px-4 pb-3 font-semibold">Telefone</th>
                         <th className="px-4 pb-3 font-semibold">Consultor</th>
                         <th className="px-4 pb-3 font-semibold">Dia</th>
+                        <th className="pb-3 pl-4 text-right font-semibold">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1152,6 +1182,16 @@ const PublicDailyMetrics = () => {
                           </td>
                           <td className="px-4 py-3">{consultants.find(consultant => consultant.id === item.consultant_id)?.name || '—'}</td>
                           <td className="px-4 py-3">{formatDayLabel(item.entry_date, true)}</td>
+                          <td className="py-3 pl-4">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => startEditIndication(item)} title="Editar indicação">
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleRemoveIndication(item)} className="text-red-500 hover:text-red-600" title="Remover indicação">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1377,24 +1417,30 @@ const PublicDailyMetrics = () => {
       <Dialog open={isIndicationModalOpen} onOpenChange={setIsIndicationModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Registrar indicação</DialogTitle>
+            <DialogTitle>{editingIndicationId ? 'Editar indicação' : 'Registrar indicação'}</DialogTitle>
             <DialogDescription>
-              Nome e telefone de quem você indicou. Fica vinculado ao dia {formatDayLabel(selectedDate, true)}.
+              {editingIndicationId
+                ? `Atualize o nome ou telefone da pessoa indicada (dia ${formatDayLabel(selectedDate, true)}).`
+                : `Nome e telefone de quem você indicou. Fica vinculado ao dia ${formatDayLabel(selectedDate, true)}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Consultor que indicou</Label>
-              <Select value={indicationConsultantId} onValueChange={setIndicationConsultantId}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Selecione o consultor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {consultants.map(consultant => (
-                    <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {editingIndicationId ? (
+                <Input value={consultants.find(consultant => consultant.id === indicationConsultantId)?.name || '—'} readOnly className="h-10 bg-slate-100 dark:bg-slate-800" />
+              ) : (
+                <Select value={indicationConsultantId} onValueChange={setIndicationConsultantId}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Selecione o consultor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {consultants.map(consultant => (
+                      <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="indication-name">Nome da pessoa indicada *</Label>
@@ -1421,8 +1467,8 @@ const PublicDailyMetrics = () => {
           <DialogFooter className="sm:justify-between">
             <Button variant="outline" onClick={() => setIsIndicationModalOpen(false)}>Cancelar</Button>
             <Button onClick={handleRegisterIndication} disabled={isSavingIndication} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              {isSavingIndication ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-              {isSavingIndication ? 'Salvando...' : 'Registrar'}
+              {isSavingIndication ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : editingIndicationId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+              {isSavingIndication ? 'Salvando...' : editingIndicationId ? 'Salvar' : 'Registrar'}
             </Button>
           </DialogFooter>
         </DialogContent>

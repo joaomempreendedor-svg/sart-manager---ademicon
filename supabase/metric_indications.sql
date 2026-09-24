@@ -33,4 +33,8 @@ DO $$ BEGIN
     CREATE POLICY "Public metric indications delete" ON public_metric_indications
       FOR DELETE USING (true);
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public metric indications update' AND tablename = 'public_metric_indications') THEN
+    CREATE POLICY "Public metric indications update" ON public_metric_indications
+      FOR UPDATE USING (true) WITH CHECK (true);
+  END IF;
 END $$;
