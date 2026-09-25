@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import toast from 'react-hot-toast';
 import { ColdCallLead } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { getAllFromTable } from '@/lib/supabase';
 
 export interface ColdCallImportConsultant {
   id: string;
@@ -144,7 +145,7 @@ const ImportColdCallLeadsDivisionModal: React.FC<ImportColdCallLeadsDivisionModa
   const [dbPhones, setDbPhones] = useState<Set<string>>(new Set());
 
   const loadDbPhones = useCallback(async () => {
-    const { data } = await supabase.from('cold_call_leads').select('phone');
+    const { data } = await getAllFromTable('cold_call_leads', { select: 'phone' });
     const set = new Set<string>();
     (data || []).forEach(row => {
       if (row?.phone) set.add(normalizePhone(String(row.phone)));

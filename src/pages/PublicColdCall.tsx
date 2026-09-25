@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getAllFromTable } from '@/lib/supabase';
 import { ColdCallLead, ColdCallLog, ColdCallResult } from '@/types';
 
 interface PublicTeamMember {
@@ -149,14 +150,16 @@ const PublicColdCall = () => {
   }, [loadBaseData]);
 
   const loadConsultantData = useCallback(async (consultantKey: string) => {
-    const [leadsRes, logsRes] = await Promise.all([
-      supabase.from('cold_call_leads').select('*').eq('user_id', consultantKey),
-      supabase.from('cold_call_logs').select('*').eq('user_id', consultantKey),
-    ]);
-    if (leadsRes.error) toast.error('Não foi possível carregar a fila de prospects.');
-    if (logsRes.error) toast.error('Não foi possível carregar os registros do dia.');
-    setLeads((leadsRes.data || []) as ColdCallLead[]);
-    setLogs((logsRes.data || []) as ColdCallLog[]);
+    try {
+      const [leadsRes, logsRes] = await Promise.all([
+        getAllFromTable('cold_call_leads', { filters: { user_id: consultantKey } }),
+        getAllFromTable('cold_call_logs', { filters: { user_id: consultantKey } }),
+      ]);
+      setLeads((leadsRes.data || []) as ColdCallLead[]);
+      setLogs((logsRes.data || []) as ColdCallLog[]);
+    } catch {
+      toast.error('Não foi possível carregar a fila de prospects.');
+    }
   }, []);
 
   useEffect(() => {
@@ -267,12 +270,16 @@ const PublicColdCall = () => {
 
   const refreshAfterWrite = async () => {
     if (!selectedConsultantKey) return;
-    const [leadsRes, logsRes] = await Promise.all([
-      supabase.from('cold_call_leads').select('*').eq('user_id', selectedConsultantKey),
-      supabase.from('cold_call_logs').select('*').eq('user_id', selectedConsultantKey),
-    ]);
-    if (!leadsRes.error) setLeads((leadsRes.data || []) as ColdCallLead[]);
-    if (!logsRes.error) setLogs((logsRes.data || []) as ColdCallLog[]);
+    try {
+      const [leadsRes, logsRes] = await Promise.all([
+        getAllFromTable('cold_call_leads', { filters: { user_id: selectedConsultantKey } }),
+        getAllFromTable('cold_call_logs', { filters: { user_id: selectedConsultantKey } }),
+      ]);
+      setLeads((leadsRes.data || []) as ColdCallLead[]);
+      setLogs((logsRes.data || []) as ColdCallLog[]);
+    } catch {
+      toast.error('Não foi possível atualizar a fila de prospects.');
+    }
   };
 
   const openEditLogDialog = (log: ColdCallLog) => {

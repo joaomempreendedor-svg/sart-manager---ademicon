@@ -5,6 +5,7 @@ import {
   AlertTriangle, TrendingUp, Users, Maximize, Minimize,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAllFromTable } from '@/lib/supabase';
 import { ColdCallLead, ColdCallLog, ColdCallGoals } from '@/types';
 
 const DEFAULT_GOALS: ColdCallGoals = { calls: 80, contacts: 30, interested: 5, meetings: 3 };
@@ -69,8 +70,8 @@ const PublicColdCallTV = () => {
     const [membersRes, goalsRes, leadsRes, logsRes] = await Promise.all([
       supabase.from('cold_call_consultants').select('id, name, email, user_id, is_active'),
       supabase.rpc('get_cold_call_goals', { p_user: ownerId }),
-      supabase.from('cold_call_leads').select('*'),
-      supabase.from('cold_call_logs').select('*'),
+      getAllFromTable('cold_call_leads'),
+      getAllFromTable('cold_call_logs'),
     ]);
 
     if (!membersRes.error) {
