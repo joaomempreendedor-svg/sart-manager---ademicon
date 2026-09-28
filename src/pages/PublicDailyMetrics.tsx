@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BarChart3, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Save, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, Briefcase, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Save, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,8 +63,23 @@ interface PublicMetricEntry {
   value: number;
 }
 
-type ViewMode = 'form' | 'dashboard' | 'indications';
+type ViewMode = 'form' | 'dashboard' | 'indications' | 'proposals';
 type PeriodMode = 'daily' | 'weekly' | 'monthly';
+
+type ProposalStatus = 'Deu negócio' | 'Ficou pra mais frente' | 'Perdido';
+
+const PROPOSAL_STATUSES: ProposalStatus[] = ['Deu negócio', 'Ficou pra mais frente', 'Perdido'];
+
+interface PublicMetricProposal {
+  id: string;
+  consultant_id: string;
+  name: string;
+  description: string | null;
+  return_date: string | null;
+  status: ProposalStatus;
+  entry_date: string;
+  created_at: string;
+}
 
 interface PublicMetricIndication {
   id: string;
@@ -85,6 +101,24 @@ const isIndicationsMetric = (metric: DailyMetricConfig) => {
   const key = metric.metric_key.toLowerCase();
   return key === 'indicacoes' || key === 'indications' || key.includes('indicac') || metric.label.toLowerCase().includes('indicaç');
 };
+
+const proposalStatusBadge = (status: ProposalStatus) => {
+  switch (status) {
+    case 'Deu negócio': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+    case 'Ficou pra mais frente': return 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+    case 'Perdido': return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300';
+    default: return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+  }
+};
+
+const proposalStatusButton = (status: ProposalStatus, active: boolean) =>
+  active
+    ? status === 'Deu negócio'
+      ? 'border-emerald-600 bg-emerald-600 text-white'
+      : status === 'Perdido'
+        ? 'border-red-600 bg-red-600 text-white'
+        : 'border-amber-600 bg-amber-600 text-white'
+    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700';
 
 const getToday = () => {
   const now = new Date();
@@ -229,6 +263,16 @@ const PublicDailyMetrics = () => {
   const [indicationsFilter, setIndicationsFilter] = useState('');
   const [indicationRows, setIndicationRows] = useState<{ name: string; phone: string }[]>([]);
   const [editingIndicationId, setEditingIndicationId] = useState<string | null>(null);
+  const [proposals, setProposals] = useState<PublicMetricProposal[]>([]);
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [proposalConsultantId, setProposalConsultantId] = useState('');
+  const [proposalName, setProposalName] = useState('');
+  const [proposalDescription, setProposalDescription] = useState('');
+  const [proposalReturnDate, setProposalReturnDate] = useState('');
+  const [proposalStatus, setProposalStatus] = useState<ProposalStatus>('Ficou pra mais frente');
+  const [isSavingProposal, setIsSavingProposal] = useState(false);
+  const [proposalsFilter, setProposalsFilter] = useState('');
+  const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
   const [lockedConsultant, setLockedConsultant] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState('');
   const [accessError, setAccessError] = useState(false);
@@ -319,6 +363,20 @@ const PublicDailyMetrics = () => {
     loadIndications();
   }, [loadIndications]);
 
+  const loadProposals = useCallback(async () => {
+    if (!ownerId) return;
+    const { data, error } = await supabase
+      .from('public_metric_proposals')
+      .select('*')
+      .eq('user_id', ownerId)
+      .order('entry_date', { ascending: false });
+    if (!error) setProposals(data || []);
+  }, [ownerId]);
+
+  useEffect(() => {
+    loadProposals();
+  }, [loadProposals]);
+
   const tryUnlock = useCallback((consultorId: string, token: string) => {
     if (!consultorId || !token) return false;
     const match = consultants.find(consultant => consultant.id === consultorId && consultant.indication_token && consultant.indication_token === token);
@@ -354,7 +412,7 @@ const PublicDailyMetrics = () => {
     sessionStorage.setItem(`mm-ind-token-${ownerId}`, `${match.id}::${match.indication_token}`);
     setSearchParams({ consultor: match.id, token: match.indication_token as string }, { replace: true });
     setAccessCode('');
-    toast.success(`Olá, ${match.name}! Mostrando suas indicações.`);
+    toast.success(`Olá, ${match.name}! Acesso liberado.`);
   };
 
   const handleLockout = () => {
@@ -428,6 +486,81 @@ const PublicDailyMetrics = () => {
     setIndicationPhone('');
     setIsIndicationModalOpen(false);
     await loadIndications();
+  };
+
+  const openProposalModal = () => {
+    setEditingProposalId(null);
+    setProposalConsultantId(lockedConsultant || selectedConsultantId);
+    setProposalName('');
+    setProposalDescription('');
+    setProposalReturnDate('');
+    setProposalStatus('Ficou pra mais frente');
+    setIsProposalModalOpen(true);
+  };
+
+  const startEditProposal = (item: PublicMetricProposal) => {
+    setEditingProposalId(item.id);
+    setProposalConsultantId(item.consultant_id);
+    setProposalName(item.name);
+    setProposalDescription(item.description || '');
+    setProposalReturnDate(item.return_date || '');
+    setProposalStatus(item.status);
+    setIsProposalModalOpen(true);
+  };
+
+  const handleRemoveProposal = async (item: PublicMetricProposal) => {
+    if (!window.confirm(`Remover a proposta de ${item.name}?`)) return;
+    const { data, error } = await supabase
+      .from('public_metric_proposals')
+      .delete()
+      .eq('id', item.id)
+      .select('id');
+    if (error || !data || data.length === 0) {
+      toast.error('Não foi possível remover a proposta. Tente novamente.');
+      return;
+    }
+    toast.success('Proposta removida.');
+    await loadProposals();
+  };
+
+  const handleRegisterProposal = async () => {
+    if (!proposalConsultantId) {
+      toast.error('Selecione o consultor que registrou a proposta.');
+      return;
+    }
+    if (!proposalName.trim()) {
+      toast.error('Informe o nome da proposta.');
+      return;
+    }
+    setIsSavingProposal(true);
+    const payload = {
+      consultant_id: proposalConsultantId,
+      name: proposalName.trim(),
+      description: proposalDescription.trim() || null,
+      return_date: proposalReturnDate || null,
+      status: proposalStatus,
+    };
+    const { error } = editingProposalId
+      ? await supabase
+          .from('public_metric_proposals')
+          .update(payload)
+          .eq('id', editingProposalId)
+      : await supabase
+          .from('public_metric_proposals')
+          .insert({ ...payload, user_id: ownerId, entry_date: selectedDate });
+    setIsSavingProposal(false);
+    if (error) {
+      toast.error('Não foi possível salvar a proposta. Tente novamente.');
+      return;
+    }
+    toast.success(editingProposalId ? 'Proposta atualizada!' : 'Proposta registrada!');
+    setEditingProposalId(null);
+    setProposalName('');
+    setProposalDescription('');
+    setProposalReturnDate('');
+    setProposalStatus('Ficou pra mais frente');
+    setIsProposalModalOpen(false);
+    await loadProposals();
   };
 
   useEffect(() => {
@@ -510,6 +643,20 @@ const PublicDailyMetrics = () => {
     indications.forEach(item => counts.set(item.consultant_id, (counts.get(item.consultant_id) || 0) + 1));
     return counts;
   }, [indications]);
+
+  const filteredProposals = useMemo(() => {
+    const base = lockedConsultant
+      ? proposals.filter(item => item.consultant_id === lockedConsultant)
+      : proposals;
+    if (!proposalsFilter) return base;
+    return base.filter(item => item.consultant_id === proposalsFilter);
+  }, [proposals, proposalsFilter, lockedConsultant]);
+
+  const consultantProposalCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    proposals.forEach(item => counts.set(item.consultant_id, (counts.get(item.consultant_id) || 0) + 1));
+    return counts;
+  }, [proposals]);
 
   const todayIso = toLocalISODate(new Date());
 
@@ -759,6 +906,12 @@ const PublicDailyMetrics = () => {
               >
                 <Users className="h-4 w-4" /> Indicações
               </button>
+              <button
+                onClick={() => setView('proposals')}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${view === 'proposals' ? 'bg-white text-amber-700 shadow-sm dark:bg-slate-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}`}
+              >
+                <Briefcase className="h-4 w-4" /> Propostas
+              </button>
             </div>
           </div>
         </div>
@@ -769,7 +922,7 @@ const PublicDailyMetrics = () => {
           <div>
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               <CalendarDays className="h-4 w-4 text-brand-600" />
-              {view === 'form' ? 'Data dos resultados' : view === 'indications' ? 'Indicações registradas' : 'Período do dashboard'}
+              {view === 'form' ? 'Data dos resultados' : view === 'indications' ? 'Indicações registradas' : view === 'proposals' ? 'Propostas registradas' : 'Período do dashboard'}
             </div>
             {view === 'dashboard' && <p className="mt-1 text-xs text-slate-500">Visualizando {periodLabel}</p>}
           </div>
@@ -829,7 +982,7 @@ const PublicDailyMetrics = () => {
           </div>
         </div>
 
-        {consultants.length === 0 || (view !== 'indications' && metrics.length === 0) ? (
+        {consultants.length === 0 || (view !== 'indications' && view !== 'proposals' && metrics.length === 0) ? (
           <Card>
             <CardContent className="py-16 text-center">
               <BarChart3 className="mx-auto mb-4 h-12 w-12 text-slate-300" />
@@ -1226,6 +1379,158 @@ const PublicDailyMetrics = () => {
             </CardContent>
           </Card>
           )
+        ) : view === 'proposals' ? (
+          !isManager && !lockedConsultant ? (
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <div className="rounded-lg bg-amber-100 p-2 text-amber-600 dark:bg-amber-950 dark:text-amber-300"><Lock className="h-5 w-5" /></div>
+                  Propostas protegidas
+                </CardTitle>
+                <CardDescription>O código de acesso é formado pelos 3 primeiros dígitos do seu CPF (sem pontos). Digite e veja apenas as suas propostas.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mx-auto flex max-w-md flex-col gap-3">
+                  <Input
+                    value={accessCode}
+                    onChange={event => { setAccessCode(event.target.value); setAccessError(false); }}
+                    onKeyDown={event => event.key === 'Enter' && handleAccess()}
+                    placeholder="3 primeiros dígitos do CPF"
+                    className="h-11 text-center font-mono uppercase"
+                  />
+                  {accessError && <p className="text-sm text-red-500">Código inválido. Confira os 3 primeiros dígitos do seu CPF ou peça ajuda ao gestor.</p>}
+                  <Button onClick={handleAccess} className="h-11 bg-amber-600 hover:bg-amber-700 text-white">
+                    <Lock className="mr-2 h-4 w-4" /> Ver minhas propostas
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-lg bg-amber-100 p-2 text-amber-600 dark:bg-amber-950 dark:text-amber-300"><Briefcase className="h-5 w-5" /></div>
+                <div>
+                  <CardTitle className="text-lg">Propostas registradas</CardTitle>
+                  <CardDescription>{lockedConsultant ? 'Somente as suas propostas aparecem abaixo.' : 'Registre a proposta, o que foi conversado e o dia do retorno.'}</CardDescription>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {lockedConsultant ? (
+                  <>
+                    <span className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-amber-100 px-3 text-sm font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                      <UserRound className="h-4 w-4" /> {consultants.find(consultant => consultant.id === lockedConsultant)?.name}
+                    </span>
+                    <Button variant="outline" className="h-10" onClick={handleLockout}>Sair</Button>
+                    <Button onClick={openProposalModal} className="h-10 bg-amber-600 hover:bg-amber-700 text-white">
+                      <Plus className="mr-2 h-4 w-4" /> Registrar proposta
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Select value={proposalsFilter} onValueChange={setProposalsFilter}>
+                      <SelectTrigger className="h-10 gap-2 w-full sm:w-auto">
+                        <SelectValue placeholder="Todos os consultores" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos os consultores</SelectItem>
+                        {consultants.map(consultant => (
+                          <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={openProposalModal} className="h-10 bg-amber-600 hover:bg-amber-700 text-white">
+                      <Plus className="mr-2 h-4 w-4" /> Registrar proposta
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                {lockedConsultant ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    Suas propostas: {consultantProposalCounts.get(lockedConsultant) || 0}
+                  </span>
+                ) : (
+                  <>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      Total: {proposals.length} proposta{proposals.length === 1 ? '' : 's'}
+                    </span>
+                    {consultants
+                      .filter(consultant => (consultantProposalCounts.get(consultant.id) || 0) > 0)
+                      .map(consultant => (
+                        <span key={consultant.id} className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                          {consultant.name}: {consultantProposalCounts.get(consultant.id)}
+                        </span>
+                      ))}
+                  </>
+                )}
+              </div>
+
+              {filteredProposals.length === 0 ? (
+                <div className="py-14 text-center">
+                  <Briefcase className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+                  <h3 className="text-base font-semibold">
+                    {proposals.length === 0 ? 'Nenhuma proposta registrada ainda' : 'Nenhuma proposta para este filtro'}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">Toque em "Registrar proposta" para adicionar o nome, o que foi conversado e o dia do retorno.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-slate-500 dark:border-slate-800">
+                        <th className="pb-3 pr-4 font-semibold">Proposta</th>
+                        <th className="px-4 pb-3 font-semibold">O que foi conversado</th>
+                        <th className="px-4 pb-3 font-semibold">Retorno</th>
+                        <th className="px-4 pb-3 font-semibold">Status</th>
+                        <th className="px-4 pb-3 font-semibold">Consultor</th>
+                        <th className="px-4 pb-3 font-semibold">Dia</th>
+                        <th className="pb-3 pl-4 text-right font-semibold">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProposals.map(item => {
+                        const isOverdue = item.status === 'Ficou pra mais frente' && item.return_date && item.return_date < todayIso;
+                        return (
+                          <tr key={item.id} className="border-b transition-colors hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                            <td className="py-3 pr-4 font-medium">{item.name}</td>
+                            <td className="px-4 py-3">
+                              <span title={item.description || ''} className="block max-w-[260px] truncate text-slate-500 dark:text-slate-400">
+                                {item.description || '—'}
+                              </span>
+                            </td>
+                            <td className={`px-4 py-3 whitespace-nowrap ${isOverdue ? 'font-semibold text-red-500 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                              {item.return_date ? formatDayLabel(item.return_date, true) : '—'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${proposalStatusBadge(item.status)}`}>
+                                {item.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">{consultants.find(consultant => consultant.id === item.consultant_id)?.name || '—'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">{formatDayLabel(item.entry_date, true)}</td>
+                            <td className="py-3 pl-4">
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => startEditProposal(item)} title="Editar proposta">
+                                  <Edit3 className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveProposal(item)} className="text-red-500 hover:text-red-600" title="Remover proposta">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          )
         ) : (
           <div className="space-y-6">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-violet-600 px-8 py-8 text-white shadow-xl shadow-brand-600/20">
@@ -1494,6 +1799,90 @@ const PublicDailyMetrics = () => {
             <Button onClick={handleRegisterIndication} disabled={isSavingIndication} className="bg-indigo-600 hover:bg-indigo-700 text-white">
               {isSavingIndication ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : editingIndicationId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
               {isSavingIndication ? 'Salvando...' : editingIndicationId ? 'Salvar' : 'Registrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isProposalModalOpen} onOpenChange={setIsProposalModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingProposalId ? 'Editar proposta' : 'Registrar proposta'}</DialogTitle>
+            <DialogDescription>
+              {editingProposalId
+                ? `Atualize a proposta registrada (dia ${formatDayLabel(selectedDate, true)}).`
+                : `Nome, o que foi conversado, o dia do retorno e o status. Fica vinculado ao dia ${formatDayLabel(selectedDate, true)}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Consultor que registrou</Label>
+              {editingProposalId ? (
+                <Input value={consultants.find(consultant => consultant.id === proposalConsultantId)?.name || '—'} readOnly className="h-10 bg-slate-100 dark:bg-slate-800" />
+              ) : (
+                <Select value={proposalConsultantId} onValueChange={setProposalConsultantId}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Selecione o consultor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {consultants.map(consultant => (
+                      <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="proposal-name">Nome da proposta *</Label>
+              <Input
+                id="proposal-name"
+                value={proposalName}
+                onChange={event => setProposalName(event.target.value)}
+                placeholder="Nome do cliente ou da proposta"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="proposal-description">O que foi conversado</Label>
+              <Textarea
+                id="proposal-description"
+                value={proposalDescription}
+                onChange={event => setProposalDescription(event.target.value)}
+                placeholder="Descreva o que foi conversado na ligação/reunião"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="proposal-return">Dia do retorno</Label>
+              <Input
+                id="proposal-return"
+                type="date"
+                value={proposalReturnDate}
+                onChange={event => setProposalReturnDate(event.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {PROPOSAL_STATUSES.map(status => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setProposalStatus(status)}
+                    className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${proposalStatusButton(status, proposalStatus === status)}`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button variant="outline" onClick={() => setIsProposalModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleRegisterProposal} disabled={isSavingProposal} className="bg-amber-600 hover:bg-amber-700 text-white">
+              {isSavingProposal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : editingProposalId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+              {isSavingProposal ? 'Salvando...' : editingProposalId ? 'Salvar' : 'Registrar'}
             </Button>
           </DialogFooter>
         </DialogContent>
