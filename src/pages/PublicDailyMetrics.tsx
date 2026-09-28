@@ -811,11 +811,16 @@ const PublicDailyMetrics = () => {
     }
 
     setIsSaving(true);
+    const proposalsSum = proposalsMetric
+      ? proposalRows.reduce((acc, row) => acc + (Number(row.value) || 0), 0)
+      : null;
     const payload = metrics.map(metric => ({
       consultant_id: selectedConsultantId,
       metric_config_id: metric.id,
       entry_date: selectedDate,
-      value: parseInputValue(values[metric.id] || '0', metric.type),
+      value: proposalsMetric && metric.id === proposalsMetric.id
+        ? Math.round((proposalsSum || 0) * 100)
+        : parseInputValue(values[metric.id] || '0', metric.type),
       updated_at: new Date().toISOString(),
     }));
 
@@ -1203,11 +1208,11 @@ const PublicDailyMetrics = () => {
                   const isIndicationStep = isIndicationsMetric(metric);
                   return (
                     <div className="space-y-2">
-                      <Label htmlFor={metric.id}>{metric.label} *</Label>
-                      <div className="relative">
+                      <Label htmlFor={metric.id}>{metric.label}</Label>
+                      <div className="relative" style={{ display: isProposalsMetric(metric) ? 'none' : 'block' }}>
                         <Input
                           id={metric.id}
-                          autoFocus
+                          autoFocus={!(proposalsMetric && isProposalsMetric(metric))}
                           type={metric.type === 'currency' ? 'text' : 'number'}
                           min={metric.type === 'currency' ? undefined : '0'}
                           step={metric.type === 'currency' ? undefined : '1'}
@@ -1287,7 +1292,7 @@ const PublicDailyMetrics = () => {
                             <Briefcase className="h-4 w-4" /> Nome dos clientes desta proposta
                           </p>
                           <p className="mb-3 text-xs text-slate-500">
-                            Registre o nome e o valor (em R$) de cada proposta. O total da etapa é somado automaticamente.
+                            Registre o nome e o valor (em R$) de cada cliente. O total (soma) é calculado automaticamente e aparece na tela de Propostas.
                           </p>
                           <div className="space-y-2">
                             {proposalRows.map((row, index) => (
