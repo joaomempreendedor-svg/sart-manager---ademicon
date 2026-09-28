@@ -198,29 +198,66 @@ const formatReais = (value: string | number) => {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-const formatLiveReais = (value: string | number) => {
-  const cleaned = String(value ?? '').replace(/[^\d.]/g, '');
-  if (!/\d/.test(cleaned)) return '';
-  const dotIdx = cleaned.indexOf('.');
-  const intDigits = (dotIdx >= 0 ? cleaned.slice(0, dotIdx) : cleaned).replace(/^0+(?=\d)/, '') || '0';
-  const frac = dotIdx >= 0 ? cleaned.slice(dotIdx + 1).replace(/\D/g, '').slice(0, 2) : '';
-  const grouped = intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `${grouped}${frac ? `,${frac}` : ''}`;
-};
-
 const toLocalISODate = (date: Date) => {
   const offset = date.getTimezoneOffset();
   return new Date(date.getTime() - offset * 60_000).toISOString().split('T')[0];
 };
 
+const CurrencyInput = ({
+  value,
+  onChange,
+  placeholder = 'R$ 0,00',
+  className,
+  inputRef,
+  onEnter,
+  id,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (canonical: string) => void;
+  placeholder?: string;
+  className?: string;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  onEnter?: () => void;
+  id?: string;
+  autoFocus?: boolean;
+}) => {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (draft !== null && plainReais(draft) !== value) setDraft(null);
+  }, [value, draft]);
+
+  return (
+    <Input
+      id={id}
+      autoFocus={autoFocus}
+      ref={inputRef}
+      type="text"
+      inputMode="decimal"
+      value={draft !== null ? draft : value ? `R$ ${formatReais(value)}` : ''}
+      placeholder={placeholder}
+      onFocus={() => setDraft(value || '')}
+      onChange={event => {
+        setDraft(event.target.value);
+        onChange(plainReais(event.target.value));
+      }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={event => { if (event.key === 'Enter' && onEnter) onEnter(); }}
+      className={className}
+    />
+  );
+};
+
+const toReaisNumber = (str: string | number) => {
+  const s = String(str ?? '').trim();
+  if (!s || !/\d/.test(s)) return 0;
+  const n = Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
+  return Number.isFinite(n) ? n : 0;
+};
+
 const ProposalValueInput = ({ value, onChange, className }: { value: string; onChange: (reais: string) => void; className?: string }) => (
-  <Input
-    value={value.trim() ? `R$ ${formatLiveReais(value)}` : ''}
-    onChange={event => onChange(plainReais(event.target.value))}
-    placeholder="R$ 0,00"
-    inputMode="decimal"
-    className={className}
-  />
+  <CurrencyInput value={value} onChange={onChange} placeholder="R$ 0,00" className={className} />
 );
 
 const shiftDays = (isoDate: string, days: number) => {
@@ -654,10 +691,16 @@ const PublicDailyMetrics = () => {
     await loadProposals();
   };
 
+  const valuesPreloadKeyRef = useRef('');
+
   useEffect(() => {
+    if (isLoading || metrics.length === 0) return;
+    const key = `${selectedConsultantId}|${selectedDate}`;
+    if (valuesPreloadKeyRef.current === key) return;
+    valuesPreloadKeyRef.current = key;
     const existingValues: Record<string, string> = {};
     metrics.forEach(metric => {
-      const entry = entries.find(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id);
+      const entry = entries.find(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id && item.entry_date === selectedDate);
       if (!entry) {
         existingValues[metric.id] = '';
       } else {
@@ -665,7 +708,7 @@ const PublicDailyMetrics = () => {
       }
     });
     setValues(existingValues);
-  }, [selectedConsultantId, metrics, entries]);
+  }, [selectedConsultantId, selectedDate, metrics, entries, isLoading]);
 
   const indicationsMetric = metrics.find(isIndicationsMetric);
   const isOnIndicationsStep = step >= 1 && step <= metrics.length && Boolean(metrics[step - 1] && isIndicationsMetric(metrics[step - 1]));
@@ -875,8 +918,8 @@ const PublicDailyMetrics = () => {
     if (field === 'value' && proposalsMetric) {
       const hasValue = next.some(row => row.value.trim() !== '');
       if (hasValue) {
-        const sum = next.reduce((acc, row) => acc + (Number(row.value) || 0), 0);
-        setValues(prev => ({ ...prev, [proposalsMetric.id]: sum > 0 ? String(sum) : '0' }));
+        const sum = next.reduce((acc, row) => acc + toReaisNumber(row.value), 0);
+        setValues(prev => ({ ...prev, [proposalsMetric.id]: String(sum) }));
       }
     }
   };
@@ -891,11 +934,15 @@ const PublicDailyMetrics = () => {
     if (proposalsMetric) {
       const hasValue = next.some(row => row.value.trim() !== '');
       if (hasValue) {
-        const sum = next.reduce((acc, row) => acc + (Number(row.value) || 0), 0);
-        setValues(prev => ({ ...prev, [proposalsMetric.id]: sum > 0 ? String(sum) : '0' }));
+        const sum = next.reduce((acc, row) => acc + toReaisNumber(row.value), 0);
+        setValues(prev => ({ ...prev, [proposalsMetric.id]: String(sum) }));
       }
     }
   };
+
+  const proposalRowsTotalCents = Math.round(
+    proposalRows.reduce((acc, row) => acc + toReaisNumber(row.value), 0) * 100
+  );
 
   const handleNoProposals = async () => {
     if (!proposalsMetric || !selectedConsultantId) {
@@ -1053,7 +1100,7 @@ const PublicDailyMetrics = () => {
 
     setIsSaving(true);
     const proposalsSum = proposalsMetric
-      ? proposalRows.reduce((acc, row) => acc + (Number(row.value) || 0), 0)
+      ? proposalRows.reduce((acc, row) => acc + toReaisNumber(row.value), 0)
       : null;
     const payload = metrics.map(metric => ({
       consultant_id: selectedConsultantId,
@@ -1456,34 +1503,33 @@ const PublicDailyMetrics = () => {
                     <div className="space-y-2">
                       <Label htmlFor={metric.id}>{metric.label}</Label>
                       <div className="relative" style={{ display: isProposalsMetric(metric) ? 'none' : 'block' }}>
-                        <Input
-                          id={metric.id}
-                          autoFocus={!(proposalsMetric && isProposalsMetric(metric))}
-                          type={metric.type === 'currency' ? 'text' : 'number'}
-                          min={metric.type === 'currency' ? undefined : '0'}
-                          step={metric.type === 'currency' ? undefined : '1'}
-                          inputMode={metric.type === 'currency' ? 'decimal' : 'numeric'}
-                          value={isIndicationStep
-                            ? (values[metric.id] || '')
-                            : metric.type === 'currency'
-                              ? ((document.activeElement === currencyInputRef.current)
-                                  ? (values[metric.id] ? `R$ ${formatLiveReais(values[metric.id])}` : 'R$ ')
-                                  : (values[metric.id] ? `R$ ${formatReais(values[metric.id])}` : ''))
-                              : (values[metric.id] || '')}
-                          onChange={event => isIndicationStep
-                            ? handleIndicationsCountChange(metric.id, event.target.value)
-                            : setValues(prev => ({ ...prev, [metric.id]: metric.type === 'currency' ? plainReais(event.target.value) : event.target.value }))}
-                          ref={metric.type === 'currency' ? currencyInputRef : undefined}
-                          onFocus={event => {
-                            requestAnimationFrame(() => {
-                              const el = event.currentTarget;
-                              el.setSelectionRange(el.value.length, el.value.length);
-                            });
-                          }}
-                          onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
-                          placeholder={metric.type === 'currency' ? 'R$ 0,00' : '0'}
-                          className="h-12 text-lg"
-                        />
+                        {metric.type === 'currency' && !isIndicationStep ? (
+                          <CurrencyInput
+                            id={metric.id}
+                            value={values[metric.id] || ''}
+                            onChange={canonical => setValues(prev => ({ ...prev, [metric.id]: canonical }))}
+                            inputRef={currencyInputRef}
+                            onEnter={goNext}
+                            placeholder="R$ 0,00"
+                            className="h-12 text-lg"
+                          />
+                        ) : (
+                          <Input
+                            id={metric.id}
+                            autoFocus={!(proposalsMetric && isProposalsMetric(metric))}
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputMode="numeric"
+                            value={values[metric.id] || ''}
+                            onChange={event => isIndicationStep
+                              ? handleIndicationsCountChange(metric.id, event.target.value)
+                              : setValues(prev => ({ ...prev, [metric.id]: event.target.value }))}
+                            onKeyDown={event => { if (event.key === 'Enter') goNext(); }}
+                            placeholder="0"
+                            className="h-12 text-lg"
+                          />
+                        )}
                       </div>
                       {metric.target_value > 0 && (
                         <p className="text-xs text-slate-500">Meta diária da equipe: {formatValue(metric.target_value, metric.type)}</p>
@@ -1596,7 +1642,11 @@ const PublicDailyMetrics = () => {
                       {metrics.map(metric => (
                         <div key={metric.id} className="flex items-center justify-between border-b px-4 py-3 last:border-0 dark:border-slate-700">
                           <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{metric.label}</span>
-                          <span className="text-sm font-bold">{values[metric.id] ? formatValue(parseInputValue(values[metric.id], metric.type), metric.type) : '—'}</span>
+                          <span className="text-sm font-bold">
+                            {proposalsMetric && metric.id === proposalsMetric.id
+                              ? formatValue(proposalRowsTotalCents, metric.type)
+                              : values[metric.id] ? formatValue(parseInputValue(values[metric.id], metric.type), metric.type) : '—'}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -2368,7 +2418,7 @@ const PublicDailyMetrics = () => {
               <div className="flex items-center justify-between gap-2">
                 <Label>Clientes e valores</Label>
                 <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                  Total do dia: {formatValue(Math.round(proposalRows.reduce((acc, row) => acc + (Number(row.value) || 0), 0) * 100), 'currency')}
+                  Total do dia: {formatValue(Math.round(proposalRows.reduce((acc, row) => acc + toReaisNumber(row.value), 0) * 100), 'currency')}
                 </span>
               </div>
               <div className="space-y-2">
