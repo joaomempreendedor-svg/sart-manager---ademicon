@@ -309,6 +309,7 @@ const PublicDailyMetrics = () => {
   const [managerPasswordError, setManagerPasswordError] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ type: 'indication' | 'proposal'; item: PublicMetricIndication | PublicMetricProposal } | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [zeroingTarget, setZeroingTarget] = useState<'proposal' | 'indication' | null>(null);
   const currencyInputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -896,14 +897,60 @@ const PublicDailyMetrics = () => {
     }
   };
 
-  const handleNoProposals = () => {
+  const handleNoProposals = async () => {
+    if (!proposalsMetric || !selectedConsultantId) {
+      toast.error('Selecione quem está preenchendo.');
+      return;
+    }
+    setZeroingTarget('proposal');
+    await supabase
+      .from('public_metric_entries')
+      .upsert([{
+        consultant_id: selectedConsultantId,
+        metric_config_id: proposalsMetric.id,
+        entry_date: selectedDate,
+        value: 0,
+        updated_at: new Date().toISOString(),
+      }], { onConflict: 'consultant_id,metric_config_id,entry_date' });
+    await supabase
+      .from('public_metric_proposals')
+      .delete()
+      .eq('consultant_id', selectedConsultantId)
+      .eq('entry_date', selectedDate);
     setProposalRows([]);
-    if (proposalsMetric) setValues(prev => ({ ...prev, [proposalsMetric.id]: '0' }));
+    setValues(prev => ({ ...prev, [proposalsMetric.id]: '0' }));
+    setZeroingTarget(null);
+    toast.success('Registrado: nenhuma proposta neste dia.');
+    await loadProposals();
+    await loadPublicData();
   };
 
-  const handleNoIndications = () => {
+  const handleNoIndications = async () => {
+    if (!indicationsMetric || !selectedConsultantId) {
+      toast.error('Selecione quem está preenchendo.');
+      return;
+    }
+    setZeroingTarget('indication');
+    await supabase
+      .from('public_metric_entries')
+      .upsert([{
+        consultant_id: selectedConsultantId,
+        metric_config_id: indicationsMetric.id,
+        entry_date: selectedDate,
+        value: 0,
+        updated_at: new Date().toISOString(),
+      }], { onConflict: 'consultant_id,metric_config_id,entry_date' });
+    await supabase
+      .from('public_metric_indications')
+      .delete()
+      .eq('consultant_id', selectedConsultantId)
+      .eq('entry_date', selectedDate);
     setIndicationRows([]);
-    if (indicationsMetric) setValues(prev => ({ ...prev, [indicationsMetric.id]: '0' }));
+    setValues(prev => ({ ...prev, [indicationsMetric.id]: '0' }));
+    setZeroingTarget(null);
+    toast.success('Registrado: nenhuma indicação neste dia.');
+    await loadIndications();
+    await loadPublicData();
   };
 
   const openProposalForm = (consultantId?: string, date?: string) => {
@@ -919,7 +966,7 @@ const PublicDailyMetrics = () => {
     setIsProposalFormOpen(true);
   };
 
-  const handleSaveProposalForm = async () => {
+  const handleSaveProposalForm = async (rowsOverride?: { name: string; value: string }[]) => {
     if (!proposalsMetric) {
       toast.error('A métrica de propostas não está configurada.');
       return;
@@ -928,7 +975,7 @@ const PublicDailyMetrics = () => {
       toast.error('Selecione o consultor.');
       return;
     }
-    const rowsToSave = proposalRows
+    const rowsToSave = (rowsOverride ?? proposalRows)
       .map(row => ({
         name: row.name.trim(),
         value: row.value.trim() ? parseInputValue(row.value, 'currency') : null,
@@ -988,7 +1035,7 @@ const PublicDailyMetrics = () => {
     }
 
     setIsSavingProposalForm(false);
-    toast.success('Propostas do dia salvas!');
+    toast.success(rowsToSave.length === 0 ? 'Registrado: nenhuma proposta neste dia.' : 'Propostas do dia salvas!');
     setIsProposalFormOpen(false);
     await loadProposals();
     await loadPublicData();
@@ -1450,9 +1497,10 @@ const PublicDailyMetrics = () => {
                     Quando informar a quantidade acima, abra os campos para registrar nome e telefone (opcional).
                   </p>
                   <div className="mb-3">
-                    <Button variant="outline" size="sm" type="button" onClick={handleNoIndications} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                      <X className="mr-1 h-3.5 w-3.5" /> Não tive indicação hoje
-                    </Button>
+<Button variant="outline" size="sm" type="button" onClick={handleNoIndications} disabled={zeroingTarget === 'indication'} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    {zeroingTarget === 'indication' ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <X className="mr-1 h-3.5 w-3.5" />}
+                    Não tive indicação hoje
+                  </Button>
                   </div>
                           <div className="space-y-2">
                             {indicationRows.map((row, index) => (
@@ -1499,9 +1547,10 @@ const PublicDailyMetrics = () => {
                     Registre o nome e o valor (em R$) de cada cliente. O total (soma) é calculado automaticamente e aparece na tela de Propostas.
                   </p>
                   <div className="mb-3">
-                    <Button variant="outline" size="sm" type="button" onClick={handleNoProposals} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
-                      <X className="mr-1 h-3.5 w-3.5" /> Não teve proposta hoje
-                    </Button>
+<Button variant="outline" size="sm" type="button" onClick={handleNoProposals} disabled={zeroingTarget === 'proposal'} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    {zeroingTarget === 'proposal' ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <X className="mr-1 h-3.5 w-3.5" />}
+                    Não teve proposta hoje
+                  </Button>
                   </div>
                           <div className="space-y-2">
                             {proposalRows.map((row, index) => (
@@ -2358,8 +2407,8 @@ const PublicDailyMetrics = () => {
                     <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar cliente
                   </Button>
                 )}
-                <Button variant="outline" size="sm" type="button" onClick={handleNoProposals} className="border-red-200 text-red-600 hover:text-red-700 dark:border-red-900 dark:text-red-400">
-                  <X className="mr-1 h-3.5 w-3.5" /> Não teve proposta neste dia
+                <Button variant="outline" size="sm" type="button" onClick={() => handleSaveProposalForm([])} disabled={isSavingProposalForm} className="border-red-200 text-red-600 hover:text-red-700 dark:border-red-900 dark:text-red-400">
+                  {isSavingProposalForm ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <X className="mr-1 h-3.5 w-3.5" />} Não teve proposta neste dia
                 </Button>
               </div>
             </div>
@@ -2368,7 +2417,7 @@ const PublicDailyMetrics = () => {
             <Button variant="outline" onClick={() => setIsProposalFormOpen(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
               Cancelar
             </Button>
-            <Button onClick={handleSaveProposalForm} disabled={isSavingProposalForm} className="bg-amber-600 hover:bg-amber-700 text-white">
+            <Button onClick={() => handleSaveProposalForm()} disabled={isSavingProposalForm} className="bg-amber-600 hover:bg-amber-700 text-white">
               {isSavingProposalForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Salvar
             </Button>
