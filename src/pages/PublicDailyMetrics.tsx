@@ -75,6 +75,7 @@ interface PublicMetricProposal {
   consultant_id: string;
   name: string;
   description: string | null;
+  value: number | null;
   return_date: string | null;
   status: ProposalStatus;
   entry_date: string;
@@ -267,13 +268,14 @@ const PublicDailyMetrics = () => {
   const [isSavingIndication, setIsSavingIndication] = useState(false);
   const [indicationsFilter, setIndicationsFilter] = useState('');
   const [indicationRows, setIndicationRows] = useState<{ name: string; phone: string }[]>([]);
-  const [proposalRows, setProposalRows] = useState<{ name: string }[]>([]);
+  const [proposalRows, setProposalRows] = useState<{ name: string; value: string }[]>([]);
   const [editingIndicationId, setEditingIndicationId] = useState<string | null>(null);
   const [proposals, setProposals] = useState<PublicMetricProposal[]>([]);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [proposalConsultantId, setProposalConsultantId] = useState('');
   const [proposalName, setProposalName] = useState('');
   const [proposalDescription, setProposalDescription] = useState('');
+  const [proposalValue, setProposalValue] = useState('');
   const [proposalReturnDate, setProposalReturnDate] = useState('');
   const [proposalStatus, setProposalStatus] = useState<ProposalStatus>('Ficou pra mais frente');
   const [isSavingProposal, setIsSavingProposal] = useState(false);
@@ -499,6 +501,7 @@ const PublicDailyMetrics = () => {
     setProposalConsultantId(lockedConsultant || selectedConsultantId);
     setProposalName('');
     setProposalDescription('');
+    setProposalValue('');
     setProposalReturnDate('');
     setProposalStatus('Ficou pra mais frente');
     setIsProposalModalOpen(true);
@@ -509,6 +512,7 @@ const PublicDailyMetrics = () => {
     setProposalConsultantId(item.consultant_id);
     setProposalName(item.name);
     setProposalDescription(item.description || '');
+    setProposalValue(item.value != null ? String(Number(item.value) / 100) : '');
     setProposalReturnDate(item.return_date || '');
     setProposalStatus(item.status);
     setIsProposalModalOpen(true);
@@ -543,6 +547,7 @@ const PublicDailyMetrics = () => {
       consultant_id: proposalConsultantId,
       name: proposalName.trim(),
       description: proposalDescription.trim() || null,
+      value: proposalValue.trim() ? parseInputValue(proposalValue, 'currency') : null,
       return_date: proposalReturnDate || null,
       status: proposalStatus,
     };
@@ -611,7 +616,7 @@ const PublicDailyMetrics = () => {
     setProposalRows(
       proposals
         .filter(item => item.consultant_id === selectedConsultantId && item.entry_date === selectedDate)
-        .map(item => ({ name: item.name }))
+        .map(item => ({ name: item.name, value: item.value != null ? String(Number(item.value) / 100) : '' }))
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnProposalsStep, selectedConsultantId, selectedDate]);
@@ -766,16 +771,33 @@ const PublicDailyMetrics = () => {
     }
   };
 
-  const setProposalRow = (index: number, value: string) => {
-    setProposalRows(prev => prev.map((row, i) => (i === index ? { name: value } : row)));
+  const setProposalRow = (index: number, field: 'name' | 'value', value: string) => {
+    const cleanValue = field === 'value' ? plainReais(value) : value;
+    const next = proposalRows.map((row, i) => (i === index ? { ...row, [field]: cleanValue } : row));
+    setProposalRows(next);
+    if (field === 'value' && proposalsMetric) {
+      const hasValue = next.some(row => row.value.trim() !== '');
+      if (hasValue) {
+        const sum = next.reduce((acc, row) => acc + (Number(row.value) || 0), 0);
+        setValues(prev => ({ ...prev, [proposalsMetric.id]: sum > 0 ? String(sum) : '0' }));
+      }
+    }
   };
 
   const addProposalRow = () => {
-    setProposalRows(prev => [...prev, { name: '' }]);
+    setProposalRows(prev => [...prev, { name: '', value: '' }]);
   };
 
   const removeProposalRow = (index: number) => {
-    setProposalRows(prev => prev.filter((_, i) => i !== index));
+    const next = proposalRows.filter((_, i) => i !== index);
+    setProposalRows(next);
+    if (proposalsMetric) {
+      const hasValue = next.some(row => row.value.trim() !== '');
+      if (hasValue) {
+        const sum = next.reduce((acc, row) => acc + (Number(row.value) || 0), 0);
+        setValues(prev => ({ ...prev, [proposalsMetric.id]: sum > 0 ? String(sum) : '0' }));
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -850,7 +872,7 @@ const PublicDailyMetrics = () => {
 
       if (!proposalDeleteError) {
         const proposalRowsToSave = proposalRows
-          .map(row => ({ name: row.name.trim() }))
+          .map(row => ({ name: row.name.trim(), value: row.value.trim() ? parseInputValue(row.value, 'currency') : null }))
           .filter(row => row.name !== '');
 
         if (proposalRowsToSave.length > 0) {
@@ -860,6 +882,7 @@ const PublicDailyMetrics = () => {
               user_id: ownerId,
               consultant_id: selectedConsultantId,
               name: row.name,
+              value: row.value,
               status: 'Ficou pra mais frente',
               entry_date: selectedDate,
             })));
@@ -1264,16 +1287,23 @@ const PublicDailyMetrics = () => {
                             <Briefcase className="h-4 w-4" /> Nome dos clientes desta proposta
                           </p>
                           <p className="mb-3 text-xs text-slate-500">
-                            Registre o nome do cliente de cada proposta. O valor acima continua sendo o total de propostas do dia.
+                            Registre o nome e o valor (em R$) de cada proposta. O total da etapa é somado automaticamente.
                           </p>
                           <div className="space-y-2">
                             {proposalRows.map((row, index) => (
-                              <div key={index} className="flex items-center gap-2">
+                              <div key={index} className="flex flex-col gap-2 sm:flex-row">
                                 <Input
                                   value={row.name}
-                                  onChange={e => setProposalRow(index, e.target.value)}
+                                  onChange={e => setProposalRow(index, 'name', e.target.value)}
                                   placeholder={`Nome do ${index + 1}º cliente`}
                                   className="h-10 flex-1"
+                                />
+                                <Input
+                                  value={row.value}
+                                  onChange={e => setProposalRow(index, 'value', e.target.value)}
+                                  placeholder="R$ 0,00"
+                                  inputMode="decimal"
+                                  className="h-10 w-full sm:w-40 text-right"
                                 />
                                 <Button
                                   variant="ghost"
@@ -1565,6 +1595,11 @@ const PublicDailyMetrics = () => {
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                       Total: {proposals.length} proposta{proposals.length === 1 ? '' : 's'}
                     </span>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      Soma: {proposals.some(item => item.value != null)
+                        ? formatValue(proposals.reduce((acc, item) => acc + (Number(item.value) || 0), 0), 'currency')
+                        : '—'}
+                    </span>
                     {consultants
                       .filter(consultant => (consultantProposalCounts.get(consultant.id) || 0) > 0)
                       .map(consultant => (
@@ -1590,6 +1625,7 @@ const PublicDailyMetrics = () => {
                     <thead>
                       <tr className="border-b text-left text-slate-500 dark:border-slate-800">
                         <th className="pb-3 pr-4 font-semibold">Proposta</th>
+                        <th className="px-4 pb-3 font-semibold">Valor</th>
                         <th className="px-4 pb-3 font-semibold">O que foi conversado</th>
                         <th className="px-4 pb-3 font-semibold">Retorno</th>
                         <th className="px-4 pb-3 font-semibold">Status</th>
@@ -1603,7 +1639,10 @@ const PublicDailyMetrics = () => {
                         const isOverdue = item.status === 'Ficou pra mais frente' && item.return_date && item.return_date < todayIso;
                         return (
                           <tr key={item.id} className="border-b transition-colors hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50">
-                            <td className="py-3 pr-4 font-medium">{item.name}</td>
+<td className="py-3 pr-4 font-medium">{item.name}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {item.value != null ? <span className="font-semibold">{formatValue(Number(item.value), 'currency')}</span> : '—'}
+                            </td>
                             <td className="px-4 py-3">
                               <span title={item.description || ''} className="block max-w-[260px] truncate text-slate-500 dark:text-slate-400">
                                 {item.description || '—'}
@@ -1958,6 +1997,17 @@ const PublicDailyMetrics = () => {
                 onChange={event => setProposalDescription(event.target.value)}
                 placeholder="Descreva o que foi conversado na ligação/reunião"
                 rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="proposal-value">Valor da proposta (R$)</Label>
+              <Input
+                id="proposal-value"
+                value={proposalValue}
+                onChange={event => setProposalValue(plainReais(event.target.value))}
+                placeholder="R$ 0,00"
+                inputMode="decimal"
+                className="h-10"
               />
             </div>
             <div className="space-y-2">
