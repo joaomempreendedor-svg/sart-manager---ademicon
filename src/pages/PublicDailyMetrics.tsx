@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BarChart3, Briefcase, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Save, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, Briefcase, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Save, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -269,6 +269,10 @@ const PublicDailyMetrics = () => {
   const [indicationsFilter, setIndicationsFilter] = useState('');
   const [indicationRows, setIndicationRows] = useState<{ name: string; phone: string }[]>([]);
   const [proposalRows, setProposalRows] = useState<{ name: string; value: string }[]>([]);
+  const [isProposalFormOpen, setIsProposalFormOpen] = useState(false);
+  const [proposalFormConsultantId, setProposalFormConsultantId] = useState('');
+  const [proposalFormDate, setProposalFormDate] = useState('');
+  const [isSavingProposalForm, setIsSavingProposalForm] = useState(false);
   const [editingIndicationId, setEditingIndicationId] = useState<string | null>(null);
   const [proposals, setProposals] = useState<PublicMetricProposal[]>([]);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
@@ -798,6 +802,94 @@ const PublicDailyMetrics = () => {
         setValues(prev => ({ ...prev, [proposalsMetric.id]: sum > 0 ? String(sum) : '0' }));
       }
     }
+  };
+
+  const openProposalForm = (consultantId?: string, date?: string) => {
+    const targetConsultant = consultantId || (lockedConsultant || selectedConsultantId || consultants[0]?.id || '');
+    const targetDate = date || selectedDate;
+    setProposalFormConsultantId(targetConsultant);
+    setProposalFormDate(targetDate);
+    setProposalRows(
+      proposals
+        .filter(item => item.consultant_id === targetConsultant && item.entry_date === targetDate)
+        .map(item => ({ name: item.name, value: item.value != null ? String(Number(item.value) / 100) : '' }))
+    );
+    setIsProposalFormOpen(true);
+  };
+
+  const handleSaveProposalForm = async () => {
+    if (!proposalsMetric) {
+      toast.error('A métrica de propostas não está configurada.');
+      return;
+    }
+    if (!proposalFormConsultantId) {
+      toast.error('Selecione o consultor.');
+      return;
+    }
+    const rowsToSave = proposalRows
+      .map(row => ({
+        name: row.name.trim(),
+        value: row.value.trim() ? parseInputValue(row.value, 'currency') : null,
+      }))
+      .filter(row => row.name !== '');
+
+    setIsSavingProposalForm(true);
+    const totalCents = Math.round(rowsToSave.reduce((acc, row) => acc + (Number(row.value) || 0), 0));
+
+    const { error: entryError } = await supabase
+      .from('public_metric_entries')
+      .upsert([{
+        consultant_id: proposalFormConsultantId,
+        metric_config_id: proposalsMetric.id,
+        entry_date: proposalFormDate,
+        value: totalCents,
+        updated_at: new Date().toISOString(),
+      }], { onConflict: 'consultant_id,metric_config_id,entry_date' });
+
+    if (entryError) {
+      setIsSavingProposalForm(false);
+      toast.error('Não foi possível salvar o total do dia. Tente novamente.');
+      return;
+    }
+
+    const { error: deleteError } = await supabase
+      .from('public_metric_proposals')
+      .delete()
+      .eq('consultant_id', proposalFormConsultantId)
+      .eq('entry_date', proposalFormDate);
+
+    if (deleteError) {
+      setIsSavingProposalForm(false);
+      toast.error('Total salvo, mas houve erro ao atualizar as propostas do dia.');
+      await loadProposals();
+      return;
+    }
+
+    if (rowsToSave.length > 0) {
+      const { error: insertError } = await supabase
+        .from('public_metric_proposals')
+        .insert(rowsToSave.map(row => ({
+          user_id: ownerId,
+          consultant_id: proposalFormConsultantId,
+          name: row.name,
+          value: row.value,
+          status: 'Ficou pra mais frente' as ProposalStatus,
+          entry_date: proposalFormDate,
+        })));
+
+      if (insertError) {
+        setIsSavingProposalForm(false);
+        toast.error('Total salvo, mas houve erro ao registrar as propostas.');
+        await loadProposals();
+        return;
+      }
+    }
+
+    setIsSavingProposalForm(false);
+    toast.success('Propostas do dia salvas!');
+    setIsProposalFormOpen(false);
+    await loadProposals();
+    await loadPublicData();
   };
 
   const handleSave = async () => {
@@ -1565,6 +1657,9 @@ const PublicDailyMetrics = () => {
                       <UserRound className="h-4 w-4" /> {consultants.find(consultant => consultant.id === lockedConsultant)?.name}
                     </span>
                     <Button variant="outline" className="h-10" onClick={handleLockout}>Sair</Button>
+                    <Button onClick={() => openProposalForm()} className="h-10 bg-amber-600 hover:bg-amber-700 text-white">
+                      <ClipboardList className="mr-2 h-4 w-4" /> Abrir formulário
+                    </Button>
                     <Button onClick={openProposalModal} className="h-10 bg-amber-600 hover:bg-amber-700 text-white">
                       <Plus className="mr-2 h-4 w-4" /> Registrar proposta
                     </Button>
@@ -1582,6 +1677,9 @@ const PublicDailyMetrics = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    <Button onClick={() => openProposalForm()} className="h-10 bg-amber-600 hover:bg-amber-700 text-white">
+                      <ClipboardList className="mr-2 h-4 w-4" /> Abrir formulário
+                    </Button>
                     <Button onClick={openProposalModal} className="h-10 bg-amber-600 hover:bg-amber-700 text-white">
                       <Plus className="mr-2 h-4 w-4" /> Registrar proposta
                     </Button>
@@ -1642,7 +1740,10 @@ const PublicDailyMetrics = () => {
                   <h3 className="text-base font-semibold">
                     {proposals.length === 0 ? 'Nenhuma proposta registrada ainda' : 'Nenhuma proposta para este filtro'}
                   </h3>
-                  <p className="mt-1 text-sm text-slate-500">Toque em "Registrar proposta" para adicionar o nome, o que foi conversado e o dia do retorno.</p>
+                  <p className="mt-1 text-sm text-slate-500">Abra o formulário para adicionar nome e valor de cada cliente, ou toque em "Registrar proposta" para detalhar uma.</p>
+                  <Button onClick={() => openProposalForm()} className="mt-4 bg-amber-600 hover:bg-amber-700 text-white">
+                    <ClipboardList className="mr-2 h-4 w-4" /> Abrir formulário
+                  </Button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -1915,6 +2016,125 @@ const PublicDailyMetrics = () => {
         entries={entries}
         onSave={handleSaveEditedEntries}
       />
+
+      <Dialog open={isProposalFormOpen} onOpenChange={setIsProposalFormOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Formulário de propostas</DialogTitle>
+            <DialogDescription>
+              Coloque o nome e o valor de cada cliente. O total do dia é a soma dos valores.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Consultor</Label>
+                {lockedConsultant ? (
+                  <Input
+                    value={consultants.find(consultant => consultant.id === proposalFormConsultantId)?.name || '—'}
+                    readOnly
+                    className="h-10 bg-slate-100 dark:bg-slate-800"
+                  />
+                ) : (
+                  <Select value={proposalFormConsultantId} onValueChange={consultantId => {
+                    setProposalFormConsultantId(consultantId);
+                    setProposalRows(
+                      proposals
+                        .filter(item => item.consultant_id === consultantId && item.entry_date === proposalFormDate)
+                        .map(item => ({ name: item.name, value: item.value != null ? String(Number(item.value) / 100) : '' }))
+                    );
+                  }}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Selecione o consultor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {consultants.map(consultant => (
+                        <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="proposal-form-date">Dia</Label>
+                <Input
+                  id="proposal-form-date"
+                  type="date"
+                  value={proposalFormDate}
+                  max={todayIso}
+                  onChange={event => {
+                    const nextDate = event.target.value;
+                    setProposalFormDate(nextDate);
+                    setProposalRows(
+                      proposals
+                        .filter(item => item.consultant_id === proposalFormConsultantId && item.entry_date === nextDate)
+                        .map(item => ({ name: item.name, value: item.value != null ? String(Number(item.value) / 100) : '' }))
+                    );
+                  }}
+                  className="h-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label>Clientes e valores</Label>
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                  Total do dia: {formatValue(Math.round(proposalRows.reduce((acc, row) => acc + (Number(row.value) || 0), 0) * 100), 'currency')}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {proposalRows.map((row, index) => (
+                  <div key={index} className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={row.name}
+                      onChange={e => setProposalRow(index, 'name', e.target.value)}
+                      placeholder={`Nome do ${index + 1}º cliente`}
+                      className="h-10 flex-1"
+                    />
+                    <Input
+                      value={row.value}
+                      onChange={e => setProposalRow(index, 'value', e.target.value)}
+                      placeholder="R$ 0,00"
+                      inputMode="decimal"
+                      className="h-10 w-full text-right sm:w-40"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      type="button"
+                      onClick={() => removeProposalRow(index)}
+                      className="text-red-500 hover:text-red-600"
+                      aria-label="Remover cliente"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {proposalRows.length === 0 && (
+                  <p className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-xs text-slate-500 dark:border-slate-700">
+                    Nenhum cliente ainda. Toque em "Adicionar cliente".
+                  </p>
+                )}
+                {proposalRows.length < 100 && (
+                  <Button variant="outline" size="sm" type="button" onClick={addProposalRow} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar cliente
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsProposalFormOpen(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveProposalForm} disabled={isSavingProposalForm} className="bg-amber-600 hover:bg-amber-700 text-white">
+              {isSavingProposalForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isIndicationModalOpen} onOpenChange={setIsIndicationModalOpen}>
         <DialogContent className="sm:max-w-md">
