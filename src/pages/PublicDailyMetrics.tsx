@@ -1585,20 +1585,40 @@ const PublicDailyMetrics = () => {
               </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5 sm:col-span-2 dark:border-amber-900 dark:from-amber-950/40 dark:to-orange-950/30">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                    Propostas do dia
+                  </p>
+                  <p className="mt-1 text-3xl font-bold text-amber-700 dark:text-amber-300">
+                    {(
+                      (() => {
+                        const rows = !isManager && lockedConsultant
+                          ? proposals.filter(item => item.consultant_id === lockedConsultant)
+                          : proposals;
+                        const total = rows.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+                        return total > 0 ? formatValue(total, 'currency') : 'R$ 0,00';
+                      })()
+                    )}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">Valor de propostas do dia (soma dos valores de cada cliente)</p>
+                </div>
+                <div className="flex flex-col justify-center rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Quantidade de propostas</p>
+                  <p className="mt-1 text-3xl font-bold">
+                    {(!isManager && lockedConsultant ? consultantProposalCounts.get(lockedConsultant) || 0 : proposals.length)}
+                  </p>
+                </div>
+              </div>
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 {!isManager && lockedConsultant ? (
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    Suas propostas: {consultantProposalCounts.get(lockedConsultant) || 0}
+                    Suas propostas
                   </span>
                 ) : (
                   <>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                       Total: {proposals.length} proposta{proposals.length === 1 ? '' : 's'}
-                    </span>
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                      Soma: {proposals.some(item => item.value != null)
-                        ? formatValue(proposals.reduce((acc, item) => acc + (Number(item.value) || 0), 0), 'currency')
-                        : '—'}
                     </span>
                     {consultants
                       .filter(consultant => (consultantProposalCounts.get(consultant.id) || 0) > 0)
