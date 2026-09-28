@@ -307,6 +307,8 @@ const PublicDailyMetrics = () => {
   const [managerSession, setManagerSession] = useState(false);
   const [managerPasswordInput, setManagerPasswordInput] = useState('');
   const [managerPasswordError, setManagerPasswordError] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<{ type: 'indication' | 'proposal'; item: PublicMetricIndication | PublicMetricProposal } | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
   const currencyInputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -512,13 +514,14 @@ const PublicDailyMetrics = () => {
   };
 
   const handleRemoveIndication = async (item: PublicMetricIndication) => {
-    if (!window.confirm(`Remover a indicação de ${item.name}?`)) return;
-    const { data, error } = await supabase
+    setIsRemoving(true);
+    const { error } = await supabase
       .from('public_metric_indications')
       .delete()
-      .eq('id', item.id)
-      .select('id');
-    if (error || !data || data.length === 0) {
+      .eq('id', item.id);
+    setIsRemoving(false);
+    setRemoveTarget(null);
+    if (error) {
       toast.error('Não foi possível remover a indicação. Tente novamente.');
       return;
     }
@@ -585,18 +588,28 @@ const PublicDailyMetrics = () => {
   };
 
   const handleRemoveProposal = async (item: PublicMetricProposal) => {
-    if (!window.confirm(`Remover a proposta de ${item.name}?`)) return;
-    const { data, error } = await supabase
+    setIsRemoving(true);
+    const { error } = await supabase
       .from('public_metric_proposals')
       .delete()
-      .eq('id', item.id)
-      .select('id');
-    if (error || !data || data.length === 0) {
+      .eq('id', item.id);
+    setIsRemoving(false);
+    setRemoveTarget(null);
+    if (error) {
       toast.error('Não foi possível remover a proposta. Tente novamente.');
       return;
     }
     toast.success('Proposta removida.');
     await loadProposals();
+  };
+
+  const confirmRemoveTarget = async () => {
+    if (!removeTarget) return;
+    if (removeTarget.type === 'indication') {
+      await handleRemoveIndication(removeTarget.item as PublicMetricIndication);
+    } else {
+      await handleRemoveProposal(removeTarget.item as PublicMetricProposal);
+    }
   };
 
   const handleRegisterProposal = async () => {
@@ -1753,7 +1766,7 @@ const PublicDailyMetrics = () => {
                               <Button variant="ghost" size="icon" onClick={() => startEditIndication(item)} title="Editar indicação">
                                 <Edit3 className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleRemoveIndication(item)} className="text-red-500 hover:text-red-600" title="Remover indicação">
+                              <Button variant="ghost" size="icon" onClick={() => setRemoveTarget({ type: 'indication', item })} className="text-red-500 hover:text-red-600" title="Remover indicação">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -1993,7 +2006,7 @@ const PublicDailyMetrics = () => {
                                 <Button variant="ghost" size="icon" onClick={() => startEditProposal(item)} title="Editar proposta">
                                   <Edit3 className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={() => handleRemoveProposal(item)} className="text-red-500 hover:text-red-600" title="Remover proposta">
+                                <Button variant="ghost" size="icon" onClick={() => setRemoveTarget({ type: 'proposal', item })} className="text-red-500 hover:text-red-600" title="Remover proposta">
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -2220,6 +2233,28 @@ const PublicDailyMetrics = () => {
         entries={entries}
         onSave={handleSaveEditedEntries}
       />
+
+      <Dialog open={Boolean(removeTarget)} onOpenChange={open => !open && setRemoveTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remover {removeTarget?.type === 'proposal' ? 'proposta' : 'indicação'}?</DialogTitle>
+            <DialogDescription>
+              {removeTarget?.type === 'proposal'
+                ? `A proposta de "${removeTarget.item.name}" será apagada.`
+                : `A indicação de "${removeTarget?.item.name}" será apagada.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoveTarget(null)} disabled={isRemoving} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+              Cancelar
+            </Button>
+            <Button onClick={confirmRemoveTarget} disabled={isRemoving} className="bg-red-600 hover:bg-red-700 text-white">
+              {isRemoving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              Remover
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isProposalFormOpen} onOpenChange={setIsProposalFormOpen}>
         <DialogContent className="sm:max-w-lg">
