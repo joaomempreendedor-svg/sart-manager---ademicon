@@ -294,8 +294,12 @@ const PublicDailyMetrics = () => {
   const [proposalStatus, setProposalStatus] = useState<ProposalStatus>('Ficou pra mais frente');
   const [isSavingProposal, setIsSavingProposal] = useState(false);
   const [proposalsFilter, setProposalsFilter] = useState('');
-  const [proposalsDateFilter, setProposalsDateFilter] = useState('');
+  const [proposalsDateFrom, setProposalsDateFrom] = useState('');
+  const [proposalsDateTo, setProposalsDateTo] = useState('');
   const [proposalsSearch, setProposalsSearch] = useState('');
+  const [indicationsDateFrom, setIndicationsDateFrom] = useState('');
+  const [indicationsDateTo, setIndicationsDateTo] = useState('');
+  const [indicationsSearch, setIndicationsSearch] = useState('');
   const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
   const [lockedConsultant, setLockedConsultant] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState('');
@@ -722,12 +726,20 @@ const PublicDailyMetrics = () => {
 
   const filteredIndications = useMemo(() => {
     const effectiveLock = isManager ? null : lockedConsultant;
-    const base = effectiveLock
+    let list = effectiveLock
       ? indications.filter(item => item.consultant_id === effectiveLock)
       : indications;
-    if (!indicationsFilter) return base;
-    return base.filter(item => item.consultant_id === indicationsFilter);
-  }, [indications, indicationsFilter, lockedConsultant, isManager]);
+    if (indicationsFilter) list = list.filter(item => item.consultant_id === indicationsFilter);
+    if (indicationsDateFrom) list = list.filter(item => item.entry_date >= indicationsDateFrom);
+    if (indicationsDateTo) list = list.filter(item => item.entry_date <= indicationsDateTo);
+    const q = indicationsSearch.trim().toLowerCase();
+    if (q) {
+      list = list.filter(item =>
+        (item.name || '').toLowerCase().includes(q) || (item.phone || '').includes(indicationsSearch.trim())
+      );
+    }
+    return list;
+  }, [indications, indicationsFilter, indicationsDateFrom, indicationsDateTo, indicationsSearch, lockedConsultant, isManager]);
 
   const consultantIndicationCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -742,7 +754,8 @@ const PublicDailyMetrics = () => {
       : proposals;
     let filtered = base;
     if (proposalsFilter) filtered = filtered.filter(item => item.consultant_id === proposalsFilter);
-    if (proposalsDateFilter) filtered = filtered.filter(item => item.entry_date === proposalsDateFilter);
+    if (proposalsDateFrom) filtered = filtered.filter(item => item.entry_date >= proposalsDateFrom);
+    if (proposalsDateTo) filtered = filtered.filter(item => item.entry_date <= proposalsDateTo);
     const q = proposalsSearch.trim().toLowerCase();
     if (q) {
       filtered = filtered.filter(item =>
@@ -750,7 +763,7 @@ const PublicDailyMetrics = () => {
       );
     }
     return filtered;
-  }, [proposals, proposalsFilter, proposalsDateFilter, proposalsSearch, lockedConsultant, isManager]);
+  }, [proposals, proposalsFilter, proposalsDateFrom, proposalsDateTo, proposalsSearch, lockedConsultant, isManager]);
 
   const consultantProposalCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -868,6 +881,16 @@ const PublicDailyMetrics = () => {
         setValues(prev => ({ ...prev, [proposalsMetric.id]: sum > 0 ? String(sum) : '0' }));
       }
     }
+  };
+
+  const handleNoProposals = () => {
+    setProposalRows([]);
+    if (proposalsMetric) setValues(prev => ({ ...prev, [proposalsMetric.id]: '0' }));
+  };
+
+  const handleNoIndications = () => {
+    setIndicationRows([]);
+    if (indicationsMetric) setValues(prev => ({ ...prev, [indicationsMetric.id]: '0' }));
   };
 
   const openProposalForm = (consultantId?: string, date?: string) => {
@@ -1410,9 +1433,14 @@ const PublicDailyMetrics = () => {
                           <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
                             <Users className="h-4 w-4" /> Nome e telefone das indicações
                           </p>
-                          <p className="mb-3 text-xs text-slate-500">
-                            Quando informar a quantidade acima, abra os campos para registrar nome e telefone (opcional).
-                          </p>
+                  <p className="mb-3 text-xs text-slate-500">
+                    Quando informar a quantidade acima, abra os campos para registrar nome e telefone (opcional).
+                  </p>
+                  <div className="mb-3">
+                    <Button variant="outline" size="sm" type="button" onClick={handleNoIndications} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <X className="mr-1 h-3.5 w-3.5" /> Não tive indicação hoje
+                    </Button>
+                  </div>
                           <div className="space-y-2">
                             {indicationRows.map((row, index) => (
                               <div key={index} className="flex flex-col gap-2 sm:flex-row">
@@ -1454,9 +1482,14 @@ const PublicDailyMetrics = () => {
                           <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
                             <Briefcase className="h-4 w-4" /> Nome dos clientes desta proposta
                           </p>
-                          <p className="mb-3 text-xs text-slate-500">
-                            Registre o nome e o valor (em R$) de cada cliente. O total (soma) é calculado automaticamente e aparece na tela de Propostas.
-                          </p>
+                  <p className="mb-3 text-xs text-slate-500">
+                    Registre o nome e o valor (em R$) de cada cliente. O total (soma) é calculado automaticamente e aparece na tela de Propostas.
+                  </p>
+                  <div className="mb-3">
+                    <Button variant="outline" size="sm" type="button" onClick={handleNoProposals} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                      <X className="mr-1 h-3.5 w-3.5" /> Não teve proposta hoje
+                    </Button>
+                  </div>
                           <div className="space-y-2">
                             {proposalRows.map((row, index) => (
                               <div key={index} className="flex flex-col gap-2 sm:flex-row">
@@ -1646,6 +1679,39 @@ const PublicDailyMetrics = () => {
                         </span>
                       ))}
                   </>
+                )}
+              </div>
+
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={indicationsSearch}
+                    onChange={event => setIndicationsSearch(event.target.value)}
+                    placeholder="Buscar por nome"
+                    className="h-9 w-52 pl-9"
+                  />
+                </div>
+                <span className="text-xs text-slate-500">de</span>
+                <Input
+                  type="date"
+                  value={indicationsDateFrom}
+                  max={indicationsDateTo || undefined}
+                  onChange={event => setIndicationsDateFrom(event.target.value)}
+                  className="h-9 w-40"
+                />
+                <span className="text-xs text-slate-500">até</span>
+                <Input
+                  type="date"
+                  value={indicationsDateTo}
+                  min={indicationsDateFrom || undefined}
+                  onChange={event => setIndicationsDateTo(event.target.value)}
+                  className="h-9 w-40"
+                />
+                {(indicationsDateFrom || indicationsDateTo || indicationsSearch) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setIndicationsDateFrom(''); setIndicationsDateTo(''); setIndicationsSearch(''); }} className="h-9">
+                    Limpar filtros
+                  </Button>
                 )}
               </div>
 
@@ -1846,17 +1912,27 @@ const PublicDailyMetrics = () => {
                     value={proposalsSearch}
                     onChange={event => setProposalsSearch(event.target.value)}
                     placeholder="Buscar por nome"
-                    className="h-9 w-56 pl-9"
+                    className="h-9 w-52 pl-9"
                   />
                 </div>
+                <span className="text-xs text-slate-500">de</span>
                 <Input
                   type="date"
-                  value={proposalsDateFilter}
-                  onChange={event => setProposalsDateFilter(event.target.value)}
-                  className="h-9 w-44"
+                  value={proposalsDateFrom}
+                  max={proposalsDateTo || undefined}
+                  onChange={event => setProposalsDateFrom(event.target.value)}
+                  className="h-9 w-40"
                 />
-                {(proposalsDateFilter || proposalsSearch) && (
-                  <Button variant="ghost" size="sm" onClick={() => { setProposalsDateFilter(''); setProposalsSearch(''); }} className="h-9">
+                <span className="text-xs text-slate-500">até</span>
+                <Input
+                  type="date"
+                  value={proposalsDateTo}
+                  min={proposalsDateFrom || undefined}
+                  onChange={event => setProposalsDateTo(event.target.value)}
+                  className="h-9 w-40"
+                />
+                {(proposalsDateFrom || proposalsDateTo || proposalsSearch) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setProposalsDateFrom(''); setProposalsDateTo(''); setProposalsSearch(''); }} className="h-9">
                     Limpar filtros
                   </Button>
                 )}
@@ -2247,6 +2323,9 @@ const PublicDailyMetrics = () => {
                     <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar cliente
                   </Button>
                 )}
+                <Button variant="outline" size="sm" type="button" onClick={handleNoProposals} className="border-red-200 text-red-600 hover:text-red-700 dark:border-red-900 dark:text-red-400">
+                  <X className="mr-1 h-3.5 w-3.5" /> Não teve proposta neste dia
+                </Button>
               </div>
             </div>
           </div>
