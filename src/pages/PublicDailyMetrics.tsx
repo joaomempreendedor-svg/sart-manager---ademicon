@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BarChart3, Briefcase, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Save, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, Briefcase, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Save, Search, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -213,6 +213,16 @@ const toLocalISODate = (date: Date) => {
   return new Date(date.getTime() - offset * 60_000).toISOString().split('T')[0];
 };
 
+const ProposalValueInput = ({ value, onChange, className }: { value: string; onChange: (reais: string) => void; className?: string }) => (
+  <Input
+    value={value.trim() ? `R$ ${formatLiveReais(value)}` : ''}
+    onChange={event => onChange(plainReais(event.target.value))}
+    placeholder="R$ 0,00"
+    inputMode="decimal"
+    className={className}
+  />
+);
+
 const shiftDays = (isoDate: string, days: number) => {
   const date = new Date(`${isoDate}T12:00:00`);
   date.setDate(date.getDate() + days);
@@ -239,7 +249,7 @@ const PublicDailyMetrics = () => {
   const { ownerId } = useParams<{ ownerId: string }>();
   const { user } = useAuth();
   const { theme, toggleTheme } = useApp();
-  const isManager = Boolean(user && user.id === ownerId && (user.role === 'GESTOR' || user.role === 'ADMIN'));
+
   const [view, setView] = useState<ViewMode>('form');
   const [period, setPeriod] = useState<PeriodMode>('daily');
   const [consultants, setConsultants] = useState<PublicMetricConsultant[]>([]);
@@ -284,12 +294,24 @@ const PublicDailyMetrics = () => {
   const [proposalStatus, setProposalStatus] = useState<ProposalStatus>('Ficou pra mais frente');
   const [isSavingProposal, setIsSavingProposal] = useState(false);
   const [proposalsFilter, setProposalsFilter] = useState('');
+  const [proposalsDateFilter, setProposalsDateFilter] = useState('');
+  const [proposalsSearch, setProposalsSearch] = useState('');
   const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
   const [lockedConsultant, setLockedConsultant] = useState<string | null>(null);
   const [accessCode, setAccessCode] = useState('');
   const [accessError, setAccessError] = useState(false);
+  const [managerSession, setManagerSession] = useState(false);
+  const [managerPasswordInput, setManagerPasswordInput] = useState('');
+  const [managerPasswordError, setManagerPasswordError] = useState(false);
   const currencyInputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const isManager = managerSession || Boolean(user && user.id === ownerId && (user.role === 'GESTOR' || user.role === 'ADMIN'));
+
+  useEffect(() => {
+    if (!ownerId) return;
+    if (sessionStorage.getItem(`mm-manager-token-${ownerId}`)) setManagerSession(true);
+  }, [ownerId]);
 
   const loadPublicData = useCallback(async (showRefresh = false) => {
     if (!ownerId) return;
@@ -431,6 +453,42 @@ const PublicDailyMetrics = () => {
     setLockedConsultant(null);
     sessionStorage.removeItem(`mm-ind-token-${ownerId}`);
     setSearchParams({}, { replace: true });
+  };
+
+  const handleManagerAccess = async () => {
+    const pwd = managerPasswordInput.trim();
+    if (!pwd) {
+      setManagerPasswordError(true);
+      return;
+    }
+    const { data } = await supabase
+      .from('public_metric_manager_password')
+      .select('password')
+      .eq('user_id', ownerId)
+      .maybeSingle();
+    const stored = data?.password ?? null;
+    if (!stored) {
+      setManagerPasswordError(true);
+      toast.error('A senha de gestor ainda não foi definida pela gestão.');
+      return;
+    }
+    if (pwd !== stored) {
+      setManagerPasswordError(true);
+      return;
+    }
+    setManagerPasswordError(false);
+    setManagerPasswordInput('');
+    setLockedConsultant(null);
+    setManagerSession(true);
+    sessionStorage.setItem(`mm-manager-token-${ownerId}`, '1');
+    setSearchParams({}, { replace: true });
+    toast.success('Acesso de gestor liberado!');
+  };
+
+  const handleManagerLockout = () => {
+    setManagerSession(false);
+    sessionStorage.removeItem(`mm-manager-token-${ownerId}`);
+    toast.success('Você saiu do modo gestor.');
   };
 
   const openIndicationModal = () => {
@@ -682,9 +740,17 @@ const PublicDailyMetrics = () => {
     const base = effectiveLock
       ? proposals.filter(item => item.consultant_id === effectiveLock)
       : proposals;
-    if (!proposalsFilter) return base;
-    return base.filter(item => item.consultant_id === proposalsFilter);
-  }, [proposals, proposalsFilter, lockedConsultant, isManager]);
+    let filtered = base;
+    if (proposalsFilter) filtered = filtered.filter(item => item.consultant_id === proposalsFilter);
+    if (proposalsDateFilter) filtered = filtered.filter(item => item.entry_date === proposalsDateFilter);
+    const q = proposalsSearch.trim().toLowerCase();
+    if (q) {
+      filtered = filtered.filter(item =>
+        (item.name || '').toLowerCase().includes(q) || (item.description || '').toLowerCase().includes(q)
+      );
+    }
+    return filtered;
+  }, [proposals, proposalsFilter, proposalsDateFilter, proposalsSearch, lockedConsultant, isManager]);
 
   const consultantProposalCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -1075,6 +1141,11 @@ const PublicDailyMetrics = () => {
                 <ShieldCheck className="h-4 w-4" /> Modo gestor
               </span>
             )}
+            {managerSession && (
+              <Button variant="outline" size="sm" onClick={handleManagerLockout} className="h-8 px-3 text-xs">
+                Sair do gestor
+              </Button>
+            )}
             <Button variant="outline" size="icon" onClick={toggleTheme} title={theme === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}>
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
@@ -1395,12 +1466,10 @@ const PublicDailyMetrics = () => {
                                   placeholder={`Nome do ${index + 1}º cliente`}
                                   className="h-10 flex-1"
                                 />
-                                <Input
+                                <ProposalValueInput
                                   value={row.value}
-                                  onChange={e => setProposalRow(index, 'value', e.target.value)}
-                                  placeholder="R$ 0,00"
-                                  inputMode="decimal"
-                                  className="h-10 w-full sm:w-40 text-right"
+                                  onChange={value => setProposalRow(index, 'value', value)}
+                                  className="h-10 w-full text-right sm:w-40"
                                 />
                                 <Button
                                   variant="ghost"
@@ -1495,6 +1564,24 @@ const PublicDailyMetrics = () => {
                   {accessError && <p className="text-sm text-red-500">Código inválido. Confira os 3 primeiros dígitos do seu CPF ou peça ajuda ao gestor.</p>}
                   <Button onClick={handleAccess} className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white">
                     <Lock className="mr-2 h-4 w-4" /> Ver minhas indicações
+                  </Button>
+                  <div className="my-2 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                    <span className="text-xs font-medium text-slate-400">Gestor?</span>
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                  </div>
+                  {managerPasswordError && managerPasswordInput && <p className="text-sm text-red-500">Senha de gestor inválida.</p>}
+                  {managerPasswordError && !managerPasswordInput && <p className="text-sm text-red-500">Digite a senha de gestor.</p>}
+                  <Input
+                    value={managerPasswordInput}
+                    onChange={event => { setManagerPasswordInput(event.target.value); setManagerPasswordError(false); }}
+                    onKeyDown={event => event.key === 'Enter' && handleManagerAccess()}
+                    placeholder="Senha de gestor"
+                    type="password"
+                    className="h-11 text-center"
+                  />
+                  <Button onClick={handleManagerAccess} className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white">
+                    <ShieldCheck className="mr-2 h-4 w-4" /> Entrar como gestor
                   </Button>
                 </div>
               </CardContent>
@@ -1637,6 +1724,24 @@ const PublicDailyMetrics = () => {
                   <Button onClick={handleAccess} className="h-11 bg-amber-600 hover:bg-amber-700 text-white">
                     <Lock className="mr-2 h-4 w-4" /> Ver minhas propostas
                   </Button>
+                  <div className="my-2 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                    <span className="text-xs font-medium text-slate-400">Gestor?</span>
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                  </div>
+                  {managerPasswordError && managerPasswordInput && <p className="text-sm text-red-500">Senha de gestor inválida.</p>}
+                  {managerPasswordError && !managerPasswordInput && <p className="text-sm text-red-500">Digite a senha de gestor.</p>}
+                  <Input
+                    value={managerPasswordInput}
+                    onChange={event => { setManagerPasswordInput(event.target.value); setManagerPasswordError(false); }}
+                    onKeyDown={event => event.key === 'Enter' && handleManagerAccess()}
+                    placeholder="Senha de gestor"
+                    type="password"
+                    className="h-11 text-center"
+                  />
+                  <Button onClick={handleManagerAccess} className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white">
+                    <ShieldCheck className="mr-2 h-4 w-4" /> Entrar como gestor
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1731,6 +1836,29 @@ const PublicDailyMetrics = () => {
                         </span>
                       ))}
                   </>
+                )}
+              </div>
+
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={proposalsSearch}
+                    onChange={event => setProposalsSearch(event.target.value)}
+                    placeholder="Buscar por nome"
+                    className="h-9 w-56 pl-9"
+                  />
+                </div>
+                <Input
+                  type="date"
+                  value={proposalsDateFilter}
+                  onChange={event => setProposalsDateFilter(event.target.value)}
+                  className="h-9 w-44"
+                />
+                {(proposalsDateFilter || proposalsSearch) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setProposalsDateFilter(''); setProposalsSearch(''); }} className="h-9">
+                    Limpar filtros
+                  </Button>
                 )}
               </div>
 
@@ -2092,11 +2220,9 @@ const PublicDailyMetrics = () => {
                       placeholder={`Nome do ${index + 1}º cliente`}
                       className="h-10 flex-1"
                     />
-                    <Input
+                    <ProposalValueInput
                       value={row.value}
-                      onChange={e => setProposalRow(index, 'value', e.target.value)}
-                      placeholder="R$ 0,00"
-                      inputMode="decimal"
+                      onChange={value => setProposalRow(index, 'value', value)}
                       className="h-10 w-full text-right sm:w-40"
                     />
                     <Button
@@ -2246,12 +2372,9 @@ const PublicDailyMetrics = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="proposal-value">Valor da proposta (R$)</Label>
-              <Input
-                id="proposal-value"
+              <ProposalValueInput
                 value={proposalValue}
-                onChange={event => setProposalValue(plainReais(event.target.value))}
-                placeholder="R$ 0,00"
-                inputMode="decimal"
+                onChange={setProposalValue}
                 className="h-10"
               />
             </div>

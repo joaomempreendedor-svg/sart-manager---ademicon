@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Edit, ExternalLink, GripVertical, PlusCircle, Trash2, UserPlus, Users } from 'lucide-react';
+import { Check, Copy, Edit, ExternalLink, GripVertical, PlusCircle, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import toast from 'react-hot-toast';
 
@@ -38,6 +38,8 @@ const MetricsConfig = () => {
   const [isAddingConsultant, setIsAddingConsultant] = useState(false);
   const [savingTokenId, setSavingTokenId] = useState<string | null>(null);
   const [tokenDrafts, setTokenDrafts] = useState<Record<string, string>>({});
+  const [managerPassword, setManagerPassword] = useState('');
+  const [isSavingManagerPassword, setIsSavingManagerPassword] = useState(false);
 
   const publicUrl = useMemo(() => {
     if (!user) return '';
@@ -72,6 +74,42 @@ const MetricsConfig = () => {
     consultants.forEach(consultant => { drafts[consultant.id] = consultant.indication_token || ''; });
     setTokenDrafts(drafts);
   }, [consultants]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadManagerPassword = async () => {
+      try {
+        const { data } = await supabase
+          .from('public_metric_manager_password')
+          .select('password')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setManagerPassword(data?.password || '');
+      } catch {
+        setManagerPassword('');
+      }
+    };
+    loadManagerPassword();
+  }, [user]);
+
+  const handleSaveManagerPassword = async () => {
+    if (!user) return;
+    const pwd = managerPassword.trim();
+    if (pwd.length < 3) {
+      toast.error('Informe uma senha de gestor de pelo menos 3 caracteres.');
+      return;
+    }
+    setIsSavingManagerPassword(true);
+    const { error } = await supabase
+      .from('public_metric_manager_password')
+      .upsert({ user_id: user.id, password: pwd, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    setIsSavingManagerPassword(false);
+    if (error) {
+      toast.error('Erro ao salvar a senha de gestor.');
+      return;
+    }
+    toast.success('Senha de gestor salva. Use-a no link público para acessar todas as telas.');
+  };
 
   const handleOnDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -188,6 +226,31 @@ const MetricsConfig = () => {
             <a href={publicUrl} target="_blank" rel="noreferrer">
               <ExternalLink className="mr-2 h-4 w-4" /> Abrir
             </a>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            Senha do gestor
+          </CardTitle>
+          <CardDescription>
+            Uma única senha para acessar todas as telas do link público (Indicações, Propostas e dashboard da equipe). A gestão compartilha apenas com quem deve ver tudo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row">
+          <Input
+            value={managerPassword}
+            onChange={event => setManagerPassword(event.target.value)}
+            placeholder="Ex: 1234"
+            type="password"
+            className="bg-white dark:bg-slate-900"
+          />
+          <Button onClick={handleSaveManagerPassword} disabled={isSavingManagerPassword} className="shrink-0">
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            {isSavingManagerPassword ? 'Salvando...' : 'Salvar senha'}
           </Button>
         </CardContent>
       </Card>
