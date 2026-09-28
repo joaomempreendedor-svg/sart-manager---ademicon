@@ -102,6 +102,11 @@ const isIndicationsMetric = (metric: DailyMetricConfig) => {
   return key === 'indicacoes' || key === 'indications' || key.includes('indicac') || metric.label.toLowerCase().includes('indicaç');
 };
 
+const isProposalsMetric = (metric: DailyMetricConfig) => {
+  const key = metric.metric_key.toLowerCase();
+  return key === 'propostas' || key === 'proposals' || key.includes('proposta') || metric.label.toLowerCase().includes('proposta');
+};
+
 const proposalStatusBadge = (status: ProposalStatus) => {
   switch (status) {
     case 'Deu negócio': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
@@ -262,6 +267,7 @@ const PublicDailyMetrics = () => {
   const [isSavingIndication, setIsSavingIndication] = useState(false);
   const [indicationsFilter, setIndicationsFilter] = useState('');
   const [indicationRows, setIndicationRows] = useState<{ name: string; phone: string }[]>([]);
+  const [proposalRows, setProposalRows] = useState<{ name: string }[]>([]);
   const [editingIndicationId, setEditingIndicationId] = useState<string | null>(null);
   const [proposals, setProposals] = useState<PublicMetricProposal[]>([]);
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
@@ -593,6 +599,23 @@ const PublicDailyMetrics = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnIndicationsStep, selectedConsultantId, selectedDate]);
 
+  const proposalsMetric = metrics.find(isProposalsMetric);
+  const isOnProposalsStep = step >= 1 && step <= metrics.length && Boolean(metrics[step - 1] && isProposalsMetric(metrics[step - 1]));
+  const proposalPreloadKeyRef = useRef('');
+
+  useEffect(() => {
+    if (!isOnProposalsStep) return;
+    const key = `${selectedConsultantId}|${selectedDate}`;
+    if (proposalPreloadKeyRef.current === key) return;
+    proposalPreloadKeyRef.current = key;
+    setProposalRows(
+      proposals
+        .filter(item => item.consultant_id === selectedConsultantId && item.entry_date === selectedDate)
+        .map(item => ({ name: item.name }))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnProposalsStep, selectedConsultantId, selectedDate]);
+
   const selectedConsultant = consultants.find(consultant => consultant.id === selectedConsultantId);
 
   const rangeDays = useMemo(() => {
@@ -631,12 +654,13 @@ const PublicDailyMetrics = () => {
   }, [selectedDate]);
 
   const filteredIndications = useMemo(() => {
-    const base = lockedConsultant
-      ? indications.filter(item => item.consultant_id === lockedConsultant)
+    const effectiveLock = isManager ? null : lockedConsultant;
+    const base = effectiveLock
+      ? indications.filter(item => item.consultant_id === effectiveLock)
       : indications;
     if (!indicationsFilter) return base;
     return base.filter(item => item.consultant_id === indicationsFilter);
-  }, [indications, indicationsFilter, lockedConsultant]);
+  }, [indications, indicationsFilter, lockedConsultant, isManager]);
 
   const consultantIndicationCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -645,12 +669,13 @@ const PublicDailyMetrics = () => {
   }, [indications]);
 
   const filteredProposals = useMemo(() => {
-    const base = lockedConsultant
-      ? proposals.filter(item => item.consultant_id === lockedConsultant)
+    const effectiveLock = isManager ? null : lockedConsultant;
+    const base = effectiveLock
+      ? proposals.filter(item => item.consultant_id === effectiveLock)
       : proposals;
     if (!proposalsFilter) return base;
     return base.filter(item => item.consultant_id === proposalsFilter);
-  }, [proposals, proposalsFilter, lockedConsultant]);
+  }, [proposals, proposalsFilter, lockedConsultant, isManager]);
 
   const consultantProposalCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -741,6 +766,18 @@ const PublicDailyMetrics = () => {
     }
   };
 
+  const setProposalRow = (index: number, value: string) => {
+    setProposalRows(prev => prev.map((row, i) => (i === index ? { name: value } : row)));
+  };
+
+  const addProposalRow = () => {
+    setProposalRows(prev => [...prev, { name: '' }]);
+  };
+
+  const removeProposalRow = (index: number) => {
+    setProposalRows(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSave = async () => {
     if (!selectedConsultantId) {
       toast.error('Selecione quem está preenchendo.');
@@ -795,6 +832,40 @@ const PublicDailyMetrics = () => {
 
           if (insertError) {
             toast.error('Resultados salvos, mas houve erro ao registrar as indicações.');
+            await loadPublicData();
+            setStep(0);
+            setView('dashboard');
+            return;
+          }
+        }
+      }
+    }
+
+    if (proposalsMetric) {
+      const { error: proposalDeleteError } = await supabase
+        .from('public_metric_proposals')
+        .delete()
+        .eq('consultant_id', selectedConsultantId)
+        .eq('entry_date', selectedDate);
+
+      if (!proposalDeleteError) {
+        const proposalRowsToSave = proposalRows
+          .map(row => ({ name: row.name.trim() }))
+          .filter(row => row.name !== '');
+
+        if (proposalRowsToSave.length > 0) {
+          const { error: proposalInsertError } = await supabase
+            .from('public_metric_proposals')
+            .insert(proposalRowsToSave.map(row => ({
+              user_id: ownerId,
+              consultant_id: selectedConsultantId,
+              name: row.name,
+              status: 'Ficou pra mais frente',
+              entry_date: selectedDate,
+            })));
+
+          if (proposalInsertError) {
+            toast.error('Resultados salvos, mas houve erro ao registrar as propostas.');
             await loadPublicData();
             setStep(0);
             setView('dashboard');
@@ -1187,6 +1258,43 @@ const PublicDailyMetrics = () => {
                           </div>
                         </div>
                       )}
+                      {proposalsMetric && isProposalsMetric(metric) && (
+                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+                          <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+                            <Briefcase className="h-4 w-4" /> Nome dos clientes desta proposta
+                          </p>
+                          <p className="mb-3 text-xs text-slate-500">
+                            Registre o nome do cliente de cada proposta. O valor acima continua sendo o total de propostas do dia.
+                          </p>
+                          <div className="space-y-2">
+                            {proposalRows.map((row, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Input
+                                  value={row.name}
+                                  onChange={e => setProposalRow(index, e.target.value)}
+                                  placeholder={`Nome do ${index + 1}º cliente`}
+                                  className="h-10 flex-1"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  type="button"
+                                  onClick={() => removeProposalRow(index)}
+                                  className="text-red-500 hover:text-red-600"
+                                  aria-label="Remover proposta"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            {proposalRows.length < 100 && (
+                              <Button variant="outline" size="sm" type="button" onClick={addProposalRow} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                                <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar cliente
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -1271,11 +1379,11 @@ const PublicDailyMetrics = () => {
                 <div className="rounded-lg bg-indigo-100 p-2 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"><Users className="h-5 w-5" /></div>
                 <div>
                   <CardTitle className="text-lg">Indicações da equipe</CardTitle>
-                  <CardDescription>{lockedConsultant ? 'Somente as suas indicações aparecem abaixo.' : 'Registre aqui o nome e o telefone de quem você indicou.'}</CardDescription>
+                  <CardDescription>{!isManager && lockedConsultant ? 'Somente as suas indicações aparecem abaixo.' : 'Registre aqui o nome e o telefone de quem você indicou.'}</CardDescription>
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
-                {lockedConsultant ? (
+                {!isManager && lockedConsultant ? (
                   <>
                     <span className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-indigo-100 px-3 text-sm font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                       <UserRound className="h-4 w-4" /> {consultants.find(consultant => consultant.id === lockedConsultant)?.name}
@@ -1307,7 +1415,7 @@ const PublicDailyMetrics = () => {
             </CardHeader>
             <CardContent>
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                {lockedConsultant ? (
+                {!isManager && lockedConsultant ? (
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     Suas indicações: {consultantIndicationCounts.get(lockedConsultant) || 0}
                   </span>
@@ -1412,11 +1520,11 @@ const PublicDailyMetrics = () => {
                 <div className="rounded-lg bg-amber-100 p-2 text-amber-600 dark:bg-amber-950 dark:text-amber-300"><Briefcase className="h-5 w-5" /></div>
                 <div>
                   <CardTitle className="text-lg">Propostas registradas</CardTitle>
-                  <CardDescription>{lockedConsultant ? 'Somente as suas propostas aparecem abaixo.' : 'Registre a proposta, o que foi conversado e o dia do retorno.'}</CardDescription>
+                  <CardDescription>{!isManager && lockedConsultant ? 'Somente as suas propostas aparecem abaixo.' : 'Registre a proposta, o que foi conversado e o dia do retorno.'}</CardDescription>
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
-                {lockedConsultant ? (
+                {!isManager && lockedConsultant ? (
                   <>
                     <span className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-amber-100 px-3 text-sm font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                       <UserRound className="h-4 w-4" /> {consultants.find(consultant => consultant.id === lockedConsultant)?.name}
@@ -1448,7 +1556,7 @@ const PublicDailyMetrics = () => {
             </CardHeader>
             <CardContent>
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                {lockedConsultant ? (
+                {!isManager && lockedConsultant ? (
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     Suas propostas: {consultantProposalCounts.get(lockedConsultant) || 0}
                   </span>
