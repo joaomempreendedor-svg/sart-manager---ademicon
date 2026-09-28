@@ -1609,12 +1609,12 @@ const PublicDailyMetrics = () => {
                   </>
                 ) : (
                   <>
-                    <Select value={indicationsFilter} onValueChange={setIndicationsFilter}>
+                    <Select value={indicationsFilter || 'all'} onValueChange={value => setIndicationsFilter(value === 'all' ? '' : value)}>
                       <SelectTrigger className="h-10 gap-2 w-full sm:w-auto">
                         <SelectValue placeholder="Todos os consultores" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos os consultores</SelectItem>
+                        <SelectItem value="all">Todos os consultores</SelectItem>
                         {consultants.map(consultant => (
                           <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
                         ))}
@@ -1771,12 +1771,12 @@ const PublicDailyMetrics = () => {
                   </>
                 ) : (
                   <>
-                    <Select value={proposalsFilter} onValueChange={setProposalsFilter}>
+                    <Select value={proposalsFilter || 'all'} onValueChange={value => setProposalsFilter(value === 'all' ? '' : value)}>
                       <SelectTrigger className="h-10 gap-2 w-full sm:w-auto">
                         <SelectValue placeholder="Todos os consultores" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos os consultores</SelectItem>
+                        <SelectItem value="all">Todos os consultores</SelectItem>
                         {consultants.map(consultant => (
                           <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
                         ))}
