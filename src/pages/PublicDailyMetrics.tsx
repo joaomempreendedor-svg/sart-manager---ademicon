@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BarChart3, Briefcase, CalendarCheck2, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Edit3, Info, Loader2, Lock, Moon, Phone, Plus, RefreshCw, Save, Search, Send, ShieldCheck, Sparkles, Sun, Target, Trash2, TrendingUp, Trophy, UserRound, Users, X } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { CurrencyInput, formatReais, toReaisNumber } from '@/components/metrics/CurrencyInput';
 import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,14 @@ interface PublicMetricEntry {
 
 type ViewMode = 'form' | 'dashboard' | 'indications' | 'proposals';
 type PeriodMode = 'daily' | 'weekly' | 'monthly';
+
+type PublicMetricGoalEntry = { consultant_id: string; metric_config_id: string; value: number | null };
+type PublicMetricConsultantTarget = { consultant_id: string; metric_config_id: string; target_value: number | null };
+
+const monthDayCount = (isoDate: string) => {
+  const [year, month] = isoDate.split('-').map(Number);
+  return new Date(year, month, 0).getDate();
+};
 
 type ProposalStatus = 'Deu negócio' | 'Ficou pra mais frente' | 'Perdido';
 
@@ -190,114 +199,9 @@ const plainReais = (str: string) => {
   return Number.isFinite(n) ? String(n) : '';
 };
 
-const formatReais = (value: string | number) => {
-  const str = String(value ?? '');
-  if (!str.trim() || !/\d/.test(str)) return '';
-  const n = Number(str.includes(',') ? str.replace(/\./g, '').replace(',', '.') : str);
-  if (!Number.isFinite(n)) return '';
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-
 const toLocalISODate = (date: Date) => {
   const offset = date.getTimezoneOffset();
   return new Date(date.getTime() - offset * 60_000).toISOString().split('T')[0];
-};
-
-const maskCurrencyText = (raw: string) => {
-  const cleaned = String(raw || '').replace(/[^\d.,]/g, '');
-  if (!cleaned) return '';
-  const commaIdx = cleaned.indexOf(',');
-  if (commaIdx < 0) {
-    const digits = cleaned.replace(/\./g, '').replace(/\D/g, '');
-    if (!digits) return '';
-    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  }
-  const intDigits = cleaned.slice(0, commaIdx).replace(/\./g, '').replace(/\D/g, '');
-  const frac = cleaned.slice(commaIdx + 1).replace(/\D/g, '').slice(0, 2);
-  const grouped = intDigits ? intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '0';
-  return `${grouped},${frac}`;
-};
-
-const canonicalToMasked = (value: string) => {
-  const s = String(value ?? '').trim();
-  if (!s || !/\d/.test(s)) return '';
-  const [int, frac] = s.split('.');
-  const grouped = (int || '0').replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.') || '0';
-  return frac ? `${grouped},${frac.replace(/\D/g, '').slice(0, 2)}` : grouped;
-};
-
-const maskedToCanonical = (masked: string) => {
-  if (!masked) return '';
-  const [intRaw, ...rest] = masked.split(',');
-  const int = intRaw.replace(/\D/g, '');
-  const frac = rest.join(',').replace(/\D/g, '').slice(0, 2);
-  if (!int && !frac) return '';
-  const n = Number(`${int || '0'}${frac ? `.${frac}` : ''}`);
-  return Number.isFinite(n) ? String(n) : '';
-};
-
-const CurrencyInput = ({
-  value,
-  onChange,
-  placeholder = 'R$ 0,00',
-  className,
-  inputRef,
-  onEnter,
-  id,
-  autoFocus,
-}: {
-  value: string;
-  onChange: (canonical: string) => void;
-  placeholder?: string;
-  className?: string;
-  inputRef?: React.RefObject<HTMLInputElement | null>;
-  onEnter?: () => void;
-  id?: string;
-  autoFocus?: boolean;
-}) => {
-  const [draft, setDraft] = useState<string | null>(null);
-  const caretRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (draft !== null && maskedToCanonical(draft) !== value) setDraft(null);
-  }, [value, draft]);
-
-  return (
-    <Input
-      id={id}
-      autoFocus={autoFocus}
-      ref={element => {
-        caretRef.current = element;
-        if (inputRef) inputRef.current = element;
-      }}
-      type="text"
-      inputMode="decimal"
-      value={draft !== null ? `R$ ${draft}` : value ? `R$ ${formatReais(value)}` : ''}
-      placeholder={placeholder}
-      onFocus={() => setDraft(canonicalToMasked(value || ''))}
-      onChange={event => {
-        const masked = maskCurrencyText(event.target.value);
-        setDraft(masked);
-        onChange(maskedToCanonical(masked));
-        requestAnimationFrame(() => {
-          const el = caretRef.current;
-          if (!el) return;
-          const end = el.value.length;
-          el.setSelectionRange(end, end);
-        });
-      }}
-      onBlur={() => setDraft(null)}
-      onKeyDown={event => { if (event.key === 'Enter' && onEnter) onEnter(); }}
-      className={className}
-    />
-  );
-};
-
-const toReaisNumber = (str: string | number) => {
-  const s = String(str ?? '').trim();
-  if (!s || !/\d/.test(s)) return 0;
-  const n = Number(s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s);
-  return Number.isFinite(n) ? n : 0;
 };
 
 const ProposalValueInput = ({ value, onChange, className }: { value: string; onChange: (reais: string) => void; className?: string }) => (
@@ -351,6 +255,8 @@ const PublicDailyMetrics = () => {
   const [editingConsultantName, setEditingConsultantName] = useState('');
   const [step, setStep] = useState(0);
   const [statusEntries, setStatusEntries] = useState<PublicMetricStatusEntry[]>([]);
+  const [goalEntries, setGoalEntries] = useState<PublicMetricGoalEntry[]>([]);
+  const [consultantTargets, setConsultantTargets] = useState<PublicMetricConsultantTarget[]>([]);
   const [indications, setIndications] = useState<PublicMetricIndication[]>([]);
   const [isIndicationModalOpen, setIsIndicationModalOpen] = useState(false);
   const [indicationConsultantId, setIndicationConsultantId] = useState('');
@@ -440,8 +346,10 @@ const PublicDailyMetrics = () => {
           ? getWeekRange(selectedWeek)
           : { start: monthStart, end: monthEnd };
       const statusStart = shiftDays(selectedDate, -(STATUS_WINDOW_DAYS - 1));
+      const goalStart = `${selectedDate.slice(0, 7)}-01`;
+      const goalEnd = shiftDays(`${selectedDate.slice(0, 7)}-01`, monthDayCount(selectedDate));
 
-      const [periodResult, statusResult] = await Promise.all([
+      const [periodResult, statusResult, goalResult, targetResult] = await Promise.all([
         supabase
           .from('public_metric_entries')
           .select('*')
@@ -454,13 +362,26 @@ const PublicDailyMetrics = () => {
           .gte('entry_date', statusStart)
           .lte('entry_date', selectedDate)
           .in('metric_config_id', metricIds),
+        supabase
+          .from('public_metric_entries')
+          .select('consultant_id, metric_config_id, value')
+          .gte('entry_date', goalStart)
+          .lte('entry_date', goalEnd)
+          .in('metric_config_id', metricIds),
+        supabase
+          .from('public_metric_consultant_targets')
+          .select('consultant_id, metric_config_id, target_value'),
       ]);
 
       setEntries(periodResult.error ? [] : periodResult.data || []);
       setStatusEntries(statusResult.error ? [] : statusResult.data || []);
+      setGoalEntries(goalResult.error ? [] : (goalResult.data || []) as PublicMetricGoalEntry[]);
+      setConsultantTargets(targetResult.error ? [] : (targetResult.data || []) as PublicMetricConsultantTarget[]);
     } else {
       setEntries([]);
       setStatusEntries([]);
+      setGoalEntries([]);
+      setConsultantTargets([]);
     }
 
     setIsLoading(false);
@@ -897,6 +818,27 @@ const PublicDailyMetrics = () => {
   const filledDaysSet = useMemo(() => new Set<string>(statusEntries.map(e => `${e.consultant_id}|${e.entry_date}`)), [statusEntries]);
 
   const hasFilled = useCallback((consultantId: string, day: string) => filledDaysSet.has(`${consultantId}|${day}`), [filledDaysSet]);
+
+  const goalRows = useMemo(() => {
+    if (!selectedConsultantId) return [];
+    return metrics
+      .map(metric => {
+        const target = Number(consultantTargets.find(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)?.target_value) || 0;
+        const done = goalEntries
+          .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)
+          .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+        const todayDone = entries
+          .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id && item.entry_date === selectedDate)
+          .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+        return { metric, target, done, todayDone };
+      })
+      .filter(row => row.target > 0);
+  }, [metrics, consultantTargets, goalEntries, entries, selectedConsultantId, selectedDate]);
+
+  const goalMonthLabel = useMemo(() => {
+    const [year, month] = selectedDate.split('-').map(Number);
+    return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
+  }, [selectedDate]);
 
   const totalFormSteps = 1 + metrics.length + 1;
   const currentFormStep = Math.min(step, totalFormSteps - 1);
@@ -1488,6 +1430,42 @@ const PublicDailyMetrics = () => {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-slate-500">Um novo envio na mesma data atualizará os valores anteriores.</p>
+
+                    {selectedConsultantId && goalRows.length > 0 && (
+                      <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/60 p-4 dark:border-brand-900 dark:bg-brand-950/30">
+                        <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-brand-800 dark:text-brand-200">
+                          <Target className="h-4 w-4 text-brand-600" /> Sua meta · {goalMonthLabel}
+                        </p>
+                        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">O que você já atingiu no mês e o que falta.</p>
+                        <div className="space-y-3">
+                          {goalRows.map(({ metric, target, done, todayDone }) => {
+                            const percent = target > 0 ? Math.round((done / target) * 100) : 0;
+                            const reached = percent >= 100;
+                            return (
+                              <div key={metric.id}>
+                                <div className="flex items-baseline justify-between gap-2 text-xs">
+                                  <span className="font-medium text-slate-700 dark:text-slate-200">{metric.label}</span>
+                                  <span className="font-semibold text-slate-900 dark:text-white">{percent}%</span>
+                                </div>
+                                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                  <div
+                                    className={`h-full rounded-full ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                                    style={{ width: `${Math.min(100, Math.max(percent, done > 0 ? 3 : 0))}%` }}
+                                  />
+                                </div>
+                                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                  {formatValue(done, metric.type)} de {formatValue(target, metric.type)}
+                                  {reached
+                                    ? ' · meta batida!'
+                                    : ` · falta ${formatValue(target - done, metric.type)}`}
+                                  {todayDone > 0 && ` · hoje: ${formatValue(todayDone, metric.type)}`}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
                       <p className="mb-3 flex items-center justify-between gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">

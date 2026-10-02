@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Edit, ExternalLink, GripVertical, PlusCircle, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { Check, Copy, Edit, ExternalLink, GripVertical, PlusCircle, ShieldCheck, Target, Trash2, UserPlus, Users } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import toast from 'react-hot-toast';
 
@@ -7,6 +7,8 @@ import { DailyMetricConfigModal } from '@/components/gestor/DailyMetricConfigMod
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { CurrencyInput } from '@/components/metrics/CurrencyInput';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +42,8 @@ const MetricsConfig = () => {
   const [tokenDrafts, setTokenDrafts] = useState<Record<string, string>>({});
   const [managerPassword, setManagerPassword] = useState('');
   const [isSavingManagerPassword, setIsSavingManagerPassword] = useState(false);
+  const [targetDrafts, setTargetDrafts] = useState<Record<string, Record<string, string>>>({});
+  const [isSavingTargets, setIsSavingTargets] = useState(false);
 
   const publicUrl = useMemo(() => {
     if (!user) return '';
@@ -181,6 +185,81 @@ const MetricsConfig = () => {
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(publicUrl);
     toast.success('Link público copiado!');
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const loadTargets = async () => {
+      const { data } = await supabase
+        .from('public_metric_consultant_targets')
+        .select('consultant_id, metric_config_id, target_value')
+        .eq('user_id', user.id);
+      const map: Record<string, Record<string, string>> = {};
+      (data || []).forEach(row => {
+        const metric = dailyMetricsConfig.find(item => item.id === row.metric_config_id);
+        const stored = Number(row.target_value) || 0;
+        const canonicalValue = metric?.type === 'currency' ? stored / 100 : stored;
+        map[row.metric_config_id] = map[row.metric_config_id] || {};
+        map[row.metric_config_id][row.consultant_id] = canonicalValue > 0 ? String(canonicalValue) : '';
+      });
+      setTargetDrafts(map);
+    };
+    loadTargets();
+  }, [user, dailyMetricsConfig]);
+
+  const setTargetDraft = (metricId: string, consultantId: string, value: string) => {
+    setTargetDrafts(prev => ({
+      ...prev,
+      [metricId]: { ...(prev[metricId] || {}), [consultantId]: value },
+    }));
+  };
+
+  const handleSaveTargets = async () => {
+    if (!user) return;
+    setIsSavingTargets(true);
+
+    const rowsToSave: Record<string, unknown>[] = [];
+    const idsToRemove: { metricId: string; consultantId: string }[] = [];
+
+    dailyMetricsConfig.forEach(metric => {
+      Object.entries(targetDrafts[metric.id] || {}).forEach(([consultantId, canonical]) => {
+        const raw = String(canonical || '').trim();
+        if (!raw || !/\d/.test(raw)) {
+          idsToRemove.push({ metricId: metric.id, consultantId });
+          return;
+        }
+        const amount = metric.type === 'currency' ? Math.round(Number(raw.replace(',', '.')) * 100) : Math.round(Number(raw));
+        rowsToSave.push({
+          user_id: user.id,
+          consultant_id: consultantId,
+          metric_config_id: metric.id,
+          target_value: amount,
+          updated_at: new Date().toISOString(),
+        });
+      });
+    });
+
+    if (rowsToSave.length > 0) {
+      const { error } = await supabase
+        .from('public_metric_consultant_targets')
+        .upsert(rowsToSave, { onConflict: 'consultant_id,metric_config_id' });
+      if (error) {
+        setIsSavingTargets(false);
+        toast.error('Erro ao salvar as metas. Rode o SQL da tabela antes de usar.');
+        return;
+      }
+    }
+
+    for (const item of idsToRemove) {
+      await supabase
+        .from('public_metric_consultant_targets')
+        .delete()
+        .eq('metric_config_id', item.metricId)
+        .eq('consultant_id', item.consultantId);
+    }
+
+    setIsSavingTargets(false);
+    toast.success('Metas por consultor salvas.');
   };
 
   const handleCopyIndicationLink = async (consultant: PublicMetricConsultant) => {
@@ -380,6 +459,57 @@ const MetricsConfig = () => {
           </DragDropContext>
         </CardContent>
       </Card>
+
+      {dailyMetricsConfig.length > 0 && consultants.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Target className="h-5 w-5 text-brand-600" /> Metas mensais por consultor
+            </CardTitle>
+            <CardDescription>
+              Deixe em branco a métrica que o consultor não tem meta. Ao selecionar o próprio nome no link público, ele vê o que já atingiu no mês e quanto falta.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-4">
+              {dailyMetricsConfig.map(config => (
+                <div key={config.id} className="rounded-lg border border-gray-200 p-3 dark:border-slate-700">
+                  <p className="mb-2 font-medium text-gray-800 dark:text-gray-200">{config.label}</p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {consultants.map(consultant => (
+                      <div key={consultant.id} className="space-y-1">
+                        <Label className="text-xs text-slate-500">{consultant.name}</Label>
+                        {config.type === 'currency' ? (
+                          <CurrencyInput
+                            value={(targetDrafts[config.id] || {})[consultant.id] || ''}
+                            onChange={canonical => setTargetDraft(config.id, consultant.id, canonical)}
+                            placeholder="R$ 0,00"
+                            className="bg-white dark:bg-slate-900"
+                          />
+                        ) : (
+                          <Input
+                            type="number"
+                            min="0"
+                            inputMode="numeric"
+                            value={(targetDrafts[config.id] || {})[consultant.id] || ''}
+                            onChange={event => setTargetDraft(config.id, consultant.id, event.target.value)}
+                            placeholder="0"
+                            className="bg-white dark:bg-slate-900"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button onClick={handleSaveTargets} disabled={isSavingTargets}>
+              <Target className="mr-2 h-4 w-4" />
+              {isSavingTargets ? 'Salvando...' : 'Salvar metas'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <DailyMetricConfigModal
         isOpen={isModalOpen}
