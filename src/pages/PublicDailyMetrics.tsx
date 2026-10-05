@@ -256,6 +256,7 @@ const PublicDailyMetrics = () => {
   const [step, setStep] = useState(0);
   const [statusEntries, setStatusEntries] = useState<PublicMetricStatusEntry[]>([]);
   const [goalEntries, setGoalEntries] = useState<PublicMetricGoalEntry[]>([]);
+  const [showGoalPanel, setShowGoalPanel] = useState(false);
   const [consultantTargets, setConsultantTargets] = useState<PublicMetricConsultantTarget[]>([]);
   const [indications, setIndications] = useState<PublicMetricIndication[]>([]);
   const [isIndicationModalOpen, setIsIndicationModalOpen] = useState(false);
@@ -819,21 +820,21 @@ const PublicDailyMetrics = () => {
 
   const hasFilled = useCallback((consultantId: string, day: string) => filledDaysSet.has(`${consultantId}|${day}`), [filledDaysSet]);
 
-  const goalRows = useMemo(() => {
+  const goalAllRows = useMemo(() => {
     if (!selectedConsultantId) return [];
-    return metrics
-      .map(metric => {
-        const target = Number(consultantTargets.find(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)?.target_value) || 0;
-        const done = goalEntries
-          .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)
-          .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
-        const todayDone = entries
-          .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id && item.entry_date === selectedDate)
-          .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
-        return { metric, target, done, todayDone };
-      })
-      .filter(row => row.target > 0);
+    return metrics.map(metric => {
+      const target = Number(consultantTargets.find(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)?.target_value) || 0;
+      const done = goalEntries
+        .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)
+        .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+      const todayDone = entries
+        .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id && item.entry_date === selectedDate)
+        .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+      return { metric, target, done, todayDone, hasTarget: target > 0 };
+    });
   }, [metrics, consultantTargets, goalEntries, entries, selectedConsultantId, selectedDate]);
+
+  const goalRows = useMemo(() => goalAllRows.filter(row => row.hasTarget), [goalAllRows]);
 
   const goalMonthLabel = useMemo(() => {
     const [year, month] = selectedDate.split('-').map(Number);
@@ -1419,7 +1420,7 @@ const PublicDailyMetrics = () => {
                 {step === 0 && (
                   <div className="space-y-2">
                     <Label>Quem está preenchendo?</Label>
-                    <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
+                    <Select value={selectedConsultantId} onValueChange={value => { setSelectedConsultantId(value); setShowGoalPanel(true); }}>
                       <SelectTrigger className="h-11">
                         <SelectValue placeholder="Selecione seu nome" />
                       </SelectTrigger>
@@ -2343,6 +2344,87 @@ const PublicDailyMetrics = () => {
           </div>
         )}
       </main>
+
+      {showGoalPanel && selectedConsultantId && (
+        <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-slate-100 dark:bg-slate-950">
+          <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-brand-600">Suas métricas</p>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {selectedConsultant?.name || 'Consultor'}
+                </h2>
+                <p className="text-xs text-slate-500">{goalMonthLabel} · o que você já atingiu e o que falta</p>
+              </div>
+              <Button variant="outline" onClick={() => setShowGoalPanel(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+              </Button>
+            </div>
+          </div>
+
+          <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {goalAllRows.map(({ metric, target, done, todayDone, hasTarget }) => {
+                const percent = hasTarget ? Math.round((done / target) * 100) : 0;
+                const reached = hasTarget && percent >= 100;
+                return (
+                  <div
+                    key={metric.id}
+                    className={`rounded-2xl border-2 bg-white p-5 shadow-sm dark:bg-slate-900 ${
+                      reached
+                        ? 'border-emerald-500'
+                        : hasTarget
+                          ? 'border-brand-500'
+                          : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{metric.label}</p>
+                    {hasTarget ? (
+                      <>
+                        <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{percent}%</p>
+                        <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                          <div
+                            className={`h-full rounded-full ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                            style={{ width: `${Math.min(100, Math.max(percent, done > 0 ? 3 : 0))}%` }}
+                          />
+                        </div>
+                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                          <span className="font-semibold">{formatValue(done, metric.type)}</span> de {formatValue(target, metric.type)}
+                        </p>
+                        <p className={`text-xs ${reached ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
+                          {reached ? 'Meta batida!' : `Falta ${formatValue(target - done, metric.type)}`}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-500">Sem meta definida</p>
+                    )}
+                    <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      Hoje ({formatDayLabel(selectedDate)}): <span className="font-semibold text-slate-700 dark:text-slate-200">{formatValue(todayDone, metric.type)}</span>
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {goalAllRows.length === 0 && (
+              <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700">
+                O gestor ainda não configurou métricas para este painel.
+              </p>
+            )}
+          </div>
+
+          <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mx-auto max-w-5xl">
+              <Button
+                onClick={() => { setShowGoalPanel(false); setView('form'); setStep(1); }}
+                className="h-14 w-full bg-brand-600 text-lg hover:bg-brand-700 text-white"
+              >
+                Iniciar preenchimento <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <EditMetricEntryModal
         isOpen={isEditModalOpen}
