@@ -2363,42 +2363,43 @@ const PublicDailyMetrics = () => {
           </div>
 
           <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-5">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="divide-y divide-slate-200 dark:divide-slate-800">
               {goalAllRows.map(({ metric, target, done, todayDone, hasTarget }) => {
                 const percent = hasTarget ? Math.round((done / target) * 100) : 0;
                 const reached = hasTarget && percent >= 100;
                 return (
-                  <div
-                    key={metric.id}
-                    className={`rounded-2xl border-2 bg-white p-5 shadow-sm dark:bg-slate-900 ${
-                      reached
-                        ? 'border-emerald-500'
-                        : hasTarget
-                          ? 'border-brand-500'
-                          : 'border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">{metric.label}</p>
+                  <div key={metric.id} className="py-6">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <p className="text-lg font-bold text-slate-900 dark:text-white sm:text-xl">{metric.label}</p>
+                      {hasTarget && (
+                        <p className={`text-2xl font-bold sm:text-3xl ${reached ? 'text-emerald-600 dark:text-emerald-400' : 'text-brand-600 dark:text-brand-400'}`}>
+                          {percent}%
+                        </p>
+                      )}
+                    </div>
+
                     {hasTarget ? (
                       <>
-                        <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-white">{percent}%</p>
-                        <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300 sm:text-base">
+                          <span className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">{formatValue(done, metric.type)}</span>
+                          <span className="text-slate-400"> de </span>
+                          {formatValue(target, metric.type)}
+                        </p>
+                        <div className="mt-3 h-4 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                           <div
-                            className={`h-full rounded-full ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
-                            style={{ width: `${Math.min(100, Math.max(percent, done > 0 ? 3 : 0))}%` }}
+                            className={`h-full rounded-full transition-all ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                            style={{ width: `${Math.min(100, Math.max(percent, done > 0 ? 2 : 0))}%` }}
                           />
                         </div>
-                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                          <span className="font-semibold">{formatValue(done, metric.type)}</span> de {formatValue(target, metric.type)}
-                        </p>
-                        <p className={`text-xs ${reached ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
+                        <p className={`mt-2 text-sm font-medium ${reached ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
                           {reached ? 'Meta batida!' : `Falta ${formatValue(target - done, metric.type)}`}
                         </p>
                       </>
                     ) : (
-                      <p className="mt-2 text-sm text-slate-500">Sem meta definida</p>
+                      <p className="mt-1 text-sm text-slate-500">Sem meta definida</p>
                     )}
-                    <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                       Hoje ({formatDayLabel(selectedDate)}): <span className="font-semibold text-slate-700 dark:text-slate-200">{formatValue(todayDone, metric.type)}</span>
                     </p>
                   </div>
