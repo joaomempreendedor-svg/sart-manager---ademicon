@@ -2347,61 +2347,60 @@ const PublicDailyMetrics = () => {
 
       {showGoalPanel && selectedConsultantId && (
         <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-slate-100 dark:bg-slate-950">
-          <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
-            <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+          <div className="border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-brand-600">Suas métricas</p>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-brand-600">Suas métricas</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                   {selectedConsultant?.name || 'Consultor'}
                 </h2>
-                <p className="text-xs text-slate-500">{goalMonthLabel} · o que você já atingiu e o que falta</p>
+                <p className="text-[11px] text-slate-500">{goalMonthLabel} · o que já atingiu e o que falta</p>
               </div>
-              <Button variant="outline" onClick={() => setShowGoalPanel(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
+              <Button variant="outline" size="sm" onClick={() => setShowGoalPanel(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
               </Button>
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-5">
+          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 py-3">
             <div className="divide-y divide-slate-200 dark:divide-slate-800">
               {goalAllRows.map(({ metric, target, done, todayDone, hasTarget }) => {
                 const percent = hasTarget ? Math.round((done / target) * 100) : 0;
                 const reached = hasTarget && percent >= 100;
                 return (
-                  <div key={metric.id} className="py-6">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white sm:text-xl">{metric.label}</p>
+                  <div key={metric.id} className="py-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">{metric.label}</p>
                       {hasTarget && (
-                        <p className={`text-2xl font-bold sm:text-3xl ${reached ? 'text-emerald-600 dark:text-emerald-400' : 'text-brand-600 dark:text-brand-400'}`}>
+                        <p className={`text-lg font-bold sm:text-xl ${reached ? 'text-emerald-600 dark:text-emerald-400' : 'text-brand-600 dark:text-brand-400'}`}>
                           {percent}%
                         </p>
                       )}
                     </div>
 
-                    {hasTarget ? (
-                      <>
-                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300 sm:text-base">
-                          <span className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">{formatValue(done, metric.type)}</span>
-                          <span className="text-slate-400"> de </span>
-                          {formatValue(target, metric.type)}
+                    <div className="mt-1 flex items-baseline justify-between gap-3 text-xs sm:text-sm">
+                      {hasTarget ? (
+                        <p className="text-slate-600 dark:text-slate-300">
+                          <span className="font-bold text-slate-900 dark:text-white">{formatValue(done, metric.type)}</span>
+                          <span className="text-slate-400"> de {formatValue(target, metric.type)}</span>
+                          <span className={reached ? 'ml-2 font-semibold text-emerald-600 dark:text-emerald-400' : 'ml-2 text-slate-500'}>
+                            {reached ? '· meta batida!' : `· falta ${formatValue(target - done, metric.type)}`}
+                          </span>
                         </p>
-                        <div className="mt-3 h-4 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                          <div
-                            className={`h-full rounded-full transition-all ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
-                            style={{ width: `${Math.min(100, Math.max(percent, done > 0 ? 2 : 0))}%` }}
-                          />
-                        </div>
-                        <p className={`mt-2 text-sm font-medium ${reached ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
-                          {reached ? 'Meta batida!' : `Falta ${formatValue(target - done, metric.type)}`}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-1 text-sm text-slate-500">Sem meta definida</p>
-                    )}
+                      ) : (
+                        <p className="text-slate-500">Sem meta definida</p>
+                      )}
+                      <p className="shrink-0 text-slate-500 dark:text-slate-400">
+                        hoje <span className="font-semibold text-slate-700 dark:text-slate-200">{formatValue(todayDone, metric.type)}</span>
+                      </p>
+                    </div>
 
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                      Hoje ({formatDayLabel(selectedDate)}): <span className="font-semibold text-slate-700 dark:text-slate-200">{formatValue(todayDone, metric.type)}</span>
-                    </p>
+                    <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                      <div
+                        className={`h-full rounded-full transition-all ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                        style={{ width: `${Math.min(100, Math.max(percent, done > 0 ? 2 : 0))}%` }}
+                      />
+                    </div>
                   </div>
                 );
               })}
@@ -2414,11 +2413,11 @@ const PublicDailyMetrics = () => {
             )}
           </div>
 
-          <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
-            <div className="mx-auto max-w-5xl">
+          <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+            <div className="mx-auto max-w-3xl">
               <Button
                 onClick={() => { setShowGoalPanel(false); setView('form'); setStep(1); }}
-                className="h-14 w-full bg-brand-600 text-lg hover:bg-brand-700 text-white"
+                className="h-12 w-full bg-brand-600 hover:bg-brand-700 text-white"
               >
                 Iniciar preenchimento <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
