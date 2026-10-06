@@ -131,11 +131,14 @@ const PublicColdCallTV = () => {
 
   const todayLogs = useMemo(() => logs.filter(l => isToday(l.start_time || l.created_at)), [logs]);
 
+  const NEUTRO = 'Ligou';
+  const isAnsweredResult = (r: string) => r !== 'Não atendeu' && r !== 'Não chamou' && r !== 'Número inválido' && r !== NEUTRO;
+
   const liveTotals = useMemo(() => {
     let calls = 0, answered = 0, meetings = 0;
     todayLogs.forEach(l => {
       calls += 1;
-      if (l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido') answered += 1;
+      if (isAnsweredResult(l.result)) answered += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
     return { calls, answered, meetings };
@@ -154,7 +157,7 @@ const PublicColdCallTV = () => {
         const uid = m.consultantKey;
         const logsFor = todayLogs.filter(l => l.user_id === uid);
         const calls = logsFor.length;
-        const answered = logsFor.filter(l => l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido').length;
+        const answered = logsFor.filter(l => isAnsweredResult(l.result)).length;
         const meetings = logsFor.filter(l => l.result === 'Agendar Reunião').length;
         return { consultant: m, uid, calls, answered, meetings };
       })

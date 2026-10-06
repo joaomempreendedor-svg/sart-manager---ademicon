@@ -588,7 +588,7 @@ export interface TeamProductionGoal {
 }
 
 export type ColdCallStage = 'Base Fria' | 'Tentativa de Contato' | 'Conversou' | 'Reunião Agendada';
-export type ColdCallResult = 'Não atendeu' | 'Número inválido' | 'Sem interesse' | 'Pedir retorno' | 'Conversou' | 'Demonstrou Interesse' | 'Agendar Reunião' | 'Foi para o WhatsApp' | 'Não chamou';
+export type ColdCallResult = 'Não atendeu' | 'Número inválido' | 'Sem interesse' | 'Pedir retorno' | 'Conversou' | 'Demonstrou Interesse' | 'Agendar Reunião' | 'Foi para o WhatsApp' | 'Não chamou' | 'Ligou';
 
 export interface ColdCallLead {
   id: string;
@@ -728,6 +728,8 @@ export interface AppContextType {
   updateColdCallGoals: (goals: Partial<ColdCallGoals>) => void;
   coldCallConsultantGoals: Record<string, ColdCallGoals>;
   updateColdCallConsultantGoals: (consultantKey: string, goals: Partial<ColdCallGoals>) => void;
+  coldCallTutorial: string;
+  updateColdCallTutorial: (tutorial: string) => void;
   addColdCallLeadsWithAssignments: (items: {
     lead: Omit<ColdCallLead, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'current_stage'>;
     consultantId: string;

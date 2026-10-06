@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, ArrowUpRight, Clock, TrendingUp, Target, Trophy, Settings2, ChevronRight, UploadCloud, Link2, UserPlus, Trash2, KeyRound } from 'lucide-react';
+import { PhoneCall, MessageSquare, CalendarCheck, BarChart3, Percent, Loader2, Users, Filter, RotateCcw, CalendarDays, ArrowUpRight, Clock, TrendingUp, Target, Trophy, Settings2, ChevronRight, Link2, UserPlus, Trash2, KeyRound, BookOpen } from 'lucide-react';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
-import ImportColdCallLeadsDivisionModal, { ColdCallImportConsultant } from '@/components/gestor/ImportColdCallLeadsDivisionModal';
 import { ColdCallLead, ColdCallLog, ColdCallDetailType, ColdCallGoals, ColdCallConsultant } from '@/types';
 import toast from 'react-hot-toast';
 import {
@@ -84,11 +83,14 @@ const LiveKpiCard: React.FC<LiveKpiProps> = ({ title, value, meta, icon: Icon, i
   return <div className="h-full">{inner}</div>;
 };
 
+const isColdCallAnswered = (result: string) => result !== 'Não atendeu' && result !== 'Não chamou' && result !== 'Número inválido' && result !== 'Ligou';
+
 const ColdCallMetricsPage = () => {
   const { user } = useAuth();
-  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, addColdCallLeadsWithAssignments, coldCallConsultants, addColdCallConsultant, updateColdCallConsultant, deleteColdCallConsultant, isDataLoading } = useApp();
+  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, coldCallConsultants, addColdCallConsultant, updateColdCallConsultant, deleteColdCallConsultant, coldCallTutorial, updateColdCallTutorial, isDataLoading } = useApp();
 
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
+  const [tutorialDraft, setTutorialDraft] = useState('');
 
   const [selectedColdCallConsultantId, setSelectedColdCallConsultantId] = useState<string | null>(null);
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -121,10 +123,6 @@ const ColdCallMetricsPage = () => {
   const activeColdCallConsultants = useMemo(() => {
     return coldCallConsultants.filter(c => c.is_active);
   }, [coldCallConsultants]);
-
-  const coldCallImportConsultants: ColdCallImportConsultant[] = useMemo(() => {
-    return activeColdCallConsultants.map(c => ({ id: c.id, name: c.name, key: c.user_id }));
-  }, [activeColdCallConsultants]);
 
   const filteredColdCallLogs = useMemo(() => {
     let logs = coldCallLogs;
@@ -161,9 +159,7 @@ const ColdCallMetricsPage = () => {
   const coldCallMetrics = useMemo(() => {
     const totalCalls = filteredColdCallLogs.length;
 
-    const answeredLogs = filteredColdCallLogs.filter(log =>
-      log.result !== 'Não atendeu' && log.result !== 'Não chamou' && log.result !== 'Número inválido'
-    );
+    const answeredLogs = filteredColdCallLogs.filter(log => isColdCallAnswered(log.result));
     const totalAnswered = answeredLogs.length;
 
     const totalMeetingsScheduled = answeredLogs.filter(log => log.result === 'Agendar Reunião').length;
@@ -194,7 +190,7 @@ const ColdCallMetricsPage = () => {
       const logs = todayLogs.filter(l => l.user_id === uid);
       map[uid] = {
         calls: logs.length,
-        contacts: logs.filter(l => l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido').length,
+        contacts: logs.filter(l => isColdCallAnswered(l.result)).length,
         meetings: logs.filter(l => l.result === 'Agendar Reunião').length,
       };
     });
@@ -205,7 +201,7 @@ const ColdCallMetricsPage = () => {
     let calls = 0, contacts = 0, meetings = 0;
     todayLogs.forEach(l => {
       calls += 1;
-      if (l.result !== 'Não atendeu' && l.result !== 'Não chamou' && l.result !== 'Número inválido') contacts += 1;
+      if (isColdCallAnswered(l.result)) contacts += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
     return { calls, contacts, meetings };
@@ -296,6 +292,17 @@ const ColdCallMetricsPage = () => {
     });
     setIsGoalsModalOpen(false);
     toast.success('Metas diárias atualizadas');
+  };
+
+  const openTutorialModal = () => {
+    setTutorialDraft(coldCallTutorial);
+    setIsTutorialModalOpen(true);
+  };
+
+  const saveTutorial = () => {
+    updateColdCallTutorial(tutorialDraft.trim());
+    setIsTutorialModalOpen(false);
+    toast.success('Tutorial "Como fazer" salvo!');
   };
 
   const handleAddConsultant = async () => {
@@ -409,18 +416,19 @@ const ColdCallMetricsPage = () => {
             <span>Copiar link da operação</span>
           </button>
           <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center space-x-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400"
-          >
-            <UploadCloud className="w-4 h-4" />
-            <span>Importar Leads</span>
-          </button>
-          <button
             onClick={openGoalsModal}
             className="flex items-center space-x-2 text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline"
           >
             <Settings2 className="w-4 h-4" />
             <span>Editar Meta do Dia</span>
+          </button>
+          <button
+            onClick={openTutorialModal}
+            className="flex items-center space-x-2 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+            title="Escrever o tutorial exibido para os consultores em Como fazer"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Como Fazer</span>
           </button>
           <button
             onClick={openManageConsultants}
@@ -704,6 +712,40 @@ const ColdCallMetricsPage = () => {
         </div>
       </section>
 
+      {/* ===== MODAL TUTORIAL COMO FAZER ===== */}
+      <Dialog open={isTutorialModalOpen} onOpenChange={setIsTutorialModalOpen}>
+        <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <BookOpen className="w-6 h-6 text-amber-500" />
+              <span>Tutorial "Como Fazer"</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+              Escreva aqui o tutorial que os consultores verão no botão "Como fazer" da tela de ligações. Pode usar quebras de linha.
+            </p>
+            <textarea
+              value={tutorialDraft}
+              onChange={(e) => setTutorialDraft(e.target.value)}
+              rows={10}
+              placeholder={"Exemplo:\n1. Abra a ligação pelo botão Ligar.\n2. Cumprimente e se apresente.\n3. Ao final, registre o resultado positivo (retorno, WhatsApp ou reunião)."}
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-3 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+
+          <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+            <Button type="button" onClick={saveTutorial} className="bg-brand-600 hover:bg-brand-700 text-white w-full sm:w-auto">
+              Salvar Tutorial
+            </Button>
+            <Button type="button" onClick={() => setIsTutorialModalOpen(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-gray-200">
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ===== MODAL EDITAR METAS ===== */}
       <Dialog open={isGoalsModalOpen} onOpenChange={setIsGoalsModalOpen}>
         <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-800 dark:text-white p-6 max-h-[85vh] overflow-y-auto">
@@ -842,17 +884,6 @@ const ColdCallMetricsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* ===== MODAL IMPORTAR LEADS ===== */}
-      <ImportColdCallLeadsDivisionModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        consultants={coldCallImportConsultants}
-        existingLeads={coldCallLeads}
-        onImport={async (items) => {
-          await addColdCallLeadsWithAssignments(items);
-        }}
-      />
 
       <ColdCallDetailModal
         isOpen={isColdCallDetailModalOpen}

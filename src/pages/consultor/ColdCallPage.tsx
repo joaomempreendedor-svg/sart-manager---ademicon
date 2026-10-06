@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
 import { ColdCallLead, ColdCallLog, ColdCallStage, ColdCallResult, CrmLead, ColdCallDetailType } from '@/types';
-import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays, UploadCloud, UserPlus, ArrowUpRight, Star, Building2, MapPin } from 'lucide-react';
+import { Plus, Search, PhoneCall, MessageSquare, CalendarCheck, Loader2, Edit2, Trash2, Play, StopCircle, Clock, UserRound, TrendingUp, BarChart3, Percent, ChevronRight, Save, History, Filter, RotateCcw, CalendarDays, UserPlus, ArrowUpRight, Star, Building2, MapPin } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -27,7 +27,6 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { ColdCallLogModal } from '@/components/consultor/ColdCallLogModal';
 import { ColdCallLeadHistoryModal } from '@/components/consultor/ColdCallLeadHistoryModal';
-import { ImportColdCallLeadsModal } from '@/components/consultor/ImportColdCallLeadsModal';
 import { ColdCallDetailModal } from '@/components/gestor/ColdCallDetailModal';
 import { MetricCard } from '@/components/MetricCard';
 
@@ -76,8 +75,6 @@ const ColdCallPage = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [viewingLeadHistory, setViewingLeadHistory, ] = useState<ColdCallLead | null>(null);
 
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-
   const [isColdCallDetailModalOpen, setIsColdCallDetailModalOpen] = useState(false);
   const [coldCallModalTitle, setColdCallModalTitle] = useState('');
   const [coldCallDetailType, setColdCallDetailType] = useState<ColdCallDetailType>('all');
@@ -114,7 +111,7 @@ const ColdCallPage = () => {
     const totalCalls = filteredColdCallLogsForMetrics.length;
     
     const answeredLogs = filteredColdCallLogsForMetrics.filter(log => 
-      log.result !== 'Não atendeu' && log.result !== 'Não chamou' && log.result !== 'Número inválido'
+      log.result !== 'Não atendeu' && log.result !== 'Não chamou' && log.result !== 'Número inválido' && log.result !== 'Ligou'
     );
     const totalAnswered = answeredLogs.length;
 
@@ -320,13 +317,6 @@ const ColdCallPage = () => {
           <p className="text-gray-500 dark:text-gray-400">Gerencie suas ligações frias e agende reuniões.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full md:w-auto">
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition font-medium flex-shrink-0"
-          >
-            <UploadCloud className="w-5 h-5" />
-            <span>Importar Prospects</span>
-          </button>
           <button onClick={() => handleOpenLeadModal(null)} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-2 px-4 rounded-lg transition font-medium w-full sm:w-auto">
             <Plus className="w-5 h-5" />
             <span>Novo Prospect</span>
@@ -610,16 +600,6 @@ const ColdCallPage = () => {
           logs={coldCallLogs.filter(log => log.cold_call_lead_id === viewingLeadHistory.id)}
         />
       )}
-
-      <ImportColdCallLeadsModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onImport={async (leadsToImport) => {
-          for (const leadData of leadsToImport) {
-            await addColdCallLead(leadData);
-          }
-        }}
-      />
 
       <ColdCallDetailModal
         isOpen={isColdCallDetailModalOpen}

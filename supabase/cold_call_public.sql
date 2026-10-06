@@ -21,6 +21,11 @@ DO $$ BEGIN
     CREATE POLICY "Cold call public update cold_call_leads" ON cold_call_leads
       FOR UPDATE USING (true) WITH CHECK (true);
   END IF;
+  -- A tela pública cria o lead ao digitar nome + telefone e clicar em Ligar
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Cold call public insert cold_call_leads' AND tablename = 'cold_call_leads') THEN
+    CREATE POLICY "Cold call public insert cold_call_leads" ON cold_call_leads
+      FOR INSERT WITH CHECK (true);
+  END IF;
 END $$;
 
 -- 3) Acesso anônimo aos registros de ligação (o consultor lança o resultado sem login)
@@ -57,3 +62,21 @@ GRANT EXECUTE ON FUNCTION get_cold_call_goals(uuid) TO anon, authenticated;
 --    consultor lança um resultado. Execute APÓS os itens 1–4.
 ALTER PUBLICATION supabase_realtime ADD TABLE cold_call_leads;
 ALTER PUBLICATION supabase_realtime ADD TABLE cold_call_logs;
+
+-- 6) Leitura anônima do tutorial "Como fazer" (escrito pelo gestor na tela dele).
+--    Mesmo mecanismo do get_cold_call_goals: SECURITY DEFINER expõe só o campo
+--    coldCallTutorial do app_config, sem abrir a tabela inteira para o público.
+CREATE OR REPLACE FUNCTION get_cold_call_tutorial(p_user uuid)
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    (SELECT data->>'coldCallTutorial' FROM app_config WHERE user_id = p_user LIMIT 1),
+    ''
+  );
+$$;
+
+REVOKE ALL ON FUNCTION get_cold_call_tutorial(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION get_cold_call_tutorial(uuid) TO anon, authenticated;
