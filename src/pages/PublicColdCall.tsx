@@ -84,10 +84,13 @@ const PublicColdCall = () => {
   const [pendingLead, setPendingLead] = useState<ColdCallLead | null>(null);
   const [pendingLogId, setPendingLogId] = useState<string | null>(null);
   const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
+  const [resultName, setResultName] = useState('');
+  const [resultPhone, setResultPhone] = useState('');
 
   const [dialogResult, setDialogResult] = useState<ColdCallResult>('Agendar Reunião');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
   const [meetingModality, setMeetingModality] = useState('');
@@ -176,7 +179,11 @@ const PublicColdCall = () => {
 
   const leadByPhone = (phone: string) => {
     const clean = phone.replace(/\D/g, '');
-    return leads.find(l => l.phone.replace(/\D/g, '') === clean) || null;
+    if (!clean) return null;
+    return leads.find(l => {
+      const lClean = (l.phone || '').replace(/\D/g, '');
+      return lClean && lClean === clean;
+    }) || null;
   };
 
   const ensureLead = async (name: string, phone: string): Promise<ColdCallLead | null> => {
@@ -228,15 +235,10 @@ const PublicColdCall = () => {
   };
 
   const handleLigar = async () => {
-    const phone = newPhone.trim();
-    if (phone.replace(/\D/g, '').length < 10) {
-      toast.error('Informe um número de telefone válido.');
-      return;
-    }
     if (isSaving) return;
     setIsSaving(true);
     try {
-      const lead = await ensureLead(newName, phone);
+      const lead = await ensureLead(newName, newPhone);
       if (!lead) {
         setIsSaving(false);
         return;
@@ -250,7 +252,8 @@ const PublicColdCall = () => {
       if (freshLead.name === freshLead.phone) freshLead.name = newName.trim() || freshLead.phone;
       setPendingLead(freshLead);
       setPendingLogId(logRow.id);
-      setContactName(freshLead.name !== freshLead.phone ? freshLead.name ?? '' : '');
+      setResultName(freshLead.name && freshLead.name !== freshLead.phone ? freshLead.name : newName.trim());
+      setResultPhone(freshLead.phone || newPhone.trim());
       setMeetingDate('');
       setMeetingTime('');
       setMeetingModality('Online');
@@ -266,7 +269,7 @@ const PublicColdCall = () => {
     }
   };
 
-  const updateLogResult = async (lead: ColdCallLead, result: ColdCallResult, meeting?: { date?: string; time?: string; modality?: string; notes?: string }) => {
+  const updateLogResult = async (lead: ColdCallLead, result: ColdCallResult, meeting?: { date?: string; time?: string; modality?: string; notes?: string }, contact?: { name?: string; phone?: string }) => {
     if (!selectedConsultantKey) return false;
     setIsSaving(true);
     try {
@@ -310,8 +313,13 @@ const PublicColdCall = () => {
         .eq('id', lead.id);
       if (leadError) throw leadError;
 
-      if (contactName.trim() && contactName.trim() !== lead.name) {
-        await supabase.from('cold_call_leads').update({ name: contactName.trim() }).eq('id', lead.id);
+      const cName = contact?.name?.trim() || '';
+      const cPhone = contact?.phone?.trim() || '';
+      if (cName && cName !== lead.name) {
+        await supabase.from('cold_call_leads').update({ name: cName }).eq('id', lead.id);
+      }
+      if (cPhone && cPhone !== lead.phone) {
+        await supabase.from('cold_call_leads').update({ phone: cPhone }).eq('id', lead.id);
       }
 
       toast.success('Resultado registrado!');
@@ -325,6 +333,18 @@ const PublicColdCall = () => {
     }
   };
 
+  const validatePositiveContact = () => {
+    if (!resultName.trim()) {
+      toast.error('Informe o nome da pessoa para registrar o positivo.');
+      return false;
+    }
+    if (resultPhone.replace(/\D/g, '').length < 10) {
+      toast.error('Informe um telefone válido para registrar o positivo.');
+      return false;
+    }
+    return true;
+  };
+
   const handlePositiveResult = async (result: ColdCallResult) => {
     const lead = pendingLead;
     if (!lead) {
@@ -332,18 +352,30 @@ const PublicColdCall = () => {
       return;
     }
     if (result === 'Agendar Reunião' || result === 'Pedir retorno') {
+      if (!validatePositiveContact()) return;
+      setContactName(resultName.trim());
+      setContactPhone(resultPhone.trim());
       setDialogResult(result);
       setIsResultDialogOpen(false);
       setIsDialogOpen(true);
       return;
     }
-    const ok = await updateLogResult(lead, result);
+    if (!validatePositiveContact()) return;
+    const ok = await updateLogResult(lead, result, undefined, { name: resultName.trim(), phone: resultPhone.trim() });
     if (ok) setIsResultDialogOpen(false);
   };
 
   const handleDialogSave = async () => {
     const lead = pendingLead;
     if (!lead) return;
+    if (!contactName.trim()) {
+      toast.error('Informe o nome do contato.');
+      return;
+    }
+    if (contactPhone.replace(/\D/g, '').length < 10) {
+      toast.error('Informe um telefone válido do contato.');
+      return;
+    }
     if (dialogResult === 'Agendar Reunião' && (!meetingDate || !meetingTime)) {
       toast.error('Informe data e horário da reunião.');
       return;
@@ -353,7 +385,7 @@ const PublicColdCall = () => {
       time: meetingTime || undefined,
       modality: meetingModality || undefined,
       notes: meetingNotes || undefined,
-    });
+    }, { name: contactName.trim(), phone: contactPhone.trim() });
     if (ok) setIsDialogOpen(false);
   };
 
@@ -479,7 +511,7 @@ const PublicColdCall = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 dark:text-white">Operação de Cold Call</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Cadastre o contato, ligue e registre o resultado</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Clique em Ligar a cada ligação e registre os resultados positivos</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -571,7 +603,7 @@ const PublicColdCall = () => {
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="newName" className="text-white/90">Nome da pessoa</Label>
+                    <Label htmlFor="newName" className="text-white/90">Nome da pessoa (opcional)</Label>
                     <Input
                       id="newName"
                       value={newName}
@@ -581,7 +613,7 @@ const PublicColdCall = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="newPhone" className="text-white/90">Telefone *</Label>
+                    <Label htmlFor="newPhone" className="text-white/90">Telefone (opcional)</Label>
                     <Input
                       id="newPhone"
                       value={newPhone}
@@ -601,7 +633,7 @@ const PublicColdCall = () => {
                     {isSaving ? 'Registrando...' : 'Ligar'}
                   </button>
                   <p className="mt-2 text-center text-xs text-white/60">
-                    Ao clicar em Ligar, esta ligação conta no seu total do dia.
+                    Cada clique em Ligar conta uma ligação no seu total do dia. Nome e telefone só são necessários quando houver positivo.
                   </p>
                 </div>
               </div>
@@ -616,7 +648,7 @@ const PublicColdCall = () => {
               </div>
               {todayLogsWithLead.length === 0 ? (
                 <p className="px-5 py-10 text-center text-sm text-slate-400">
-                  Nenhuma ligação registrada hoje. Preencha o nome e o telefone acima e clique em Ligar.
+                  Nenhuma ligação registrada hoje. Clique em Ligar para registrar cada ligação.
                 </p>
               ) : (
                 <div className="divide-y dark:divide-slate-800">
@@ -645,7 +677,7 @@ const PublicColdCall = () => {
                           )}
                           {log.result === 'Ligou' && lead && (
                             <button
-                              onClick={() => { setPendingLead(lead); setPendingLogId(log.id); setContactName(lead.name ?? ''); setIsResultDialogOpen(true); }}
+                              onClick={() => { setPendingLead(lead); setPendingLogId(log.id); setResultName(lead.name && lead.name !== lead.phone ? lead.name : ''); setResultPhone(lead.phone || ''); setMeetingDate(''); setMeetingTime(''); setMeetingModality('Online'); setMeetingNotes(''); setIsResultDialogOpen(true); }}
                               className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300"
                               title="Registrar um resultado positivo"
                             >
@@ -754,13 +786,24 @@ const PublicColdCall = () => {
                   <span>A ligação teve resultado?</span>
                 </DialogTitle>
                 <DialogDescription>
-                  {pendingLead ? (
-                    <><span className="font-medium text-slate-900 dark:text-white">{pendingLead.name || pendingLead.phone}</span> · {formatPhone(pendingLead.phone)}</>
-                  ) : '—'}
+                  Se teve positivo, preencha o nome e o telefone do contato.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid grid-cols-1 gap-2 py-2">
+              <div className="space-y-3 py-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="resultName">Nome da pessoa</Label>
+                    <Input id="resultName" value={resultName} onChange={e => setResultName(e.target.value)} placeholder="Ex: Maria Souza" className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="resultPhone">Telefone *</Label>
+                    <Input id="resultPhone" value={resultPhone} onChange={e => setResultPhone(e.target.value)} placeholder="(00) 00000-0000" className="dark:bg-slate-700 dark:text-white dark:border-slate-600" />
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400">Obrigatório somente quando houve resultado positivo.</p>
+
+                <div className="grid grid-cols-1 gap-2 pt-1">
                 {POSITIVE_RESULTS.map(btn => (
                   <button
                     key={btn.result}
@@ -775,6 +818,7 @@ const PublicColdCall = () => {
                     </span>
                   </button>
                 ))}
+                </div>
               </div>
 
               <DialogFooter className="mt-4 pt-4 border-t border-gray-100 flex-col gap-2 sm:flex-row dark:border-slate-700">
@@ -794,20 +838,32 @@ const PublicColdCall = () => {
                   <span>{dialogResult === 'Pedir retorno' ? 'Registrar retorno' : 'Agendar reunião'}</span>
                 </DialogTitle>
                 <DialogDescription>
-                  <span className="font-medium text-slate-900 dark:text-white">{pendingLead?.name || pendingLead?.phone}</span> · {formatPhone(pendingLead?.phone)}
+                  <span className="font-medium text-slate-900 dark:text-white">{contactName || pendingLead?.name || pendingLead?.phone}</span>{contactPhone ? ` · ${formatPhone(contactPhone)}` : ''}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label htmlFor="contactName">Nome do contato</Label>
-                  <Input
-                    id="contactName"
-                    value={contactName}
-                    onChange={e => setContactName(e.target.value)}
-                    placeholder="Ex: Maria Souza"
-                    className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
-                  />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="contactName">Nome do contato</Label>
+                    <Input
+                      id="contactName"
+                      value={contactName}
+                      onChange={e => setContactName(e.target.value)}
+                      placeholder="Ex: Maria Souza"
+                      className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contactPhone">Telefone *</Label>
+                    <Input
+                      id="contactPhone"
+                      value={contactPhone}
+                      onChange={e => setContactPhone(e.target.value)}
+                      placeholder="(00) 00000-0000"
+                      className="dark:bg-slate-700 dark:text-white dark:border-slate-600"
+                    />
+                  </div>
                 </div>
 
                 {dialogResult === 'Agendar Reunião' && (
