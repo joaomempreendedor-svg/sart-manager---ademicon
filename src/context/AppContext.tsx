@@ -1292,6 +1292,17 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     });
   }, [updateConfig]);
 
+  const updateAllColdCallConsultantGoals = useCallback((goals: Record<string, ColdCallGoals>) => {
+    setColdCallConsultantGoals(goals);
+    updateConfig({ coldCallConsultantGoals: goals });
+  }, [updateConfig]);
+
+  const updateColdCallGoalsAndConsultants = useCallback((teamGoals: ColdCallGoals, consultantGoals: Record<string, ColdCallGoals>) => {
+    setColdCallGoals(teamGoals);
+    setColdCallConsultantGoals(consultantGoals);
+    updateConfig({ coldCallGoals: teamGoals, coldCallConsultantGoals: consultantGoals });
+  }, [updateConfig]);
+
   const updateColdCallTutorial = useCallback((tutorial: string) => {
     setColdCallTutorial(tutorial);
     updateConfig({ coldCallTutorial: tutorial });
@@ -1323,7 +1334,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, dailyMetricsConfig, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, coldCallConsultants, coldCallGoals, updateColdCallGoals, coldCallConsultantGoals, updateColdCallConsultantGoals, coldCallTutorial, updateColdCallTutorial, processes, contratos, theme, hiringPipelineColumns,
+    coldCallLeads, coldCallLogs, coldCallConsultants, coldCallGoals, updateColdCallGoals, coldCallConsultantGoals, updateColdCallConsultantGoals, updateAllColdCallConsultantGoals, updateColdCallGoalsAndConsultants, coldCallTutorial, updateColdCallTutorial, processes, contratos, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, getCandidate: (id: string) => candidates.find(c => c.id === id), setCandidates,
     toggleChecklistItem, setChecklistDueDate: async (candidateId: string, itemId: string, dueDate: string) => {
@@ -1514,7 +1525,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
     weeklyTargets, weeklyTargetItems, weeklyTargetAssignments, metricLogs, dailyMetricsConfig, supportMaterialsV2, supportMaterialAssignments,
     leadTasks, gestorTasks, gestorTaskCompletions, financialEntries, formCadastros, formFiles, notifications, teamProductionGoals,
-    coldCallLeads, coldCallLogs, coldCallConsultants, coldCallGoals, updateColdCallGoals, coldCallConsultantGoals, updateColdCallConsultantGoals, coldCallTutorial, updateColdCallTutorial, processes, contratos, theme, hiringPipelineColumns,
+    coldCallLeads, coldCallLogs, coldCallConsultants, coldCallGoals, updateColdCallGoals, coldCallConsultantGoals, updateColdCallConsultantGoals, updateAllColdCallConsultantGoals, updateColdCallGoalsAndConsultants, coldCallTutorial, updateColdCallTutorial, processes, contratos, theme, hiringPipelineColumns,
     toggleTheme, updateConfig, resetLocalState, refetchCommissions, calculateCompetenceMonth, isGestorTaskDueOnDate, calculateNotifications,
     addCandidate, updateCandidate, deleteCandidate, toggleChecklistItem,
     addChecklistStage, updateChecklistStage, deleteChecklistStage, moveChecklistStage,

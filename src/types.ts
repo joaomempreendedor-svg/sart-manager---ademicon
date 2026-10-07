@@ -728,6 +728,8 @@ export interface AppContextType {
   updateColdCallGoals: (goals: Partial<ColdCallGoals>) => void;
   coldCallConsultantGoals: Record<string, ColdCallGoals>;
   updateColdCallConsultantGoals: (consultantKey: string, goals: Partial<ColdCallGoals>) => void;
+  updateAllColdCallConsultantGoals: (goals: Record<string, ColdCallGoals>) => void;
+  updateColdCallGoalsAndConsultants: (teamGoals: ColdCallGoals, consultantGoals: Record<string, ColdCallGoals>) => void;
   coldCallTutorial: string;
   updateColdCallTutorial: (tutorial: string) => void;
   addColdCallLeadsWithAssignments: (items: {

@@ -31,13 +31,21 @@ const formatDuration = (seconds: number) => {
   return `${minutes}m ${remainingSeconds}s`;
 };
 
-const isToday = (dateStr?: string) => {
+const getWeekStart = () => {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7; // 0 = segunda-feira
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - day);
+  return d;
+};
+
+const isThisWeek = (dateStr?: string) => {
   if (!dateStr) return false;
   const t = new Date(dateStr).getTime();
   if (isNaN(t)) return false;
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  return t >= todayStart.getTime() && t < todayStart.getTime() + 86400000;
+  const start = getWeekStart();
+  const end = start.getTime() + 7 * 86400000;
+  return t >= start.getTime() && t < end;
 };
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -87,7 +95,7 @@ const isColdCallAnswered = (result: string) => result !== 'Não atendeu' && resu
 
 const ColdCallMetricsPage = () => {
   const { user } = useAuth();
-  const { coldCallLeads, coldCallLogs, coldCallGoals, updateColdCallGoals, coldCallConsultants, addColdCallConsultant, updateColdCallConsultant, deleteColdCallConsultant, coldCallTutorial, updateColdCallTutorial, isDataLoading } = useApp();
+  const { coldCallLeads, coldCallLogs, coldCallGoals, coldCallConsultantGoals, updateColdCallGoalsAndConsultants, coldCallConsultants, addColdCallConsultant, updateColdCallConsultant, deleteColdCallConsultant, coldCallTutorial, updateColdCallTutorial, isDataLoading } = useApp();
 
   const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
   const [tutorialDraft, setTutorialDraft] = useState('');
@@ -106,6 +114,7 @@ const ColdCallMetricsPage = () => {
 
   const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
   const [goalsDraft, setGoalsDraft] = useState<ColdCallGoals>(coldCallGoals);
+  const [consultantGoalsDraft, setConsultantGoalsDraft] = useState<Record<string, ColdCallGoals>>({});
 
   const [isManageConsultantsOpen, setIsManageConsultantsOpen] = useState(false);
   const [newConsultantName, setNewConsultantName] = useState('');
@@ -178,16 +187,16 @@ const ColdCallMetricsPage = () => {
     };
   }, [filteredColdCallLogs]);
 
-  // ---------- Painel ao Vivo (Hoje) ----------
-  const todayLogs = useMemo(() => {
-    return coldCallLogs.filter(log => isToday(log.start_time || log.created_at));
+  // ---------- Painel ao Vivo (Semana) ----------
+  const weekLogs = useMemo(() => {
+    return coldCallLogs.filter(log => isThisWeek(log.start_time || log.created_at));
   }, [coldCallLogs]);
 
-  const perConsultantToday = useMemo(() => {
+  const perConsultantWeek = useMemo(() => {
     const map: Record<string, { calls: number; contacts: number; meetings: number }> = {};
     activeColdCallConsultants.forEach(m => {
       const uid = m.user_id;
-      const logs = todayLogs.filter(l => l.user_id === uid);
+      const logs = weekLogs.filter(l => l.user_id === uid);
       map[uid] = {
         calls: logs.length,
         contacts: logs.filter(l => isColdCallAnswered(l.result)).length,
@@ -195,17 +204,17 @@ const ColdCallMetricsPage = () => {
       };
     });
     return map;
-  }, [todayLogs, activeColdCallConsultants]);
+  }, [weekLogs, activeColdCallConsultants]);
 
   const liveTotals = useMemo(() => {
     let calls = 0, contacts = 0, meetings = 0;
-    todayLogs.forEach(l => {
+    weekLogs.forEach(l => {
       calls += 1;
       if (isColdCallAnswered(l.result)) contacts += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
     return { calls, contacts, meetings };
-  }, [todayLogs]);
+  }, [weekLogs]);
 
   const liveMetaCompletion = useMemo(() => {
     const pcts = [
@@ -221,12 +230,14 @@ const ColdCallMetricsPage = () => {
     return activeColdCallConsultants
       .map(m => {
         const uid = m.user_id;
-        const metrics = perConsultantToday[uid] || { calls: 0, contacts: 0, meetings: 0 };
-        const meetingsPct = coldCallGoals.meetings > 0 ? Math.min(100, Math.round((metrics.meetings / coldCallGoals.meetings) * 100)) : 0;
-        return { consultant: m, uid, ...metrics, meetingsPct };
+        const metrics = perConsultantWeek[uid] || { calls: 0, contacts: 0, meetings: 0 };
+        const cg = coldCallConsultantGoals[uid] || coldCallGoals;
+        const callsPct = cg.calls > 0 ? Math.min(100, Math.round((metrics.calls / cg.calls) * 100)) : 0;
+        const meetingsPct = cg.meetings > 0 ? Math.min(100, Math.round((metrics.meetings / cg.meetings) * 100)) : 0;
+        return { consultant: m, uid, ...metrics, goalCalls: cg.calls, goalMeetings: cg.meetings, callsPct, meetingsPct };
       })
       .sort((a, b) => b.meetings - a.meetings || b.contacts - a.contacts || b.calls - a.calls);
-  }, [activeColdCallConsultants, perConsultantToday, coldCallGoals.meetings]);
+  }, [activeColdCallConsultants, perConsultantWeek, coldCallGoals, coldCallConsultantGoals]);
 
   const funnelAnalysis = useMemo(() => {
     const baseLeads = coldCallLeads.filter(l => l.current_stage === 'Base Fria').length;
@@ -262,9 +273,9 @@ const ColdCallMetricsPage = () => {
   };
 
   const handleOpenTodayDetailModal = (title: string, type: ColdCallDetailType) => {
-    setColdCallModalTitle(`${title} — Hoje`);
+    setColdCallModalTitle(`${title} — Semana`);
     setColdCallLeadsForModal(coldCallLeads);
-    setColdCallLogsForModal(todayLogs);
+    setColdCallLogsForModal(weekLogs);
     setColdCallDetailType(type);
     setModalFilterStartDate('');
     setModalFilterEndDate('');
@@ -281,17 +292,40 @@ const ColdCallMetricsPage = () => {
 
   const openGoalsModal = () => {
     setGoalsDraft(coldCallGoals);
+    const draft: Record<string, ColdCallGoals> = {};
+    activeColdCallConsultants.forEach(m => {
+      draft[m.user_id] = { ...coldCallGoals, ...(coldCallConsultantGoals[m.user_id] || {}) };
+    });
+    setConsultantGoalsDraft(draft);
     setIsGoalsModalOpen(true);
   };
 
+  const updateConsultantGoalDraft = (uid: string, key: keyof ColdCallGoals, value: number) => {
+    setConsultantGoalsDraft(prev => ({
+      ...prev,
+      [uid]: { ...(prev[uid] || coldCallGoals), [key]: Math.max(0, value) },
+    }));
+  };
+
   const saveGoals = () => {
-    updateColdCallGoals({
+    const teamGoals: ColdCallGoals = {
       calls: Math.max(0, goalsDraft.calls),
       contacts: Math.max(0, goalsDraft.contacts),
+      interested: Math.max(0, goalsDraft.interested),
       meetings: Math.max(0, goalsDraft.meetings),
+    };
+    const cleaned: Record<string, ColdCallGoals> = {};
+    Object.entries(consultantGoalsDraft).forEach(([key, g]) => {
+      cleaned[key] = {
+        calls: Math.max(0, g.calls),
+        contacts: Math.max(0, g.contacts),
+        interested: Math.max(0, g.interested),
+        meetings: Math.max(0, g.meetings),
+      };
     });
+    updateColdCallGoalsAndConsultants(teamGoals, cleaned);
     setIsGoalsModalOpen(false);
-    toast.success('Metas diárias atualizadas');
+    toast.success('Metas semanais atualizadas');
   };
 
   const openTutorialModal = () => {
@@ -350,8 +384,13 @@ const ColdCallMetricsPage = () => {
     setIsManageConsultantsOpen(true);
   };
 
-  const todayLabel = useMemo(() => {
-    return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const weekLabel = useMemo(() => {
+    const start = new Date();
+    const day = start.getDay();
+    start.setDate(start.getDate() + (day === 0 ? -6 : 1 - day));
+    const end = new Date(start.getTime() + 6 * 86400000);
+    const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    return `${fmt(start)} a ${fmt(end)}`;
   }, []);
 
   const publicOperationUrl = useMemo(() => {
@@ -420,7 +459,7 @@ const ColdCallMetricsPage = () => {
             className="flex items-center space-x-2 text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline"
           >
             <Settings2 className="w-4 h-4" />
-            <span>Editar Meta do Dia</span>
+            <span>Editar Metas Semanais</span>
           </button>
           <button
             onClick={openTutorialModal}
@@ -445,9 +484,9 @@ const ColdCallMetricsPage = () => {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Painel ao Vivo · Hoje
+            <TrendingUp className="w-5 h-5 mr-2 text-brand-500" /> Painel ao Vivo · Semana
           </h2>
-          <span className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">{todayLabel}</span>
+          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{weekLabel}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -476,7 +515,7 @@ const ColdCallMetricsPage = () => {
             onClick={() => handleOpenTodayDetailModal('Reuniões Agendadas', 'meetings')}
           />
           <LiveKpiCard
-            title="Meta Diária"
+            title="Meta Semanal"
             value={`${liveMetaCompletion}%`}
             meta={100}
             icon={Target}
@@ -541,8 +580,9 @@ const ColdCallMetricsPage = () => {
                   <td className="px-4 py-3 text-center font-bold text-gray-900 dark:text-white">{r.calls}</td>
                   <td className="px-4 py-3">
                     <div className="h-2 rounded-full bg-gray-100 dark:bg-slate-700">
-                      <div className={`h-full rounded-full ${progressBarClass(coldCallGoals.calls > 0 ? Math.round((r.calls / coldCallGoals.calls) * 100) : 0)}`} style={{ width: `${coldCallGoals.calls > 0 ? Math.min(100, (r.calls / coldCallGoals.calls) * 100) : 0}%` }} />
+                      <div className={`h-full rounded-full ${progressBarClass(r.callsPct)}`} style={{ width: `${r.callsPct}%` }} />
                     </div>
+                    <p className="mt-1 text-[10px] font-semibold text-gray-400 text-right">{r.calls}/{r.goalCalls}</p>
                   </td>
                   <td className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">{r.contacts}</td>
                   <td className="px-4 py-3 text-center font-bold text-green-600 dark:text-green-400">{r.meetings}</td>
@@ -550,6 +590,7 @@ const ColdCallMetricsPage = () => {
                     <div className="h-2 rounded-full bg-gray-100 dark:bg-slate-700">
                       <div className={`h-full rounded-full ${progressBarClass(r.meetingsPct)}`} style={{ width: `${r.meetingsPct}%` }} />
                     </div>
+                    <p className="mt-1 text-[10px] font-semibold text-gray-400 text-right">{r.meetings}/{r.goalMeetings}</p>
                   </td>
                 </tr>
               ))}
@@ -577,7 +618,7 @@ const ColdCallMetricsPage = () => {
               </div>
             </div>
             <div className="rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800 p-4 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Ligações Hoje</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Ligações na Semana</p>
               <p className="mt-1 text-3xl font-black text-blue-700 dark:text-blue-300">{liveTotals.calls}</p>
             </div>
             <div className="flex items-center justify-center">
@@ -597,7 +638,7 @@ const ColdCallMetricsPage = () => {
               </div>
             </div>
             <div className="rounded-lg bg-green-50 dark:bg-green-950/40 border border-green-100 dark:border-green-800 p-4 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400">Reuniões Hoje</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400">Reuniões na Semana</p>
               <p className="mt-1 text-3xl font-black text-green-700 dark:text-green-300">{liveTotals.meetings}</p>
             </div>
           </div>
@@ -752,14 +793,14 @@ const ColdCallMetricsPage = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Target className="w-6 h-6 text-brand-500" />
-              <span>Metas Diárias do Cold Call</span>
+              <span>Metas Semanais do Cold Call</span>
             </DialogTitle>
           </DialogHeader>
 
           {/* Meta da equipe */}
           <div className="py-4">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide flex items-center mb-3">
-              <Users className="w-4 h-4 mr-2 text-brand-500" /> Meta da Equipe (no geral)
+              <Users className="w-4 h-4 mr-2 text-brand-500" /> Meta da Equipe (semanal · no geral)
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {([
@@ -779,6 +820,48 @@ const ColdCallMetricsPage = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Metas por consultor */}
+          <div className="py-4 border-t border-gray-100 dark:border-slate-700">
+            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide flex items-center mb-1">
+              <Target className="w-4 h-4 mr-2 text-brand-500" /> Meta Semanal de cada Consultor
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              Defina a meta semanal individual. O progresso é contado de segunda a domingo.
+            </p>
+            {activeColdCallConsultants.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum consultor ativo. Cadastre em "Consultores".</p>
+            ) : (
+              <div className="space-y-3">
+                {activeColdCallConsultants.map(c => {
+                  const g = consultantGoalsDraft[c.user_id] || coldCallGoals;
+                  return (
+                    <div key={c.id} className="rounded-lg border border-gray-200 dark:border-slate-700 p-3">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2 truncate">{c.name}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { key: 'calls', label: 'Ligações' },
+                          { key: 'contacts', label: 'Contatos' },
+                          { key: 'meetings', label: 'Reuniões' },
+                        ] as { key: keyof ColdCallGoals; label: string }[]).map(field => (
+                          <div key={field.key}>
+                            <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">{field.label}</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={g[field.key]}
+                              onChange={(e) => updateConsultantGoalDraft(c.user_id, field.key, Math.max(0, parseInt(e.target.value) || 0))}
+                              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-sm bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-brand-500 focus:border-brand-500"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <DialogFooter className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">

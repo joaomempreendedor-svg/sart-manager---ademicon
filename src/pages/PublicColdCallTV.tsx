@@ -32,13 +32,21 @@ interface PublicTeamMember {
   consultantKey: string;
 }
 
-const isToday = (dateStr?: string) => {
+const getWeekStart = () => {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7; // 0 = segunda-feira
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - day);
+  return d;
+};
+
+const isThisWeek = (dateStr?: string) => {
   if (!dateStr) return false;
   const t = new Date(dateStr).getTime();
   if (isNaN(t)) return false;
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  return t >= todayStart.getTime() && t < todayStart.getTime() + 86400000;
+  const start = getWeekStart();
+  const end = start.getTime() + 7 * 86400000;
+  return t >= start.getTime() && t < end;
 };
 
 const PublicColdCallTV = () => {
@@ -129,20 +137,20 @@ const PublicColdCallTV = () => {
     };
   }, [loadData]);
 
-  const todayLogs = useMemo(() => logs.filter(l => isToday(l.start_time || l.created_at)), [logs]);
+  const weekLogs = useMemo(() => logs.filter(l => isThisWeek(l.start_time || l.created_at)), [logs]);
 
   const NEUTRO = 'Ligou';
   const isAnsweredResult = (r: string) => r !== 'Não atendeu' && r !== 'Não chamou' && r !== 'Número inválido' && r !== NEUTRO;
 
   const liveTotals = useMemo(() => {
     let calls = 0, answered = 0, meetings = 0;
-    todayLogs.forEach(l => {
+    weekLogs.forEach(l => {
       calls += 1;
       if (isAnsweredResult(l.result)) answered += 1;
       if (l.result === 'Agendar Reunião') meetings += 1;
     });
     return { calls, answered, meetings };
-  }, [todayLogs]);
+  }, [weekLogs]);
 
   const liveMetaCompletion = useMemo(() => {
     const values = [liveTotals.calls, liveTotals.answered, liveTotals.meetings];
@@ -155,14 +163,14 @@ const PublicColdCallTV = () => {
     return consultants
       .map(m => {
         const uid = m.consultantKey;
-        const logsFor = todayLogs.filter(l => l.user_id === uid);
+        const logsFor = weekLogs.filter(l => l.user_id === uid);
         const calls = logsFor.length;
         const answered = logsFor.filter(l => isAnsweredResult(l.result)).length;
         const meetings = logsFor.filter(l => l.result === 'Agendar Reunião').length;
         return { consultant: m, uid, calls, answered, meetings };
       })
       .sort((a, b) => b.meetings - a.meetings || b.answered - a.answered || b.calls - a.calls);
-  }, [consultants, todayLogs]);
+  }, [consultants, weekLogs]);
 
   const funnelAnalysis = useMemo(() => {
     const baseLeads = leads.filter(l => l.current_stage === 'Base Fria').length;
@@ -181,8 +189,13 @@ const PublicColdCallTV = () => {
     return { baseLeads, stages, bottleneck };
   }, [leads, liveTotals]);
 
-  const dateLabel = useMemo(() => {
-    return now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const weekLabel = useMemo(() => {
+    const start = new Date(now);
+    const day = start.getDay();
+    start.setDate(start.getDate() + (day === 0 ? -6 : 1 - day));
+    const end = new Date(start.getTime() + 6 * 86400000);
+    const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    return `Semana ${fmt(start)} a ${fmt(end)}`;
   }, [now]);
 
   const timeLabel = useMemo(() => {
@@ -215,7 +228,7 @@ const PublicColdCallTV = () => {
             </div>
             <div>
               <h1 className="text-4xl font-black tracking-tight">Cold Call · AO VIVO</h1>
-              <p className="text-lg capitalize text-slate-400">{dateLabel}</p>
+              <p className="text-lg text-slate-400">{weekLabel}</p>
             </div>
           </div>
           <div className="flex items-center gap-6">
@@ -275,7 +288,7 @@ const PublicColdCallTV = () => {
               <div className="rounded-xl bg-white/15 p-3">
                 <Target className="h-7 w-7" />
               </div>
-              <p className="text-sm font-bold uppercase tracking-widest text-white/80">Meta do dia</p>
+              <p className="text-sm font-bold uppercase tracking-widest text-white/80">Meta da semana</p>
             </div>
             <div className="mt-4 flex items-end gap-2">
               <span className="text-6xl font-black leading-none tabular-nums">{liveMetaCompletion}%</span>
@@ -412,7 +425,7 @@ const PublicColdCallTV = () => {
 
         <footer className="mt-6 flex items-center justify-between text-sm text-slate-500">
           <span>Atualização automática a cada 15s</span>
-          <span className="capitalize">{dateLabel} · {timeLabel}</span>
+          <span>{weekLabel} · {timeLabel}</span>
         </footer>
       </div>
     </div>
