@@ -42,7 +42,7 @@ const MetricsConfig = () => {
   const [tokenDrafts, setTokenDrafts] = useState<Record<string, string>>({});
   const [managerPassword, setManagerPassword] = useState('');
   const [isSavingManagerPassword, setIsSavingManagerPassword] = useState(false);
-  const [targetDrafts, setTargetDrafts] = useState<Record<string, Record<string, { daily: string; weekly: string; monthly: string }>>>({});
+  const [targetDrafts, setTargetDrafts] = useState<Record<string, Record<string, { daily: string }>>>({});
   const [isSavingTargets, setIsSavingTargets] = useState(false);
 
   const publicUrl = useMemo(() => {
@@ -194,7 +194,7 @@ const MetricsConfig = () => {
         .from('public_metric_consultant_targets')
         .select('consultant_id, metric_config_id, target_value, daily_target_value, weekly_target_value')
         .eq('user_id', user.id);
-      const map: Record<string, Record<string, { daily: string; weekly: string; monthly: string }>> = {};
+      const map: Record<string, Record<string, { daily: string }>> = {};
       (data || []).forEach(row => {
         const metric = dailyMetricsConfig.find(item => item.id === row.metric_config_id);
         const toCanonical = (stored: number) => {
@@ -204,8 +204,6 @@ const MetricsConfig = () => {
         map[row.metric_config_id] = map[row.metric_config_id] || {};
         map[row.metric_config_id][row.consultant_id] = {
           daily: toCanonical(row.daily_target_value),
-          weekly: toCanonical(row.weekly_target_value),
-          monthly: toCanonical(row.target_value),
         };
       });
       setTargetDrafts(map);
@@ -213,14 +211,14 @@ const MetricsConfig = () => {
     loadTargets();
   }, [user, dailyMetricsConfig]);
 
-  const setTargetDraft = (metricId: string, consultantId: string, period: 'daily' | 'weekly' | 'monthly', value: string) => {
+  const setTargetDraft = (metricId: string, consultantId: string, value: string) => {
     setTargetDrafts(prev => {
-      const current = prev[metricId]?.[consultantId] || { daily: '', weekly: '', monthly: '' };
+      const current = prev[metricId]?.[consultantId] || { daily: '' };
       return {
         ...prev,
         [metricId]: {
           ...(prev[metricId] || {}),
-          [consultantId]: { ...current, [period]: value },
+          [consultantId]: { ...current, daily: value },
         },
       };
     });
@@ -243,8 +241,8 @@ const MetricsConfig = () => {
 
     dailyMetricsConfig.forEach(metric => {
       Object.entries(targetDrafts[metric.id] || {}).forEach(([consultantId, draft]) => {
-        const monthly = toAmount(metric.type, draft.monthly);
-        const weekly = toAmount(metric.type, draft.weekly);
+        const monthly = 0;
+        const weekly = 0;
         const daily = toAmount(metric.type, draft.daily);
         if (monthly === 0 && weekly === 0 && daily === 0) {
           idsToRemove.push({ metricId: metric.id, consultantId });
@@ -490,7 +488,7 @@ const MetricsConfig = () => {
               <Target className="h-5 w-5 text-brand-600" /> Metas por consultor
             </CardTitle>
             <CardDescription>
-              Defina a meta diária, semanal e mensal de cada consultor por métrica. Deixe em branco o que não tiver meta. Ao selecionar o próprio nome no link público, ele vê o que já atingiu e quanto falta.
+              Defina a meta diária de cada consultor por métrica. Deixe em branco o que não tiver meta.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -498,41 +496,32 @@ const MetricsConfig = () => {
               {dailyMetricsConfig.map(config => (
                 <div key={config.id} className="rounded-lg border border-gray-200 p-3 dark:border-slate-700">
                   <p className="mb-2 font-medium text-gray-800 dark:text-gray-200">{config.label}</p>
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {consultants.map(consultant => {
-                      const draft = (targetDrafts[config.id] || {})[consultant.id] || { daily: '', weekly: '', monthly: '' };
-                      const fields: { key: 'daily' | 'weekly' | 'monthly'; label: string }[] = [
-                        { key: 'daily', label: 'Diária' },
-                        { key: 'weekly', label: 'Semanal' },
-                        { key: 'monthly', label: 'Mensal' },
-                      ];
+                      const draft = (targetDrafts[config.id] || {})[consultant.id] || { daily: '' };
                       return (
                         <div key={consultant.id} className="space-y-1.5 rounded-md border border-gray-200 p-2 dark:border-slate-700">
                           <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{consultant.name}</Label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {fields.map(field => (
-                              <div key={field.key}>
-                                <span className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{field.label}</span>
-                                {config.type === 'currency' ? (
-                                  <CurrencyInput
-                                    value={draft[field.key]}
-                                    onChange={canonical => setTargetDraft(config.id, consultant.id, field.key, canonical)}
-                                    placeholder="R$ 0"
-                                    className="bg-white dark:bg-slate-900"
-                                  />
-                                ) : (
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    inputMode="numeric"
-                                    value={draft[field.key]}
-                                    onChange={event => setTargetDraft(config.id, consultant.id, field.key, event.target.value)}
-                                    placeholder="0"
-                                    className="bg-white dark:bg-slate-900"
-                                  />
-                                )}
-                              </div>
-                            ))}
+                          <div>
+                            <span className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Diária</span>
+                            {config.type === 'currency' ? (
+                              <CurrencyInput
+                                value={draft.daily}
+                                onChange={canonical => setTargetDraft(config.id, consultant.id, canonical)}
+                                placeholder="R$ 0"
+                                className="bg-white dark:bg-slate-900"
+                              />
+                            ) : (
+                              <Input
+                                type="number"
+                                min="0"
+                                inputMode="numeric"
+                                value={draft.daily}
+                                onChange={event => setTargetDraft(config.id, consultant.id, event.target.value)}
+                                placeholder="0"
+                                className="bg-white dark:bg-slate-900"
+                              />
+                            )}
                           </div>
                         </div>
                       );
