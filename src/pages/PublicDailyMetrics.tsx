@@ -68,7 +68,7 @@ type ViewMode = 'form' | 'dashboard' | 'indications' | 'proposals';
 type PeriodMode = 'daily' | 'weekly' | 'monthly';
 
 type PublicMetricGoalEntry = { consultant_id: string; metric_config_id: string; value: number | null };
-type PublicMetricConsultantTarget = { consultant_id: string; metric_config_id: string; target_value: number | null };
+type PublicMetricConsultantTarget = { consultant_id: string; metric_config_id: string; target_value: number | null; daily_target_value?: number | null; weekly_target_value?: number | null };
 
 const monthDayCount = (isoDate: string) => {
   const [year, month] = isoDate.split('-').map(Number);
@@ -256,6 +256,7 @@ const PublicDailyMetrics = () => {
   const [step, setStep] = useState(0);
   const [statusEntries, setStatusEntries] = useState<PublicMetricStatusEntry[]>([]);
   const [goalEntries, setGoalEntries] = useState<PublicMetricGoalEntry[]>([]);
+  const [weekEntries, setWeekEntries] = useState<PublicMetricGoalEntry[]>([]);
   const [showGoalPanel, setShowGoalPanel] = useState(false);
   const [consultantTargets, setConsultantTargets] = useState<PublicMetricConsultantTarget[]>([]);
   const [indications, setIndications] = useState<PublicMetricIndication[]>([]);
@@ -349,8 +350,15 @@ const PublicDailyMetrics = () => {
       const statusStart = shiftDays(selectedDate, -(STATUS_WINDOW_DAYS - 1));
       const goalStart = `${selectedDate.slice(0, 7)}-01`;
       const goalEnd = shiftDays(`${selectedDate.slice(0, 7)}-01`, monthDayCount(selectedDate));
+      const weekStart = (() => {
+        const d = new Date(`${selectedDate}T12:00:00`);
+        const day = (d.getDay() + 6) % 7;
+        d.setDate(d.getDate() - day);
+        return toLocalISODate(d);
+      })();
+      const weekEnd = shiftDays(weekStart, 6);
 
-      const [periodResult, statusResult, goalResult, targetResult] = await Promise.all([
+      const [periodResult, statusResult, goalResult, weekResult, targetResult] = await Promise.all([
         supabase
           .from('public_metric_entries')
           .select('*')
@@ -370,18 +378,26 @@ const PublicDailyMetrics = () => {
           .lte('entry_date', goalEnd)
           .in('metric_config_id', metricIds),
         supabase
+          .from('public_metric_entries')
+          .select('consultant_id, metric_config_id, value')
+          .gte('entry_date', weekStart)
+          .lte('entry_date', weekEnd)
+          .in('metric_config_id', metricIds),
+        supabase
           .from('public_metric_consultant_targets')
-          .select('consultant_id, metric_config_id, target_value'),
+          .select('consultant_id, metric_config_id, target_value, daily_target_value, weekly_target_value'),
       ]);
 
       setEntries(periodResult.error ? [] : periodResult.data || []);
       setStatusEntries(statusResult.error ? [] : statusResult.data || []);
       setGoalEntries(goalResult.error ? [] : (goalResult.data || []) as PublicMetricGoalEntry[]);
+      setWeekEntries(weekResult.error ? [] : (weekResult.data || []) as PublicMetricGoalEntry[]);
       setConsultantTargets(targetResult.error ? [] : (targetResult.data || []) as PublicMetricConsultantTarget[]);
     } else {
       setEntries([]);
       setStatusEntries([]);
       setGoalEntries([]);
+      setWeekEntries([]);
       setConsultantTargets([]);
     }
 
@@ -823,23 +839,27 @@ const PublicDailyMetrics = () => {
   const goalAllRows = useMemo(() => {
     if (!selectedConsultantId) return [];
     return metrics.map(metric => {
-      const target = Number(consultantTargets.find(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)?.target_value) || 0;
+      const targetRow = consultantTargets.find(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id);
+      const target = Number(targetRow?.target_value) || 0;
+      const dailyTarget = Number(targetRow?.daily_target_value) || 0;
+      const weeklyTarget = Number(targetRow?.weekly_target_value) || 0;
       const done = goalEntries
+        .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)
+        .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
+      const weekDone = weekEntries
         .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id)
         .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
       const todayDone = entries
         .filter(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id && item.entry_date === selectedDate)
         .reduce((acc, item) => acc + (Number(item.value) || 0), 0);
-      return { metric, target, done, todayDone, hasTarget: target > 0 };
+      return { metric, target, dailyTarget, weeklyTarget, done, weekDone, todayDone, hasTarget: target > 0 };
     });
-  }, [metrics, consultantTargets, goalEntries, entries, selectedConsultantId, selectedDate]);
+  }, [metrics, consultantTargets, goalEntries, weekEntries, entries, selectedConsultantId, selectedDate]);
 
-  const goalRows = useMemo(() => goalAllRows.filter(row => row.hasTarget), [goalAllRows]);
-
-  const goalMonthLabel = useMemo(() => {
-    const [year, month] = selectedDate.split('-').map(Number);
-    return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
-  }, [selectedDate]);
+  const goalPanelRows = useMemo(
+    () => goalAllRows.filter(row => row.hasTarget || row.dailyTarget > 0 || row.weeklyTarget > 0),
+    [goalAllRows]
+  );
 
   const totalFormSteps = 1 + metrics.length + 1;
   const currentFormStep = Math.min(step, totalFormSteps - 1);
@@ -1432,35 +1452,45 @@ const PublicDailyMetrics = () => {
                     </Select>
                     <p className="text-xs text-slate-500">Um novo envio na mesma data atualizará os valores anteriores.</p>
 
-                    {selectedConsultantId && goalRows.length > 0 && (
+                    {selectedConsultantId && goalPanelRows.length > 0 && (
                       <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/60 p-4 dark:border-brand-900 dark:bg-brand-950/30">
                         <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-brand-800 dark:text-brand-200">
-                          <Target className="h-4 w-4 text-brand-600" /> Sua meta · {goalMonthLabel}
+                          <Target className="h-4 w-4 text-brand-600" /> Suas metas
                         </p>
-                        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">O que você já atingiu no mês e o que falta.</p>
-                        <div className="space-y-3">
-                          {goalRows.map(({ metric, target, done, todayDone }) => {
-                            const percent = target > 0 ? Math.round((done / target) * 100) : 0;
-                            const reached = percent >= 100;
+                        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">O que você já atingiu e o que falta (dia, semana e mês).</p>
+                        <div className="space-y-4">
+                          {goalPanelRows.map(row => {
+                            const { metric } = row;
+                            const periods = [
+                              { key: 'day', label: 'Dia', target: row.dailyTarget, done: row.todayDone },
+                              { key: 'week', label: 'Semana', target: row.weeklyTarget, done: row.weekDone },
+                              { key: 'month', label: 'Mês', target: row.target, done: row.done },
+                            ].filter(period => period.target > 0);
                             return (
                               <div key={metric.id}>
-                                <div className="flex items-baseline justify-between gap-2 text-xs">
-                                  <span className="font-medium text-slate-700 dark:text-slate-200">{metric.label}</span>
-                                  <span className="font-semibold text-slate-900 dark:text-white">{percent}%</span>
+                                <p className="mb-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">{metric.label}</p>
+                                <div className="space-y-2">
+                                  {periods.map(period => {
+                                    const percent = period.target > 0 ? Math.round((period.done / period.target) * 100) : 0;
+                                    const reached = percent >= 100;
+                                    return (
+                                      <div key={period.key}>
+                                        <div className="flex items-baseline justify-between gap-2 text-[11px]">
+                                          <span className="font-medium text-slate-500 dark:text-slate-400">{period.label}</span>
+                                          <span className="font-semibold text-slate-900 dark:text-white">
+                                            {formatValue(period.done, metric.type)} / {formatValue(period.target, metric.type)} · {percent}%
+                                          </span>
+                                        </div>
+                                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                          <div
+                                            className={`h-full rounded-full ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                                            style={{ width: `${Math.min(100, Math.max(percent, period.done > 0 ? 3 : 0))}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                                  <div
-                                    className={`h-full rounded-full ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
-                                    style={{ width: `${Math.min(100, Math.max(percent, done > 0 ? 3 : 0))}%` }}
-                                  />
-                                </div>
-                                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                  {formatValue(done, metric.type)} de {formatValue(target, metric.type)}
-                                  {reached
-                                    ? ' · meta batida!'
-                                    : ` · falta ${formatValue(target - done, metric.type)}`}
-                                  {todayDone > 0 && ` · hoje: ${formatValue(todayDone, metric.type)}`}
-                                </p>
                               </div>
                             );
                           })}
@@ -1557,6 +1587,18 @@ const PublicDailyMetrics = () => {
                       {metric.target_value > 0 && (
                         <p className="text-xs text-slate-500">Meta diária da equipe: {formatValue(metric.target_value, metric.type)}</p>
                       )}
+                      {(() => {
+                        if (!selectedConsultantId) return null;
+                        const personal = consultantTargets.find(item => item.consultant_id === selectedConsultantId && item.metric_config_id === metric.id);
+                        const daily = Number(personal?.daily_target_value) || 0;
+                        const weekly = Number(personal?.weekly_target_value) || 0;
+                        if (daily <= 0 && weekly <= 0) return null;
+                        return (
+                          <p className="text-xs font-semibold text-brand-600 dark:text-brand-400">
+                            Sua meta:{daily > 0 ? ` dia ${formatValue(daily, metric.type)}` : ''}{daily > 0 && weekly > 0 ? ' ·' : ''}{weekly > 0 ? ` semana ${formatValue(weekly, metric.type)}` : ''}
+                          </p>
+                        );
+                      })()}
                       {isIndicationStep && (
                         <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
                           <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
@@ -2354,7 +2396,7 @@ const PublicDailyMetrics = () => {
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                   {selectedConsultant?.name || 'Consultor'}
                 </h2>
-                <p className="text-[11px] text-slate-500">{goalMonthLabel} · o que já atingiu e o que falta</p>
+                <p className="text-[11px] text-slate-500">Metas de dia, semana e mês · o que já atingiu e o que falta</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowGoalPanel(false)} className="dark:bg-slate-700 dark:text-white dark:border-slate-600">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
@@ -2364,43 +2406,49 @@ const PublicDailyMetrics = () => {
 
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 py-3">
             <div className="divide-y divide-slate-200 dark:divide-slate-800">
-              {goalAllRows.map(({ metric, target, done, todayDone, hasTarget }) => {
-                const percent = hasTarget ? Math.round((done / target) * 100) : 0;
-                const reached = hasTarget && percent >= 100;
+              {goalAllRows.map(row => {
+                const { metric } = row;
+                const periods = [
+                  { key: 'day', label: 'Dia', target: row.dailyTarget, done: row.todayDone },
+                  { key: 'week', label: 'Semana', target: row.weeklyTarget, done: row.weekDone },
+                  { key: 'month', label: 'Mês', target: row.target, done: row.done },
+                ].filter(period => period.target > 0);
                 return (
                   <div key={metric.id} className="py-3">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">{metric.label}</p>
-                      {hasTarget && (
-                        <p className={`text-lg font-bold sm:text-xl ${reached ? 'text-emerald-600 dark:text-emerald-400' : 'text-brand-600 dark:text-brand-400'}`}>
-                          {percent}%
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="mt-1 flex items-baseline justify-between gap-3 text-xs sm:text-sm">
-                      {hasTarget ? (
-                        <p className="text-slate-600 dark:text-slate-300">
-                          <span className="font-bold text-slate-900 dark:text-white">{formatValue(done, metric.type)}</span>
-                          <span className="text-slate-400"> de {formatValue(target, metric.type)}</span>
-                          <span className={reached ? 'ml-2 font-semibold text-emerald-600 dark:text-emerald-400' : 'ml-2 text-slate-500'}>
-                            {reached ? '· meta batida!' : `· falta ${formatValue(target - done, metric.type)}`}
-                          </span>
-                        </p>
-                      ) : (
-                        <p className="text-slate-500">Sem meta definida</p>
-                      )}
-                      <p className="shrink-0 text-slate-500 dark:text-slate-400">
-                        hoje <span className="font-semibold text-slate-700 dark:text-slate-200">{formatValue(todayDone, metric.type)}</span>
-                      </p>
-                    </div>
-
-                    <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                      <div
-                        className={`h-full rounded-full transition-all ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
-                        style={{ width: `${Math.min(100, Math.max(percent, done > 0 ? 2 : 0))}%` }}
-                      />
-                    </div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">{metric.label}</p>
+                    {periods.length === 0 ? (
+                      <p className="mt-1 text-xs text-slate-500">Sem meta definida</p>
+                    ) : (
+                      <div className="mt-2 space-y-2.5">
+                        {periods.map(period => {
+                          const percent = period.target > 0 ? Math.round((period.done / period.target) * 100) : 0;
+                          const reached = percent >= 100;
+                          return (
+                            <div key={period.key}>
+                              <div className="flex items-baseline justify-between gap-3 text-xs sm:text-sm">
+                                <span className="font-semibold text-slate-500 dark:text-slate-400">{period.label}</span>
+                                <p className="text-slate-600 dark:text-slate-300">
+                                  <span className="font-bold text-slate-900 dark:text-white">{formatValue(period.done, metric.type)}</span>
+                                  <span className="text-slate-400"> de {formatValue(period.target, metric.type)}</span>
+                                  <span className={reached ? 'ml-2 font-semibold text-emerald-600 dark:text-emerald-400' : 'ml-2 text-slate-500'}>
+                                    {reached ? '· meta batida!' : `· falta ${formatValue(period.target - period.done, metric.type)}`}
+                                  </span>
+                                </p>
+                                <p className={`shrink-0 text-sm font-bold sm:text-base ${reached ? 'text-emerald-600 dark:text-emerald-400' : 'text-brand-600 dark:text-brand-400'}`}>
+                                  {percent}%
+                                </p>
+                              </div>
+                              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                                <div
+                                  className={`h-full rounded-full transition-all ${reached ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                                  style={{ width: `${Math.min(100, Math.max(percent, period.done > 0 ? 2 : 0))}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
