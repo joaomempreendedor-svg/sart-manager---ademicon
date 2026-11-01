@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Loader2, Plus, Trash2, UploadCloud, FileDown } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, Loader2, Plus, Trash2, UploadCloud, FileDown, Users } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,34 +12,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Commission, InstallmentInfo } from '@/types';
+import { Commission } from '@/types';
 import toast from 'react-hot-toast';
+import {
+  buildCommissionPayload,
+  COMMISSION_IMPORT_TAX_RATE,
+  CommissionImportRow,
+  createCommissionImportRowId,
+  getCommissionRowIssues,
+  isCommissionRowUnpaid,
+  normalizeImportKey,
+  parseCommissionWorkbook,
+  parseImportMoney,
+} from '@/lib/commissionImport';
 
-const TAX_RATE = 20;
-
-const DEFAULT_RULES = {
-  consultant: { p1_10: 0.001288, p11_13: 0.002374, p15: 0.003 },
-  manager: {
-    noAngel: { p1_10: 0.000322, p11_13: 0.000593 },
-    withAngel: { p1_10: 0.000194, p11_13: 0.000356 },
-  },
-  angel: { p1_10: 0.0001288, p11_13: 0.0002374 },
-};
-
-type ImportRow = {
-  id: string;
-  clientName: string;
-  date: string;
-  type: 'Imóvel' | 'Veículo';
-  group: string;
-  quota: string;
-  pv: string;
-  value: string;
-  consultant: string;
-  manager: string;
-  hasAngel: boolean;
-  angel: string;
-};
+const CODE_MAP_STORAGE_KEY = 'commission_import_code_map';
 
 interface ImportCommissionsModalProps {
   isOpen: boolean;
@@ -51,101 +38,14 @@ interface ImportCommissionsModalProps {
   pvs: string[];
 }
 
-const normalizeKey = (value: string) =>
-  String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-
-const COLUMN_SYNONYMS: Record<string, string[]> = {
-  clientName: ['cliente', 'nome do cliente', 'nome cliente', 'nome', 'clientes', 'nome completo', 'titular'],
-  date: ['data', 'data da venda', 'data venda', 'data de venda', 'data do cadastro', 'data cadastro', 'dt venda', 'data do contrato'],
-  type: ['tipo', 'tipo de bem', 'tipo bem', 'bem', 'modalidade', 'segmento'],
-  group: ['grupo', 'numero do grupo', 'n do grupo', 'codigo do grupo', 'grupo cota'],
-  quota: ['cota', 'cota controle', 'controle', 'numero da cota', 'n da cota', 'codigo da cota'],
-  pv: ['pv', 'ponto de venda', 'ponto venda', 'pdv', 'loja', 'unidade'],
-  value: ['valor', 'valor do credito', 'valor credito', 'credito', 'valor da venda', 'valor venda', 'valor total', 'capital', 'valor do bem'],
-  consultant: ['consultor', 'consultora', 'previa', 'autorizado', 'previa autorizado', 'vendedor', 'corretor', 'corretora'],
-  manager: ['gestor', 'gestora', 'gerente', 'supervisor'],
-  angel: ['anjo', 'nome do anjo', 'anjo nome'],
-  hasAngel: ['tem anjo', 'possui anjo', 'anjo sim nao'],
-  angelFlag: ['tem anjo', 'possui anjo', 'anjo sim nao'],
-};
-
-const toIsoDate = (date: Date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
-const parseDate = (raw: unknown): string => {
-  if (raw instanceof Date && !Number.isNaN(raw.getTime())) return toIsoDate(raw);
-  if (typeof raw === 'number' && raw > 0) {
-    const parsed = XLSX.SSF.parse_date_code(raw);
-    if (parsed) {
-      const m = String(parsed.m).padStart(2, '0');
-      const d = String(parsed.d).padStart(2, '0');
-      return `${parsed.y}-${m}-${d}`;
-    }
+const readSavedCodeMap = (): Record<string, string> => {
+  try {
+    const saved = localStorage.getItem(CODE_MAP_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
   }
-  const text = String(raw ?? '').trim();
-  if (!text) return '';
-  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-  const brMatch = text.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
-  if (brMatch) {
-    const year = brMatch[3].length === 2 ? `20${brMatch[3]}` : brMatch[3];
-    return `${year}-${brMatch[2].padStart(2, '0')}-${brMatch[1].padStart(2, '0')}`;
-  }
-  const fallback = new Date(text);
-  return Number.isNaN(fallback.getTime()) ? '' : toIsoDate(fallback);
 };
-
-const parseMoney = (raw: unknown): number => {
-  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0;
-  let text = String(raw ?? '').replace(/[R$\s]/gi, '').trim();
-  if (!text) return 0;
-  const negative = text.startsWith('-');
-  text = text.replace(/-/g, '');
-  const lastComma = text.lastIndexOf(',');
-  const lastDot = text.lastIndexOf('.');
-  if (lastComma > lastDot) {
-    text = text.replace(/\./g, '').replace(',', '.');
-  } else if (lastDot > lastComma) {
-    if (lastComma >= 0) {
-      text = text.replace(/,/g, '');
-    } else {
-      const parts = text.split('.');
-      if (parts.length > 1 && parts.slice(1).every(part => part.length === 3)) {
-        text = parts.join('');
-      }
-    }
-  }
-  const parsed = Number(text);
-  if (!Number.isFinite(parsed)) return 0;
-  return negative ? -parsed : parsed;
-};
-
-const parseType = (raw: unknown): 'Imóvel' | 'Veículo' => {
-  const normalized = normalizeKey(String(raw ?? ''));
-  if (normalized.includes('veic') || normalized.includes('carro') || normalized.includes('moto') || normalized.includes('auto')) return 'Veículo';
-  return 'Imóvel';
-};
-
-const parseAngelFlag = (raw: unknown): boolean => {
-  const normalized = normalizeKey(String(raw ?? ''));
-  if (!normalized) return false;
-  if (['nao', 'n', '0', 'false', 'sem anjo', 'nao tem'].includes(normalized)) return false;
-  return true;
-};
-
-const findHeader = (headers: string[], aliases: string[]): string | undefined =>
-  headers.find(header => aliases.includes(normalizeKey(header)));
-
-const createRowId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `row-${Math.random().toString(36).slice(2)}`);
 
 const ImportCommissionsModal = ({
   isOpen,
@@ -156,15 +56,16 @@ const ImportCommissionsModal = ({
   angels,
   pvs,
 }: ImportCommissionsModalProps) => {
-  const [rows, setRows] = useState<ImportRow[]>([]);
+  const [rows, setRows] = useState<CommissionImportRow[]>([]);
   const [fileName, setFileName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
   const [pastedData, setPastedData] = useState('');
   const [bulk, setBulk] = useState({ consultant: '', manager: '', pv: '', angel: '', hasAngel: false });
+  const [codeMap, setCodeMap] = useState<Record<string, string>>(readSavedCodeMap);
 
-  const updateRow = (id: string, patch: Partial<ImportRow>) => {
+  const updateRow = (id: string, patch: Partial<CommissionImportRow>) => {
     setRows(prev => prev.map(row => (row.id === id ? { ...row, ...patch } : row)));
   };
 
@@ -172,7 +73,7 @@ const ImportCommissionsModal = ({
     setRows(prev => [
       ...prev,
       {
-        id: createRowId(),
+        id: createCommissionImportRowId(),
         clientName: '',
         date: '',
         type: 'Imóvel',
@@ -184,68 +85,25 @@ const ImportCommissionsModal = ({
         manager: '',
         hasAngel: false,
         angel: '',
+        code: '',
+        company: '',
+        payment: '',
+        contract: '',
       },
     ]);
   };
 
-  const rowIssues = (row: ImportRow): string[] => {
-    const issues: string[] = [];
-    if (!row.clientName.trim()) issues.push('Cliente');
-    if (!row.date) issues.push('Data');
-    if (!(parseMoney(row.value) > 0)) issues.push('Valor');
-    if (!row.consultant.trim()) issues.push('Consultor');
-    if (!row.manager.trim()) issues.push('Gestor');
-    if (row.hasAngel && !row.angel.trim()) issues.push('Anjo');
-    return issues;
-  };
+  const pendingRows = useMemo(() => rows.filter(row => getCommissionRowIssues(row).length > 0).length, [rows]);
 
-  const pendingRows = useMemo(() => rows.filter(row => rowIssues(row).length > 0).length, [rows]);
+  const rowCodes = useMemo(
+    () => Array.from(new Set(rows.map(row => row.code).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [rows],
+  );
 
-  const parseWorkbook = (workbook: XLSX.WorkBook) => {
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    if (!sheet) return [] as ImportRow[];
-    const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', raw: true });
-    if (!json.length) return [] as ImportRow[];
-    const headers = Object.keys(json[0] || {});
-    const map = {
-      clientName: findHeader(headers, COLUMN_SYNONYMS.clientName),
-      date: findHeader(headers, COLUMN_SYNONYMS.date),
-      type: findHeader(headers, COLUMN_SYNONYMS.type),
-      group: findHeader(headers, COLUMN_SYNONYMS.group),
-      quota: findHeader(headers, COLUMN_SYNONYMS.quota),
-      pv: findHeader(headers, COLUMN_SYNONYMS.pv),
-      value: findHeader(headers, COLUMN_SYNONYMS.value),
-      consultant: findHeader(headers, COLUMN_SYNONYMS.consultant),
-      manager: findHeader(headers, COLUMN_SYNONYMS.manager),
-      angel: findHeader(headers, COLUMN_SYNONYMS.angel),
-      angelFlag: findHeader(headers, COLUMN_SYNONYMS.angelFlag),
-    };
-
-    return json
-      .map(rawRow => {
-        const angelValue = map.angel ? String(rawRow[map.angel] ?? '').trim() : '';
-        const flagValue = map.angelFlag ? String(rawRow[map.angelFlag] ?? '').trim() : '';
-        const hasAngel = angelValue
-          ? parseAngelFlag(angelValue) || Boolean(angelValue) && !['nao', 'não', 'n', '0'].includes(normalizeKey(angelValue))
-          : parseAngelFlag(flagValue);
-        const row: ImportRow = {
-          id: createRowId(),
-          clientName: map.clientName ? String(rawRow[map.clientName] ?? '').trim() : '',
-          date: map.date ? parseDate(rawRow[map.date]) : '',
-          type: parseType(map.type ? rawRow[map.type] : ''),
-          group: map.group ? String(rawRow[map.group] ?? '').trim() : '',
-          quota: map.quota ? String(rawRow[map.quota] ?? '').trim() : '',
-          pv: map.pv ? String(rawRow[map.pv] ?? '').trim() : '',
-          value: map.value ? String(rawRow[map.value] ?? '').trim() : '',
-          consultant: map.consultant ? String(rawRow[map.consultant] ?? '').trim() : '',
-          manager: map.manager ? String(rawRow[map.manager] ?? '').trim() : '',
-          hasAngel,
-          angel: hasAngel ? (angelValue && !['sim', 's', '1', 'true'].includes(normalizeKey(angelValue)) ? angelValue : '') : '',
-        };
-        return row;
-      })
-      .filter(row => Object.entries(row).some(([key, value]) => key !== 'id' && key !== 'type' && key !== 'hasAngel' && String(value).trim() !== ''));
-  };
+  const mappedCodesCount = useMemo(
+    () => rowCodes.filter(code => Boolean(codeMap[code]?.trim())).length,
+    [rowCodes, codeMap],
+  );
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -255,7 +113,7 @@ const ImportCommissionsModal = ({
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-      const parsed = parseWorkbook(workbook);
+      const parsed = parseCommissionWorkbook(workbook, readSavedCodeMap());
       if (!parsed.length) {
         toast.error('Nenhuma linha encontrada na planilha. Verifique se a primeira linha é o cabeçalho.');
         return;
@@ -277,7 +135,7 @@ const ImportCommissionsModal = ({
     }
     try {
       const workbook = XLSX.read(pastedData, { type: 'string' });
-      const parsed = parseWorkbook(workbook);
+      const parsed = parseCommissionWorkbook(workbook, readSavedCodeMap());
       if (!parsed.length) {
         toast.error('Nenhuma linha encontrada nos dados colados.');
         return;
@@ -306,40 +164,11 @@ const ImportCommissionsModal = ({
     toast.success('Informações aplicadas a todas as linhas.');
   };
 
-  const buildPayload = (row: ImportRow): Omit<Commission, 'id' | 'db_id' | 'criado_em'> => {
-    const credit = parseMoney(row.value);
-    const angel = row.hasAngel && row.angel.trim() ? row.angel.trim() : undefined;
-    const taxMultiplier = 1 - TAX_RATE / 100;
-    const manRules = angel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
-
-    const consultantGross = credit * (DEFAULT_RULES.consultant.p1_10 * 10 + DEFAULT_RULES.consultant.p11_13 * 3 + DEFAULT_RULES.consultant.p15);
-    const managerGross = credit * (manRules.p1_10 * 10 + manRules.p11_13 * 3);
-    const angelGross = angel ? credit * (DEFAULT_RULES.angel.p1_10 * 10 + DEFAULT_RULES.angel.p11_13 * 3) : 0;
-
-    const installmentDetails: Record<string, InstallmentInfo> = {};
-    for (let i = 1; i <= 15; i += 1) installmentDetails[i] = { status: 'Pendente' };
-
-    return {
-      date: row.date,
-      clientName: row.clientName.trim(),
-      type: row.type,
-      group: row.group.trim(),
-      quota: row.quota.trim(),
-      consultant: row.consultant.trim(),
-      managerName: row.manager.trim() || 'N/A',
-      angelName: angel,
-      pv: row.pv.trim() || 'Não informado',
-      value: credit,
-      taxRate: TAX_RATE,
-      netValue: (consultantGross + managerGross + angelGross) * taxMultiplier,
-      installments: 15,
-      status: 'Em Andamento',
-      installmentDetails,
-      consultantValue: consultantGross,
-      managerValue: managerGross,
-      angelValue: angelGross,
-      receivedValue: 0,
-    };
+  const applyCodeMap = () => {
+    if (!rowCodes.length) return;
+    localStorage.setItem(CODE_MAP_STORAGE_KEY, JSON.stringify(codeMap));
+    setRows(prev => prev.map(row => (row.code && codeMap[row.code]?.trim() ? { ...row, consultant: codeMap[row.code].trim() } : row)));
+    toast.success('De-para aplicado às linhas com código.');
   };
 
   const handleImport = async () => {
@@ -353,7 +182,7 @@ const ImportCommissionsModal = ({
     }
     setIsImporting(true);
     try {
-      const payloads = rows.map(buildPayload);
+      const payloads = rows.map(buildCommissionPayload);
       await onImport(payloads);
       toast.success(`${payloads.length} comissão(ões) importada(s) com sucesso!`);
       handleClose();
@@ -369,11 +198,11 @@ const ImportCommissionsModal = ({
       {
         Cliente: 'João da Silva',
         Data: '01/11/2026',
-        Tipo: 'Imóvel',
-        Grupo: '5025',
-        Cota: '150',
-        PV: pvs[0] || 'Matriz',
+        Grupo: '12204',
+        Cota: '2149',
         Valor: '120.000,00',
+        PV: pvs[0] || 'Matriz',
+        Matricula: '007115',
         Consultor: consultants[0] || '',
         Gestor: managers[0] || '',
         Anjo: '',
@@ -401,17 +230,17 @@ const ImportCommissionsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[96vw] xl:max-w-[1400px] bg-white dark:bg-slate-800 dark:text-white p-6">
+      <DialogContent className="sm:max-w-[96vw] xl:max-w-[1450px] bg-white dark:bg-slate-800 dark:text-white p-6">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
             <UploadCloud className="w-6 h-6 text-brand-500" />
             <span>Importar comissões de planilha</span>
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-              Imposto fixo: {TAX_RATE}%
+              Imposto fixo: {COMMISSION_IMPORT_TAX_RATE}%
             </span>
           </DialogTitle>
           <DialogDescription>
-            Envie um arquivo .xlsx, .xls ou .csv. As colunas Cliente, Data, Valor, Grupo, Cota, PV e Tipo são preenchidas automaticamente. Consultor, Gestor e Anjo normalmente não vêm na planilha — complete nas linhas destacadas em amarelo ou use o preenchimento em massa.
+            Envie o export "Produção por Cota" (.xlsx, .xls ou .csv). O sistema lê Cliente/Cota, Data, Grupo, Cota, Crédito e PV automaticamente. Consultor (matrícula), Gestor e Anjo não vêm na planilha — use o de-para de códigos, o preenchimento em massa ou complete nas linhas destacadas em amarelo.
           </DialogDescription>
         </DialogHeader>
 
@@ -462,7 +291,7 @@ const ImportCommissionsModal = ({
                 id="commissionPastedData"
                 value={pastedData}
                 onChange={event => setPastedData(event.target.value)}
-                placeholder={'Cliente\tData\tValor\tGrupo\tCota\tPV\nJoão da Silva\t01/11/2026\t120.000,00\t5025\t150\tMatriz'}
+                placeholder={'Cliente\tData\tValor\tGrupo\tCota\tPV\nJoão da Silva\t01/11/2026\t120.000,00\t12204\t2149\tMatriz'}
                 className="min-h-[110px] font-mono text-xs"
               />
               <Button type="button" size="sm" onClick={handlePastedData}>
@@ -473,6 +302,44 @@ const ImportCommissionsModal = ({
 
           {rows.length > 0 && (
             <>
+              {rowCodes.length > 0 && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-900 dark:bg-indigo-950/20">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <Users className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />
+                    <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+                      De-para de códigos ({mappedCodesCount}/{rowCodes.length} preenchidos)
+                    </p>
+                    <span className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80">
+                      A planilha não traz o nome do consultor, apenas a matrícula. Associe cada código uma vez.
+                    </span>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {rowCodes.map(code => (
+                      <div key={code} className="flex items-center gap-2 rounded-md border border-indigo-200 bg-white p-1.5 dark:border-indigo-900 dark:bg-slate-900">
+                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">
+                          {code}
+                        </span>
+                        <Input
+                          list="import-commission-consultants"
+                          value={codeMap[code] || ''}
+                          onChange={event => setCodeMap(prev => ({ ...prev, [code]: event.target.value }))}
+                          placeholder="Consultor"
+                          className={`h-8 ${!codeMap[code]?.trim() ? missingCellClass : ''}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80">
+                      O de-para fica salvo neste navegador para as próximas importações.
+                    </p>
+                    <Button type="button" size="sm" onClick={applyCodeMap}>
+                      Aplicar de-para
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-3 dark:border-brand-900 dark:bg-brand-950/20">
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="min-w-[170px] flex-1">
@@ -536,7 +403,7 @@ const ImportCommissionsModal = ({
                   </Button>
                 </div>
                 <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                  Dica: preencha o consultor e o gestor aqui e clique em "Aplicar a todas" quando a planilha não tiver essas colunas.
+                  Dica: se todas as vendas têm o mesmo gestor, preencha só aqui e clique em "Aplicar a todas".
                 </p>
               </div>
 
@@ -554,7 +421,7 @@ const ImportCommissionsModal = ({
                       <CheckCircle2 className="h-3 w-3" /> Tudo preenchido
                     </span>
                   )}
-                  <span className="text-slate-500 dark:text-slate-400">Imposto aplicado em todas: {TAX_RATE}%</span>
+                  <span className="text-slate-500 dark:text-slate-400">Imposto aplicado em todas: {COMMISSION_IMPORT_TAX_RATE}%</span>
                 </div>
                 <Button type="button" size="sm" variant="outline" onClick={addEmptyRow}>
                   <Plus className="mr-1 h-4 w-4" /> Adicionar linha
@@ -562,7 +429,7 @@ const ImportCommissionsModal = ({
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-slate-700">
-                <table className="w-full min-w-[1180px] text-xs">
+                <table className="w-full min-w-[1250px] text-xs">
                   <thead className="bg-gray-50 text-left uppercase tracking-wide text-gray-500 dark:bg-slate-700 dark:text-gray-300">
                     <tr>
                       <th className="px-2 py-2">Cliente *</th>
@@ -581,7 +448,8 @@ const ImportCommissionsModal = ({
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {rows.map(row => {
-                      const issues = rowIssues(row);
+                      const issues = getCommissionRowIssues(row);
+                      const unpaid = isCommissionRowUnpaid(row);
                       return (
                         <tr key={row.id} className={issues.length ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}>
                           <td className="px-2 py-2">
@@ -589,8 +457,16 @@ const ImportCommissionsModal = ({
                               value={row.clientName}
                               onChange={event => updateRow(row.id, { clientName: event.target.value })}
                               placeholder="Nome do cliente"
-                              className={`h-8 w-40 ${!row.clientName.trim() ? missingCellClass : ''}`}
+                              className={`h-8 w-44 ${!row.clientName.trim() ? missingCellClass : ''}`}
                             />
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              {row.contract && <span className="text-[10px] text-slate-400">Contrato {row.contract}</span>}
+                              {unpaid && (
+                                <span className="rounded bg-slate-200 px-1 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                  Sem pagamento
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-2 py-2">
                             <Input
@@ -603,7 +479,7 @@ const ImportCommissionsModal = ({
                           <td className="px-2 py-2">
                             <select
                               value={row.type}
-                              onChange={event => updateRow(row.id, { type: event.target.value as ImportRow['type'] })}
+                              onChange={event => updateRow(row.id, { type: event.target.value as CommissionImportRow['type'] })}
                               className="h-8 w-24 rounded-md border border-gray-300 bg-white px-1 text-xs dark:border-slate-600 dark:bg-slate-900 dark:text-white"
                             >
                               <option value="Imóvel">Imóvel</option>
@@ -632,7 +508,7 @@ const ImportCommissionsModal = ({
                               value={row.pv}
                               onChange={event => updateRow(row.id, { pv: event.target.value })}
                               placeholder="PV"
-                              className="h-8 w-32"
+                              className="h-8 w-40"
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -640,7 +516,7 @@ const ImportCommissionsModal = ({
                               value={row.value}
                               onChange={event => updateRow(row.id, { value: event.target.value })}
                               placeholder="0,00"
-                              className={`h-8 w-28 ${parseMoney(row.value) <= 0 ? missingCellClass : ''}`}
+                              className={`h-8 w-28 ${parseImportMoney(row.value) <= 0 ? missingCellClass : ''}`}
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -648,9 +524,10 @@ const ImportCommissionsModal = ({
                               list="import-commission-consultants"
                               value={row.consultant}
                               onChange={event => updateRow(row.id, { consultant: event.target.value })}
-                              placeholder="Selecione ou digite"
+                              placeholder={row.code ? `Cód. ${row.code}` : 'Selecione ou digite'}
                               className={`h-8 w-36 ${!row.consultant.trim() ? missingCellClass : ''}`}
                             />
+                            {row.code && <p className="mt-0.5 font-mono text-[10px] text-slate-400">Matrícula {row.code}</p>}
                           </td>
                           <td className="px-2 py-2">
                             <Input
@@ -729,7 +606,7 @@ const ImportCommissionsModal = ({
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 pt-4 dark:border-slate-700">
           <p className="text-xs text-gray-500 dark:text-slate-400">
-            * Campos obrigatórios. O imposto de {TAX_RATE}% é aplicado automaticamente em todas as comissões importadas.
+            * Campos obrigatórios. O imposto de {COMMISSION_IMPORT_TAX_RATE}% é aplicado automaticamente em todas as comissões importadas.
           </p>
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={handleClose} disabled={isImporting}>
