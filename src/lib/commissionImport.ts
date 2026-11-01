@@ -156,11 +156,20 @@ export const getCommissionRowIssues = (row: CommissionImportRow): string[] => {
 export const isCommissionRowUnpaid = (row: CommissionImportRow) =>
   ['nao', 'n', '0', 'false'].includes(normalizeImportKey(row.payment));
 
-export const parseCommissionWorkbook = (workbook: XLSX.WorkBook, savedCodeMap: Record<string, string> = {}): CommissionImportRow[] => {
+export type CommissionImportResult = {
+  rows: CommissionImportRow[];
+  skippedUnpaid: number;
+};
+
+export const parseCommissionWorkbook = (
+  workbook: XLSX.WorkBook,
+  savedCodeMap: Record<string, string> = {},
+): CommissionImportResult => {
+  const empty: CommissionImportResult = { rows: [], skippedUnpaid: 0 };
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
+  if (!sheet) return empty;
   const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', raw: true });
-  if (!json.length) return [];
+  if (!json.length) return empty;
   const headers = Object.keys(json[0] || {});
 
   const map = {
@@ -186,7 +195,7 @@ export const parseCommissionWorkbook = (workbook: XLSX.WorkBook, savedCodeMap: R
     return typeof sample === 'string' && sample.includes(';');
   });
 
-  return json
+  const parsedRows = json
     .map(rawRow => {
       let clientName = map.clientName ? String(rawRow[map.clientName] ?? '').trim() : '';
       let groupValue = map.group ? String(rawRow[map.group] ?? '').trim() : '';
@@ -248,14 +257,24 @@ export const parseCommissionWorkbook = (workbook: XLSX.WorkBook, savedCodeMap: R
         contract: contractValue,
       };
       return row;
-    })
-    .filter(row => {
-      const hasIdentity = Boolean(row.clientName.trim() || row.contract.trim() || (row.group.trim() && row.quota.trim()));
-      if (!hasIdentity) return false;
-      const junk = normalizeImportKey(`${row.clientName} ${row.contract}`);
-      if (junk.includes('filtros aplicados') || junk === 'total') return false;
-      return true;
     });
+
+  const rows: CommissionImportRow[] = [];
+  let skippedUnpaid = 0;
+
+  parsedRows.forEach(row => {
+    const hasIdentity = Boolean(row.clientName.trim() || row.contract.trim() || (row.group.trim() && row.quota.trim()));
+    if (!hasIdentity) return;
+    const junk = normalizeImportKey(`${row.clientName} ${row.contract}`);
+    if (junk.includes('filtros aplicados') || junk === 'total') return;
+    if (isCommissionRowUnpaid(row)) {
+      skippedUnpaid += 1;
+      return;
+    }
+    rows.push(row);
+  });
+
+  return { rows, skippedUnpaid };
 };
 
 export const buildCommissionPayload = (row: CommissionImportRow): Omit<Commission, 'id' | 'db_id' | 'criado_em'> => {

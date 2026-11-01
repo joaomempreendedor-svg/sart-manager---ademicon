@@ -20,7 +20,6 @@ import {
   CommissionImportRow,
   createCommissionImportRowId,
   getCommissionRowIssues,
-  isCommissionRowUnpaid,
   normalizeImportKey,
   parseCommissionWorkbook,
   parseImportMoney,
@@ -58,6 +57,7 @@ const ImportCommissionsModal = ({
 }: ImportCommissionsModalProps) => {
   const [rows, setRows] = useState<CommissionImportRow[]>([]);
   const [fileName, setFileName] = useState('');
+  const [skippedUnpaid, setSkippedUnpaid] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
@@ -113,14 +113,21 @@ const ImportCommissionsModal = ({
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-      const parsed = parseCommissionWorkbook(workbook, readSavedCodeMap());
+      const { rows: parsed, skippedUnpaid: unpaidCount } = parseCommissionWorkbook(workbook, readSavedCodeMap());
+      setSkippedUnpaid(unpaidCount);
       if (!parsed.length) {
-        toast.error('Nenhuma linha encontrada na planilha. Verifique se a primeira linha é o cabeçalho.');
+        toast.error(
+          unpaidCount > 0
+            ? `Nenhuma linha para importar: as ${unpaidCount} linha(s) da planilha estão sem pagamento.`
+            : 'Nenhuma linha encontrada na planilha. Verifique se a primeira linha é o cabeçalho.',
+        );
         return;
       }
       setRows(parsed);
       setFileName(file.name);
-      toast.success(`${parsed.length} linha(s) carregada(s). Revise e complete as informações pendentes.`);
+      toast.success(
+        `${parsed.length} linha(s) carregada(s).${unpaidCount > 0 ? ` ${unpaidCount} sem pagamento ignorada(s).` : ''} Revise e complete as informações pendentes.`,
+      );
     } catch (error: any) {
       toast.error(`Falha ao ler o arquivo: ${error?.message || error}`);
     } finally {
@@ -135,15 +142,22 @@ const ImportCommissionsModal = ({
     }
     try {
       const workbook = XLSX.read(pastedData, { type: 'string' });
-      const parsed = parseCommissionWorkbook(workbook, readSavedCodeMap());
+      const { rows: parsed, skippedUnpaid: unpaidCount } = parseCommissionWorkbook(workbook, readSavedCodeMap());
+      setSkippedUnpaid(unpaidCount);
       if (!parsed.length) {
-        toast.error('Nenhuma linha encontrada nos dados colados.');
+        toast.error(
+          unpaidCount > 0
+            ? `Nenhuma linha para importar: as ${unpaidCount} linha(s) coladas estão sem pagamento.`
+            : 'Nenhuma linha encontrada nos dados colados.',
+        );
         return;
       }
       setRows(parsed);
       setFileName('Dados colados');
       setShowPaste(false);
-      toast.success(`${parsed.length} linha(s) carregada(s). Revise e complete as informações pendentes.`);
+      toast.success(
+        `${parsed.length} linha(s) carregada(s).${unpaidCount > 0 ? ` ${unpaidCount} sem pagamento ignorada(s).` : ''} Revise e complete as informações pendentes.`,
+      );
     } catch (error: any) {
       toast.error(`Falha ao processar os dados: ${error?.message || error}`);
     }
@@ -216,6 +230,7 @@ const ImportCommissionsModal = ({
   const handleClose = () => {
     setRows([]);
     setFileName('');
+    setSkippedUnpaid(0);
     setPastedData('');
     setShowPaste(false);
     setBulk({ consultant: '', manager: '', pv: '', angel: '', hasAngel: false });
@@ -240,7 +255,7 @@ const ImportCommissionsModal = ({
             </span>
           </DialogTitle>
           <DialogDescription>
-            Envie o export "Produção por Cota" (.xlsx, .xls ou .csv). O sistema lê Cliente/Cota, Data, Grupo, Cota, Crédito e PV automaticamente. Consultor (matrícula), Gestor e Anjo não vêm na planilha — use o de-para de códigos, o preenchimento em massa ou complete nas linhas destacadas em amarelo.
+            Envie o export "Produção por Cota" (.xlsx, .xls ou .csv). O sistema lê Cliente/Cota, Data, Grupo, Cota, Crédito e PV automaticamente e ignora as linhas marcadas como "Sem Pagamento". Consultor (matrícula), Gestor e Anjo não vêm na planilha — use o de-para de códigos, o preenchimento em massa ou complete nas linhas destacadas em amarelo.
           </DialogDescription>
         </DialogHeader>
 
@@ -422,6 +437,11 @@ const ImportCommissionsModal = ({
                     </span>
                   )}
                   <span className="text-slate-500 dark:text-slate-400">Imposto aplicado em todas: {COMMISSION_IMPORT_TAX_RATE}%</span>
+                  {skippedUnpaid > 0 && (
+                    <span className="rounded-full bg-slate-100 px-2 py-1 font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                      {skippedUnpaid} sem pagamento ignorada(s)
+                    </span>
+                  )}
                 </div>
                 <Button type="button" size="sm" variant="outline" onClick={addEmptyRow}>
                   <Plus className="mr-1 h-4 w-4" /> Adicionar linha
@@ -449,7 +469,6 @@ const ImportCommissionsModal = ({
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                     {rows.map(row => {
                       const issues = getCommissionRowIssues(row);
-                      const unpaid = isCommissionRowUnpaid(row);
                       return (
                         <tr key={row.id} className={issues.length ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}>
                           <td className="px-2 py-2">
@@ -461,11 +480,6 @@ const ImportCommissionsModal = ({
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-1">
                               {row.contract && <span className="text-[10px] text-slate-400">Contrato {row.contract}</span>}
-                              {unpaid && (
-                                <span className="rounded bg-slate-200 px-1 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                                  Sem pagamento
-                                </span>
-                              )}
                             </div>
                           </td>
                           <td className="px-2 py-2">
