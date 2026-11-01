@@ -24,6 +24,7 @@ import {
   parseImportMoney,
 } from '@/lib/commissionImport';
 import CurrencyInput from '@/components/ui/currency-input';
+import DatePicker from '@/components/ui/date-picker';
 import SearchableSelect from '@/components/ui/searchable-select';
 
 const CODE_MAP_STORAGE_KEY = 'commission_import_code_map';
@@ -494,11 +495,11 @@ const ImportCommissionsModal = ({
                             </div>
                           </td>
                           <td className="px-2 py-2">
-                            <Input
-                              type="date"
+                            <DatePicker
                               value={row.date}
-                              onChange={event => updateRow(row.id, { date: event.target.value })}
-                              className={`h-8 w-32 ${!row.date ? missingCellClass : ''}`}
+                              onChange={date => updateRow(row.id, { date })}
+                              className="w-36"
+                              invalid={!row.date}
                             />
                           </td>
                           <td className="px-2 py-2">
