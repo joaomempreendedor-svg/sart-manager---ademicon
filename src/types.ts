@@ -775,6 +775,7 @@ export interface AppContextType {
   resetOriginsToDefault: () => void;
   addPV: (newPV: string) => void;
   addCommission: (commission: Omit<Commission, 'id' | 'db_id' | 'criado_em'>) => Promise<{ success: boolean }>;
+  addCommissions: (commissions: Omit<Commission, 'id' | 'db_id' | 'criado_em'>[]) => Promise<{ success: boolean; count: number }>;
   updateCommission: (id: string, updates: Partial<Commission>) => Promise<void>;
   deleteCommission: (id: string) => Promise<void>;
   updateInstallmentStatus: (commissionId: string, installmentNumber: number, newStatus: InstallmentStatus, paidDate?: string, saleType?: 'Imóvel' | 'Veículo') => Promise<void>;

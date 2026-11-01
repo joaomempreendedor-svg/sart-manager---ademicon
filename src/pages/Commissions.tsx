@@ -8,7 +8,9 @@ import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { EditCommissionModal } from '@/components/EditCommissionModal';
 import { MarkInstallmentRangeModal } from '@/components/MarkInstallmentRangeModal';
+import ImportCommissionsModal from '@/components/gestor/ImportCommissionsModal';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getOverallStatus } from '@/utils/commissionUtils';
@@ -82,6 +84,7 @@ export const Commissions = () => {
   const {
     commissions,
     addCommission,
+    addCommissions,
     updateCommission,
     deleteCommission,
     teamMembers,
@@ -123,7 +126,7 @@ export const Commissions = () => {
   const [selectedConsultant, setSelectedConsultant] = useState('default-consultant');
   const [selectedManager, setSelectedManager] = useState('default-manager');
   const [selectedAngel, setSelectedAngel] = useState('default-angel');
-  const [taxRateInput, setTaxRateInput] = useState('6');
+  const [taxRateInput, setTaxRateInput] = useState('20');
 
   const [editingInstallment, setEditingInstallment] = useState<{
     commissionId: string;
@@ -136,6 +139,7 @@ export const Commissions = () => {
 
   const [isEditCommissionModalOpen, setIsEditCommissionModalOpen] = useState(false);
   const [commissionToEdit, setCommissionToEdit] = useState<Commission | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
   const [selectedCommissionForRange, setSelectedCommissionForRange] = useState<Commission | null>(null);
@@ -209,7 +213,7 @@ export const Commissions = () => {
     setSelectedConsultant('default-consultant');
     setSelectedManager('default-manager');
     setSelectedAngel('default-angel');
-    setTaxRateInput('6');
+    setTaxRateInput('20');
     setHasAngel(false);
     setIsCustomRulesMode(false);
 
@@ -1056,11 +1060,16 @@ export const Commissions = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Central de Comissões</h1>
           <p className="text-gray-500 dark:text-gray-400">Simule ganhos, gerencie recebíveis e configure períodos de corte.</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-1 rounded-lg border border-gray-200 dark:border-slate-700 flex flex-wrap gap-1">
-          <button onClick={() => setActiveTab('calculator')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'calculator' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Calculator className="w-4 h-4 mr-2" />Simulador</button>
-          <button onClick={() => setActiveTab('history')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'history' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><TableIcon className="w-4 h-4 mr-2" />Histórico</button>
-          <button onClick={() => setActiveTab('reports')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'reports' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><FileText className="w-4 h-4 mr-2" />Relatórios</button>
-          <button onClick={() => setActiveTab('links')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'links' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Link className="w-4 h-4 mr-2" />Links</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={() => setIsImportModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Upload className="mr-2 h-4 w-4" /> Importar planilha
+          </Button>
+          <div className="bg-white dark:bg-slate-800 p-1 rounded-lg border border-gray-200 dark:border-slate-700 flex flex-wrap gap-1">
+            <button onClick={() => setActiveTab('calculator')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'calculator' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Calculator className="w-4 h-4 mr-2" />Simulador</button>
+            <button onClick={() => setActiveTab('history')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'history' ? 'bg-brand-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><TableIcon className="w-4 h-4 mr-2" />Histórico</button>
+            <button onClick={() => setActiveTab('reports')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'reports' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><FileText className="w-4 h-4 mr-2" />Relatórios</button>
+            <button onClick={() => setActiveTab('links')} className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'links' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}><Link className="w-4 h-4 mr-2" />Links</button>
+          </div>
         </div>
       </div>
 
@@ -1932,6 +1941,19 @@ export const Commissions = () => {
           onSaveRange={handleSaveInstallmentRange}
         />
       )}
+
+      <ImportCommissionsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={async payloads => {
+          await addCommissions(payloads);
+          setActiveTab('history');
+        }}
+        consultants={consultants.map(c => c.name)}
+        managers={managers.map(m => m.name)}
+        angels={angels.map(a => a.name)}
+        pvs={pvs}
+      />
 
       {isQuickPayModalOpen && quickPayCommission && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onKeyDown={(e) => { if (e.key === 'Enter') handleQuickPay(); }}>

@@ -1425,6 +1425,12 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
       const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single();
       if (error) throw error; refetchCommissions(); return { success: true };
     },
+    addCommissions: async (commissionList: any[]) => {
+      if (!commissionList.length) return { success: true, count: 0 };
+      const rows = commissionList.map(commission => ({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }));
+      const { error } = await supabase.from('commissions').insert(rows);
+      if (error) throw error; refetchCommissions(); return { success: true, count: commissionList.length };
+    },
     updateCommission: async (id: string, updates: Partial<Commission>) => {
       const { error } = await supabase.from('commissions').update({ data: updates }).eq('id', id);
       if (error) throw error; refetchCommissions();
