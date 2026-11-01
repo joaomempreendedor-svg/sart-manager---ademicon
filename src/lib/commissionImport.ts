@@ -29,7 +29,11 @@ export type CommissionImportRow = {
   company: string;
   payment: string;
   contract: string;
+  taxRate: number;
 };
+
+export const formatCurrencyBRL = (value: number) =>
+  (Number.isFinite(value) ? value : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export const createCommissionImportRowId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `row-${Math.random().toString(36).slice(2)}`;
@@ -147,6 +151,7 @@ export const getCommissionRowIssues = (row: CommissionImportRow): string[] => {
   if (!row.clientName.trim()) issues.push('Cliente');
   if (!row.date) issues.push('Data');
   if (!(parseImportMoney(row.value) > 0)) issues.push('Valor');
+  if (!Number.isFinite(row.taxRate) || row.taxRate < 0 || row.taxRate > 100) issues.push('Imposto');
   if (!row.consultant.trim()) issues.push('Consultor');
   if (!row.manager.trim()) issues.push('Gestor');
   if (row.hasAngel && !row.angel.trim()) issues.push('Anjo');
@@ -255,6 +260,7 @@ export const parseCommissionWorkbook = (
         company: companyValue,
         payment,
         contract: contractValue,
+        taxRate: COMMISSION_IMPORT_TAX_RATE,
       };
       return row;
     });
@@ -280,7 +286,9 @@ export const parseCommissionWorkbook = (
 export const buildCommissionPayload = (row: CommissionImportRow): Omit<Commission, 'id' | 'db_id' | 'criado_em'> => {
   const credit = parseImportMoney(row.value);
   const angel = row.hasAngel && row.angel.trim() ? row.angel.trim() : undefined;
-  const taxMultiplier = 1 - COMMISSION_IMPORT_TAX_RATE / 100;
+  const taxRate =
+    Number.isFinite(row.taxRate) && row.taxRate >= 0 && row.taxRate <= 100 ? row.taxRate : COMMISSION_IMPORT_TAX_RATE;
+  const taxMultiplier = 1 - taxRate / 100;
   const manRules = angel ? DEFAULT_RULES.manager.withAngel : DEFAULT_RULES.manager.noAngel;
 
   const consultantGross = credit * (DEFAULT_RULES.consultant.p1_10 * 10 + DEFAULT_RULES.consultant.p11_13 * 3 + DEFAULT_RULES.consultant.p15);
@@ -301,7 +309,7 @@ export const buildCommissionPayload = (row: CommissionImportRow): Omit<Commissio
     angelName: angel,
     pv: row.pv.trim() || 'Não informado',
     value: credit,
-    taxRate: COMMISSION_IMPORT_TAX_RATE,
+    taxRate,
     netValue: (consultantGross + managerGross + angelGross) * taxMultiplier,
     installments: 15,
     status: 'Em Andamento',

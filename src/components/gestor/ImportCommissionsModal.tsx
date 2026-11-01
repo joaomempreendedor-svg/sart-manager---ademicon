@@ -20,10 +20,11 @@ import {
   CommissionImportRow,
   createCommissionImportRowId,
   getCommissionRowIssues,
-  normalizeImportKey,
   parseCommissionWorkbook,
   parseImportMoney,
 } from '@/lib/commissionImport';
+import CurrencyInput from '@/components/ui/currency-input';
+import SearchableSelect from '@/components/ui/searchable-select';
 
 const CODE_MAP_STORAGE_KEY = 'commission_import_code_map';
 
@@ -89,6 +90,7 @@ const ImportCommissionsModal = ({
         company: '',
         payment: '',
         contract: '',
+        taxRate: COMMISSION_IMPORT_TAX_RATE,
       },
     ]);
   };
@@ -251,7 +253,7 @@ const ImportCommissionsModal = ({
             <UploadCloud className="w-6 h-6 text-brand-500" />
             <span>Importar comissões de planilha</span>
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-              Imposto fixo: {COMMISSION_IMPORT_TAX_RATE}%
+              Imposto padrão: {COMMISSION_IMPORT_TAX_RATE}%
             </span>
           </DialogTitle>
           <DialogDescription>
@@ -334,12 +336,15 @@ const ImportCommissionsModal = ({
                         <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">
                           {code}
                         </span>
-                        <Input
-                          list="import-commission-consultants"
+                        <SearchableSelect
                           value={codeMap[code] || ''}
-                          onChange={event => setCodeMap(prev => ({ ...prev, [code]: event.target.value }))}
-                          placeholder="Consultor"
-                          className={`h-8 ${!codeMap[code]?.trim() ? missingCellClass : ''}`}
+                          onChange={value => setCodeMap(prev => ({ ...prev, [code]: value }))}
+                          options={consultants}
+                          placeholder="Pesquisar consultor"
+                          searchPlaceholder="Pesquisar consultor..."
+                          emptyLabel="Nenhum consultor encontrado."
+                          className="flex-1"
+                          invalid={!codeMap[code]?.trim()}
                         />
                       </div>
                     ))}
@@ -359,24 +364,28 @@ const ImportCommissionsModal = ({
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="min-w-[170px] flex-1">
                     <Label htmlFor="bulkConsultant" className="text-xs">Consultor para todas as linhas</Label>
-                    <Input
+                    <SearchableSelect
                       id="bulkConsultant"
-                      list="import-commission-consultants"
                       value={bulk.consultant}
-                      onChange={event => setBulk(prev => ({ ...prev, consultant: event.target.value }))}
-                      placeholder="Selecione ou digite"
-                      className="mt-1 h-9 bg-white dark:bg-slate-900"
+                      onChange={value => setBulk(prev => ({ ...prev, consultant: value }))}
+                      options={consultants}
+                      placeholder="Pesquisar consultor"
+                      searchPlaceholder="Pesquisar consultor..."
+                      emptyLabel="Nenhum consultor encontrado."
+                      className="mt-1 h-9"
                     />
                   </div>
                   <div className="min-w-[170px] flex-1">
                     <Label htmlFor="bulkManager" className="text-xs">Gestor para todas as linhas</Label>
-                    <Input
+                    <SearchableSelect
                       id="bulkManager"
-                      list="import-commission-managers"
                       value={bulk.manager}
-                      onChange={event => setBulk(prev => ({ ...prev, manager: event.target.value }))}
-                      placeholder="Selecione ou digite"
-                      className="mt-1 h-9 bg-white dark:bg-slate-900"
+                      onChange={value => setBulk(prev => ({ ...prev, manager: value }))}
+                      options={managers}
+                      placeholder="Pesquisar gestor"
+                      searchPlaceholder="Pesquisar gestor..."
+                      emptyLabel="Nenhum gestor encontrado."
+                      className="mt-1 h-9"
                     />
                   </div>
                   <div className="min-w-[150px] flex-1">
@@ -436,7 +445,7 @@ const ImportCommissionsModal = ({
                       <CheckCircle2 className="h-3 w-3" /> Tudo preenchido
                     </span>
                   )}
-                  <span className="text-slate-500 dark:text-slate-400">Imposto aplicado em todas: {COMMISSION_IMPORT_TAX_RATE}%</span>
+                  <span className="text-slate-500 dark:text-slate-400">Imposto padrão de {COMMISSION_IMPORT_TAX_RATE}% (editável por linha)</span>
                   {skippedUnpaid > 0 && (
                     <span className="rounded-full bg-slate-100 px-2 py-1 font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                       {skippedUnpaid} sem pagamento ignorada(s)
@@ -449,7 +458,7 @@ const ImportCommissionsModal = ({
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-slate-700">
-                <table className="w-full min-w-[1250px] text-xs">
+                <table className="w-full min-w-[1720px] text-xs">
                   <thead className="bg-gray-50 text-left uppercase tracking-wide text-gray-500 dark:bg-slate-700 dark:text-gray-300">
                     <tr>
                       <th className="px-2 py-2">Cliente *</th>
@@ -459,6 +468,7 @@ const ImportCommissionsModal = ({
                       <th className="px-2 py-2">Cota</th>
                       <th className="px-2 py-2">PV</th>
                       <th className="px-2 py-2">Valor *</th>
+                      <th className="px-2 py-2 text-center">Imposto %</th>
                       <th className="px-2 py-2">Consultor *</th>
                       <th className="px-2 py-2">Gestor *</th>
                       <th className="px-2 py-2">Anjo</th>
@@ -476,7 +486,8 @@ const ImportCommissionsModal = ({
                               value={row.clientName}
                               onChange={event => updateRow(row.id, { clientName: event.target.value })}
                               placeholder="Nome do cliente"
-                              className={`h-8 w-44 ${!row.clientName.trim() ? missingCellClass : ''}`}
+                              title={row.clientName}
+                              className={`h-8 w-[22rem] min-w-[20rem] ${!row.clientName.trim() ? missingCellClass : ''}`}
                             />
                             <div className="mt-1 flex flex-wrap items-center gap-1">
                               {row.contract && <span className="text-[10px] text-slate-400">Contrato {row.contract}</span>}
@@ -526,30 +537,59 @@ const ImportCommissionsModal = ({
                             />
                           </td>
                           <td className="px-2 py-2">
-                            <Input
-                              value={row.value}
-                              onChange={event => updateRow(row.id, { value: event.target.value })}
-                              placeholder="0,00"
-                              className={`h-8 w-28 ${parseImportMoney(row.value) <= 0 ? missingCellClass : ''}`}
+                            <CurrencyInput
+                              value={parseImportMoney(row.value)}
+                              onValueChange={numericValue => updateRow(row.id, { value: String(numericValue) })}
+                              placeholder="R$ 0,00"
+                              className={`h-8 w-36 text-right font-mono ${parseImportMoney(row.value) <= 0 ? missingCellClass : ''}`}
                             />
                           </td>
                           <td className="px-2 py-2">
-                            <Input
-                              list="import-commission-consultants"
+                            <div className="relative w-20">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step="0.01"
+                                value={Number.isFinite(row.taxRate) ? row.taxRate : ''}
+                                onChange={event => {
+                                  const parsedTax = parseFloat(event.target.value);
+                                  updateRow(row.id, {
+                                    taxRate: Number.isFinite(parsedTax) ? Math.min(100, Math.max(0, parsedTax)) : 0,
+                                  });
+                                }}
+                                onFocus={event => event.currentTarget.select()}
+                                title="Imposto aplicado nesta linha"
+                                className={`h-8 w-20 pr-5 text-right ${
+                                  !Number.isFinite(row.taxRate) || row.taxRate < 0 || row.taxRate > 100 ? missingCellClass : ''
+                                }`}
+                              />
+                              <span className="pointer-events-none absolute right-2 top-2 text-[11px] text-gray-400">%</span>
+                            </div>
+                          </td>
+                          <td className="px-2 py-2">
+                            <SearchableSelect
                               value={row.consultant}
-                              onChange={event => updateRow(row.id, { consultant: event.target.value })}
-                              placeholder={row.code ? `Cód. ${row.code}` : 'Selecione ou digite'}
-                              className={`h-8 w-36 ${!row.consultant.trim() ? missingCellClass : ''}`}
+                              onChange={value => updateRow(row.id, { consultant: value })}
+                              options={consultants}
+                              placeholder={row.code ? `Cód. ${row.code}` : 'Pesquisar consultor'}
+                              searchPlaceholder="Pesquisar consultor..."
+                              emptyLabel="Nenhum consultor encontrado."
+                              className="w-40"
+                              invalid={!row.consultant.trim()}
                             />
                             {row.code && <p className="mt-0.5 font-mono text-[10px] text-slate-400">Matrícula {row.code}</p>}
                           </td>
                           <td className="px-2 py-2">
-                            <Input
-                              list="import-commission-managers"
+                            <SearchableSelect
                               value={row.manager}
-                              onChange={event => updateRow(row.id, { manager: event.target.value })}
-                              placeholder="Selecione ou digite"
-                              className={`h-8 w-36 ${!row.manager.trim() ? missingCellClass : ''}`}
+                              onChange={value => updateRow(row.id, { manager: value })}
+                              options={managers}
+                              placeholder="Pesquisar gestor"
+                              searchPlaceholder="Pesquisar gestor..."
+                              emptyLabel="Nenhum gestor encontrado."
+                              className="w-40"
+                              invalid={!row.manager.trim()}
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -602,12 +642,6 @@ const ImportCommissionsModal = ({
                 </table>
               </div>
 
-              <datalist id="import-commission-consultants">
-                {consultants.map(name => <option key={name} value={name} />)}
-              </datalist>
-              <datalist id="import-commission-managers">
-                {managers.map(name => <option key={name} value={name} />)}
-              </datalist>
               <datalist id="import-commission-angels">
                 {angels.map(name => <option key={name} value={name} />)}
               </datalist>
@@ -620,7 +654,7 @@ const ImportCommissionsModal = ({
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 pt-4 dark:border-slate-700">
           <p className="text-xs text-gray-500 dark:text-slate-400">
-            * Campos obrigatórios. O imposto de {COMMISSION_IMPORT_TAX_RATE}% é aplicado automaticamente em todas as comissões importadas.
+            * Campos obrigatórios. O imposto padrão é {COMMISSION_IMPORT_TAX_RATE}% e pode ser alterado linha a linha na coluna "Imposto %".
           </p>
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" onClick={handleClose} disabled={isImporting}>
