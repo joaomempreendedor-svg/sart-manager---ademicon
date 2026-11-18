@@ -27,6 +27,7 @@ export type CommissionImportRow = {
   angel: string;
   code: string;
   company: string;
+  planCondition: string;
   payment: string;
   contract: string;
   taxRate: number;
@@ -60,6 +61,16 @@ const COLUMN_SYNONYMS: Record<string, string[]> = {
   angel: ['anjo', 'nome do anjo', 'anjo nome'],
   payment: ['tem pagamento', 'pagamento', 'pago'],
   contract: ['contrato', 'numero do contrato', 'id contrato', 'id bi'],
+  planCondition: [
+    'plano venda',
+    'plano de venda',
+    'condicao',
+    'condicao de venda',
+    'condicao da venda',
+    'condicao comissao',
+    'condicao de comissao',
+    'plano',
+  ],
 };
 
 const toIsoDate = (date: Date) => {
@@ -191,6 +202,7 @@ export const parseCommissionWorkbook = (
     angel: findHeader(headers, COLUMN_SYNONYMS.angel),
     payment: findHeader(headers, COLUMN_SYNONYMS.payment),
     contract: findHeader(headers, COLUMN_SYNONYMS.contract),
+    planCondition: findHeader(headers, COLUMN_SYNONYMS.planCondition),
   };
 
   const compositeHeader = headers.find(header => {
@@ -258,6 +270,7 @@ export const parseCommissionWorkbook = (
         angel: hasAngel ? (angelValue && !['sim', 's', '1', 'true'].includes(normalizeImportKey(angelValue)) ? angelValue : '') : '',
         code,
         company: companyValue,
+        planCondition: map.planCondition ? String(rawRow[map.planCondition] ?? '').trim() : '',
         payment,
         contract: contractValue,
         taxRate: COMMISSION_IMPORT_TAX_RATE,
@@ -307,6 +320,10 @@ export const buildCommissionPayload = (row: CommissionImportRow): Omit<Commissio
     consultant: row.consultant.trim(),
     managerName: row.manager.trim() || 'N/A',
     angelName: angel,
+    // A planilha traz um PV genérico (mesmo valor para todas as linhas). O ponto de
+    // venda real é a empresa que vem na coluna "Consultor" do export.
+    pointOfSale: row.company.trim() || row.consultant.trim(),
+    planCondition: row.planCondition.trim(),
     pv: row.pv.trim() || 'Não informado',
     value: credit,
     taxRate,

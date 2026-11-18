@@ -29,6 +29,8 @@ interface EditCommissionModalProps {
   onSave: (updatedCommission: Commission) => Promise<void>;
   teamMembers: TeamMember[];
   pvs: string[];
+  /** Abre direto na aba de regras personalizadas (usado pelo botão do relatório). */
+  openInRulesMode?: boolean;
 }
 
 type CustomRuleText = {
@@ -39,6 +41,13 @@ type CustomRuleText = {
   managerRate: string;
   angelRate: string;
 }
+
+/** Regras padrão em porcentagem, usadas ao abrir o editor pelo relatório. */
+const getDefaultPercentRules = (hasAngel: boolean) => [
+  { startInstallment: 1, endInstallment: 10, consultantRate: 0.1288, managerRate: hasAngel ? 0.0194 : 0.0322, angelRate: 0.01288 },
+  { startInstallment: 11, endInstallment: 13, consultantRate: 0.2374, managerRate: hasAngel ? 0.0356 : 0.0593, angelRate: 0.02374 },
+  { startInstallment: 15, endInstallment: 15, consultantRate: 0.3, managerRate: 0, angelRate: 0 },
+];
 
 const parseCurrency = (value: string) => parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
 
@@ -69,6 +78,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
   onSave,
   teamMembers,
   pvs,
+  openInRulesMode = false,
 }) => {
   const [clientName, setClientName] = useState('');
   const [saleDate, setSaleDate] = useState('');
@@ -115,7 +125,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
       setTaxRateInput(commissionToEdit.taxRate.toString().replace('.', ','));
       setCreditValue(formatCurrencyInput(commissionToEdit.value.toFixed(2).replace('.', ',')));
       setHasAngel(!!commissionToEdit.angelName);
-      setIsCustomRulesMode(!!commissionToEdit.customRules && commissionToEdit.customRules.length > 0);
+      setIsCustomRulesMode(openInRulesMode || (!!commissionToEdit.customRules && commissionToEdit.customRules.length > 0));
 
       if (commissionToEdit.customRules && commissionToEdit.customRules.length > 0) {
         setCustomRules(commissionToEdit.customRules);
@@ -128,15 +138,23 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
           angelRate: rule.angelRate.toString().replace('.', ','),
         })));
       } else {
-        const defaultRuleId = crypto.randomUUID();
-        const defaultRule = { id: defaultRuleId, startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 };
-        const defaultRuleText = { id: defaultRuleId, startInstallment: '1', endInstallment: '15', consultantRate: '0', managerRate: '0', angelRate: '0' };
-        setCustomRules([defaultRule]);
-        setCustomRulesText([defaultRuleText]);
+        const seed = openInRulesMode
+          ? getDefaultPercentRules(!!commissionToEdit.angelName)
+          : [{ startInstallment: 1, endInstallment: 15, consultantRate: 0, managerRate: 0, angelRate: 0 }];
+        const rules: CommissionRule[] = seed.map(rule => ({ id: crypto.randomUUID(), ...rule }));
+        setCustomRules(rules);
+        setCustomRulesText(rules.map(rule => ({
+          id: rule.id,
+          startInstallment: rule.startInstallment.toString(),
+          endInstallment: rule.endInstallment.toString(),
+          consultantRate: rule.consultantRate.toString().replace('.', ','),
+          managerRate: rule.managerRate.toString().replace('.', ','),
+          angelRate: rule.angelRate.toString().replace('.', ','),
+        })));
       }
       setError('');
     }
-  }, [isOpen, commissionToEdit]);
+  }, [isOpen, commissionToEdit, openInRulesMode]);
 
   const handleUpdateRuleText = (id: string, field: keyof CustomRuleText, value: string, isDecimal: boolean) => {
     const sanitizedValue = isDecimal

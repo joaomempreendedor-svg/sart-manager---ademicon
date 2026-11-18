@@ -211,6 +211,10 @@ export interface Commission {
   consultant: string;
   managerName: string;
   angelName?: string;
+  /** Ponto de venda real (empresa da coluna "Consultor" da planilha). */
+  pointOfSale?: string;
+  /** Condição/plano de venda exportado pela planilha (ex.: PLANO BLACKFRIDAY2026). */
+  planCondition?: string;
   pv: string;
   value: number;
   taxRate: number;

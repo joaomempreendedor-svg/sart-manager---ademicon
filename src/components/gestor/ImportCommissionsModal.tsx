@@ -89,6 +89,7 @@ const ImportCommissionsModal = ({
         angel: '',
         code: '',
         company: '',
+        planCondition: '',
         payment: '',
         contract: '',
         taxRate: COMMISSION_IMPORT_TAX_RATE,

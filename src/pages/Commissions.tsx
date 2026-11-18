@@ -139,6 +139,7 @@ export const Commissions = () => {
 
   const [isEditCommissionModalOpen, setIsEditCommissionModalOpen] = useState(false);
   const [commissionToEdit, setCommissionToEdit] = useState<Commission | null>(null);
+  const [openRulesFromReport, setOpenRulesFromReport] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
@@ -336,16 +337,39 @@ export const Commissions = () => {
     loadReceipts();
   };
 
-  const getReceiptFor = (consultantName: string, competenceMonth: string) => {
-    return receipts.find(r => r.consultant_name === consultantName && r.competence_month === competenceMonth);
+  const getReceiptFor = (consultantName: string, competenceMonth: string, fallbackName?: string) => {
+    return (
+      receipts.find(r => r.consultant_name === consultantName && r.competence_month === competenceMonth) ||
+      (fallbackName && fallbackName !== consultantName
+        ? receipts.find(r => r.consultant_name === fallbackName && r.competence_month === competenceMonth)
+        : undefined)
+    );
   };
+
+  /** Normaliza a condição exportada pela planilha (ex.: "PLANO BLACKFRIDAY2026"). */
+  const isBlackFridayPlan = (condition?: string) =>
+    String(condition ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/gi, '')
+      .toLowerCase()
+      .includes('blackfriday2026');
+
+  /** No relatório o consultor exibido é o ponto de venda real da venda. */
+  const getReportConsultantName = (commission: Commission) =>
+    commission.pointOfSale?.trim() || commission.consultant;
+
+  const reportConsultantOptions = useMemo(() => {
+    const names = new Set(commissions.map(getReportConsultantName).filter(Boolean));
+    return Array.from(names).sort((a, b) => a.localeCompare(b, 'pt-BR')).map(name => ({ value: name, label: name }));
+  }, [commissions]);
 
   const reportConsultantSummary = useMemo(() => {
     if (!reportData) return [];
-    const map = new Map<string, { name: string; total: number }>();
+    const map = new Map<string, { name: string; consultantName: string; total: number }>();
     reportData.detailedInstallments.forEach(item => {
-      const name = item.commission.consultant;
-      const existing = map.get(name) || { name, total: 0 };
+      const name = getReportConsultantName(item.commission);
+      const existing = map.get(name) || { name, consultantName: item.commission.consultant, total: 0 };
       existing.total += item.values.cons;
       map.set(name, existing);
     });
@@ -812,7 +836,7 @@ export const Commissions = () => {
 
   const generateReport = () => {
     const filteredCommissions = commissions.filter(c => {
-      if (reportConsultant.length > 0 && !reportConsultant.includes(c.consultant)) return false;
+      if (reportConsultant.length > 0 && !reportConsultant.includes(getReportConsultantName(c))) return false;
       if (reportManager.length > 0 && !reportManager.includes(c.managerName)) return false;
       if (reportAngel.length > 0 && (!c.angelName || !reportAngel.includes(c.angelName))) return false;
       if (reportPV.length > 0 && !reportPV.includes(c.pv)) return false;
@@ -870,11 +894,11 @@ export const Commissions = () => {
       'Data da Venda': item.saleDate ? new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A',
       'Valor do Crédito': item.creditValue,
       'Cliente': item.commission.clientName,
-      'Consultor': item.commission.consultant,
+      'Consultor (PV)': getReportConsultantName(item.commission),
       'Gestor': item.commission.managerName,
       'Anjo': item.commission.angelName || 'N/A',
       'Parcela': parseInt(item.installmentNumber),
-      'PV': item.commission.pv,
+      'Condição': item.commission.planCondition?.trim() || 'Padrão',
       'Mês Competência': item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A',
       'Valor (Consultor)': item.values.cons,
       'Valor (Gestor)': item.values.man,
@@ -917,6 +941,13 @@ export const Commissions = () => {
   };
 
   const handleOpenEditCommissionModal = (commission: Commission) => {
+    setOpenRulesFromReport(false);
+    setCommissionToEdit(commission);
+    setIsEditCommissionModalOpen(true);
+  };
+
+  const handleEditReportCondition = (commission: Commission) => {
+    setOpenRulesFromReport(true);
     setCommissionToEdit(commission);
     setIsEditCommissionModalOpen(true);
   };
@@ -962,6 +993,31 @@ export const Commissions = () => {
       };
 
       await updateCommission(updatedCommission.db_id!, finalUpdates);
+
+      // Mantém o relatório aberto atualizado após trocar as regras de comissão.
+      const savedCommission = { ...updatedCommission, ...finalUpdates } as Commission;
+      setReportData(prev => {
+        if (!prev) return prev;
+        const detailedInstallments = prev.detailedInstallments.map(item => {
+          const isSameCommission =
+            item.commission.id === savedCommission.id ||
+            (!!savedCommission.db_id && item.commission.db_id === savedCommission.db_id);
+          if (!isSameCommission) return item;
+          const values = getInstallmentValues(savedCommission, parseInt(item.installmentNumber));
+          return { ...item, commission: savedCommission, values, creditValue: savedCommission.value, saleDate: savedCommission.date };
+        });
+        const totalCommissions = detailedInstallments.reduce(
+          (totals, item) => ({
+            consultant: totals.consultant + item.values.cons,
+            manager: totals.manager + item.values.man,
+            angel: totals.angel + item.values.angel,
+            total: totals.total + item.values.cons + item.values.man + item.values.angel,
+          }),
+          { consultant: 0, manager: 0, angel: 0, total: 0 },
+        );
+        return { ...prev, detailedInstallments, totalCommissions };
+      });
+
       toast.success('Comissão atualizada com sucesso!');
       setIsEditCommissionModalOpen(false);
     } catch (error: any) {
@@ -1698,9 +1754,9 @@ export const Commissions = () => {
                 <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="border border-gray-300 dark:border-slate-600 rounded-lg p-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" />
               </div>
               <div className="flex-1">
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Consultor:</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por Consultor (PV):</label>
                 <MultiSelectFilter
-                  options={consultantOptions}
+                  options={reportConsultantOptions}
                   selected={reportConsultant}
                   onSelectionChange={setReportConsultant}
                   placeholder="Todos os Consultores"
@@ -1756,7 +1812,7 @@ export const Commissions = () => {
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Comprovantes de Pagamento</h4>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {reportConsultantSummary.map(cs => {
-                      const receipt = getReceiptFor(cs.name, reportData.month);
+                      const receipt = getReceiptFor(cs.name, reportData.month, cs.consultantName);
                       const uploadKey = `${cs.name}-${reportData.month}`;
                       const isUploading = uploadingReceipt === uploadKey;
                       return (
@@ -1809,21 +1865,22 @@ export const Commissions = () => {
               <hr className="my-6 border-gray-200 dark:border-slate-700" />
 
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[1200px]">
+                <table className="w-full text-sm min-w-[1400px]">
                   <thead className="text-left text-gray-500 dark:text-gray-400">
                     <tr className="border-b dark:border-slate-700">
                       <th className="py-2 px-4">Data Venda</th>
                       <th className="py-2 px-4">Valor Crédito</th>
                       <th className="py-2 px-4">Cliente</th>
-                      <th className="py-2 px-4">Consultor</th>
+                      <th className="py-2 px-4">Consultor (PV)</th>
                       <th className="py-2 px-4">Gestor</th>
                       <th className="py-2 px-4">Anjo</th>
                       <th className="py-2 px-4">Parcela</th>
-                      <th className="py-2 px-4">PV</th>
+                      <th className="py-2 px-4">Condição</th>
                       <th className="py-2 px-4">Mês Competência</th>
                       <th className="py-2 px-4 text-right">Valor (Consultor)</th>
                       <th className="py-2 px-4 text-right">Valor (Gestor)</th>
                       <th className="py-2 px-4 text-right">Valor (Anjo)</th>
+                      <th className="py-2 px-4 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
@@ -1832,15 +1889,39 @@ export const Commissions = () => {
                         <td className="py-2 px-4">{new Date(item.saleDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
                         <td className="py-2 px-4">{formatCurrency(item.creditValue)}</td>
                         <td className="py-2 px-4 font-medium text-gray-800 dark:text-gray-200">{item.commission.clientName}</td>
-                        <td className="py-2 px-4">{item.commission.consultant}</td>
+                        <td className="py-2 px-4 font-medium text-gray-800 dark:text-gray-200">{getReportConsultantName(item.commission)}</td>
                         <td className="py-2 px-4">{item.commission.managerName}</td>
                         <td className="py-2 px-4">{item.commission.angelName || 'N/A'}</td>
                         <td className="py-2 px-4">{item.installmentNumber}</td>
-                        <td className="py-2 px-4">{item.commission.pv}</td>
+                        <td className="py-2 px-4">
+                          {isBlackFridayPlan(item.commission.planCondition) ? (
+                            <span
+                              className="inline-flex items-center rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm"
+                              title={item.commission.planCondition}
+                            >
+                              Plano Black Friday 2026
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-500 dark:text-slate-400">{item.commission.planCondition?.trim() || 'Padrão'}</span>
+                          )}
+                        </td>
                         <td className="py-2 px-4">{item.commission.installmentDetails[item.installmentNumber].competenceMonth ? formatMonthYear(item.commission.installmentDetails[item.installmentNumber].competenceMonth!) : 'N/A'}</td>
                         <td className="py-2 px-4 text-right font-mono">{formatCurrency(item.values.cons)}</td>
                         <td className="py-2 px-4 text-right font-mono">{formatCurrency(item.values.man)}</td>
                         <td className="py-2 px-4 text-right font-mono">{formatCurrency(item.values.angel)}</td>
+                        <td className="py-2 px-4 text-right">
+                          <button
+                            onClick={() => handleEditReportCondition(item.commission)}
+                            title="Alterar condição de comissão"
+                            className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-2 py-1 text-xs font-medium transition ${
+                              isBlackFridayPlan(item.commission.planCondition)
+                                ? 'border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50'
+                                : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'
+                            }`}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" /> Alterar condição
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1925,11 +2006,15 @@ export const Commissions = () => {
       {isEditCommissionModalOpen && (
         <EditCommissionModal
           isOpen={isEditCommissionModalOpen}
-          onClose={() => setIsEditCommissionModalOpen(false)}
+          onClose={() => {
+            setIsEditCommissionModalOpen(false);
+            setOpenRulesFromReport(false);
+          }}
           commissionToEdit={commissionToEdit}
           onSave={handleUpdateCommission}
           teamMembers={teamMembers}
           pvs={pvs}
+          openInRulesMode={openRulesFromReport}
         />
       )}
 
