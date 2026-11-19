@@ -9,6 +9,7 @@ import { generateRandomPassword } from '@/utils/authUtils';
 import { sanitizeFilename } from '@/utils/fileUtils';
 import toast from 'react-hot-toast';
 import { getOverallStatus } from '@/utils/commissionUtils';
+import { canonicalizePointOfSale } from '@/lib/pointOfSale';
 import { getAllFromTable } from '@/lib/supabase';
 import { DEFAULT_HIRING_PIPELINE_COLUMNS, getCandidateStageKey, normalizeHiringPipelineColumns } from '@/lib/hiringPipeline';
 
@@ -211,6 +212,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const details: Record<string, InstallmentInfo> = {};
           for (let i = 1; i <= 15; i++) details[i.toString()] = { status: "Pendente" };
           commission.installmentDetails = details;
+        }
+        // Unifica grafias da mesma empresa (ex.: SART INVESTIMENTOS UNIFIQUE)
+        // para não aparecerem como PVs diferentes no histórico e filtros.
+        if (commission.pointOfSale) {
+          commission.pointOfSale = canonicalizePointOfSale(commission.pointOfSale);
         }
         return { ...commission, db_id: item.id, criado_em: item.created_at };
       });

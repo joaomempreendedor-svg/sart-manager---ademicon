@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { canonicalizePointOfSale } from '@/lib/pointOfSale';
 import type { Commission, InstallmentInfo } from '@/types';
 
 export const COMMISSION_IMPORT_TAX_RATE = 20;
@@ -239,7 +240,10 @@ export const parseCommissionWorkbook = (
 
       const sellerValue = map.seller ? String(rawRow[map.seller] ?? '').trim() : '';
       const consultantValue = map.consultant ? String(rawRow[map.consultant] ?? '').trim() : '';
-      const companyValue = consultantValue && (looksLikeCompany(consultantValue) || looksLikeCode(consultantValue)) ? consultantValue : '';
+      const companyValue =
+        consultantValue && (looksLikeCompany(consultantValue) || looksLikeCode(consultantValue))
+          ? canonicalizePointOfSale(consultantValue)
+          : '';
 
       let consultant = '';
       let code = '';
@@ -330,7 +334,7 @@ export const buildCommissionPayload = (row: CommissionImportRow): Omit<Commissio
     angelName: angel,
     // A planilha traz um PV genérico (mesmo valor para todas as linhas). O ponto de
     // venda real é a empresa que vem na coluna "Consultor" do export.
-    pointOfSale: row.company.trim() || row.consultant.trim(),
+    pointOfSale: canonicalizePointOfSale(row.company.trim() || row.consultant.trim()),
     planCondition: row.planCondition.trim(),
     pv: row.pv.trim() || 'Não informado',
     value: credit,

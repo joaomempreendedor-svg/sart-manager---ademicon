@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getOverallStatus } from '@/utils/commissionUtils';
+import { canonicalizePointOfSale } from '@/lib/pointOfSale';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -357,11 +358,11 @@ export const Commissions = () => {
 
   /** Ponto de venda real (empresa que vendeu), com fallback para o PV genérico. */
   const getCommissionPointOfSale = (commission: Commission) =>
-    commission.pointOfSale?.trim() || commission.pv;
+    canonicalizePointOfSale(commission.pointOfSale?.trim() || commission.pv) || commission.pv;
 
   /** No relatório o consultor exibido é o ponto de venda real da venda. */
   const getReportConsultantName = (commission: Commission) =>
-    commission.pointOfSale?.trim() || commission.consultant;
+    canonicalizePointOfSale(commission.pointOfSale?.trim()) || commission.consultant;
 
   /** Campos opcionais que ficaram em branco na importação (tarja no histórico). */
   const getMissingCommissionInfo = (commission: Commission): string[] => {
@@ -378,7 +379,11 @@ export const Commissions = () => {
   }, [commissions]);
 
   const pvOptions = useMemo(() => {
-    const values = new Set<string>([...pvs, ...commissions.map(getCommissionPointOfSale)].filter(Boolean));
+    const values = new Set<string>(
+      [...pvs, ...commissions.map(getCommissionPointOfSale)]
+        .map(value => canonicalizePointOfSale(value))
+        .filter(Boolean),
+    );
     return Array.from(values).sort((a, b) => a.localeCompare(b, 'pt-BR')).map(value => ({ value, label: value }));
   }, [pvs, commissions]);
 
@@ -646,8 +651,9 @@ export const Commissions = () => {
   const handleAddPV = () => {
     const newPVName = prompt('Digite o nome do novo Ponto de Venda (PV):');
     if (newPVName && newPVName.trim()) {
-      addPV(newPVName.trim());
-      setSelectedPV(newPVName.trim());
+      const canonicalPV = canonicalizePointOfSale(newPVName.trim());
+      if (!pvs.some(pv => canonicalizePointOfSale(pv) === canonicalPV)) addPV(canonicalPV);
+      setSelectedPV(canonicalPV);
     }
   };
 
@@ -1324,7 +1330,7 @@ export const Commissions = () => {
                       </SelectTrigger>
                       <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                         <SelectItem value="default-pv">Selecione...</SelectItem>
-                        {pvs.map(pv => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
+                        {pvOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <button type="button" onClick={handleAddPV} className="p-2 bg-brand-100 text-brand-700 rounded dark:bg-brand-900/30 dark:text-brand-400 hover:bg-brand-200" title="Adicionar novo PV"><Plus className="w-5 h-5" /></button></div></div>

@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
+import { canonicalizePointOfSale } from '@/lib/pointOfSale';
 import { Commission, CommissionRule, TeamMember } from '@/types';
 
 interface EditCommissionModalProps {
@@ -110,6 +111,10 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
   );
   const managers = useMemo(() => activeMembers.filter(m => m.roles.includes('GESTOR')), [activeMembers]);
   const angels = useMemo(() => activeMembers.filter(m => m.roles.includes('ANJO')), [activeMembers]);
+  const pvOptions = useMemo(
+    () => Array.from(new Set(pvs.map(pv => canonicalizePointOfSale(pv)).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [pvs],
+  );
 
   useEffect(() => {
     if (isOpen && commissionToEdit) {
@@ -118,7 +123,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
       setSaleType(commissionToEdit.type);
       setGroup(commissionToEdit.group);
       setQuota(commissionToEdit.quota);
-      setSelectedPV(commissionToEdit.pv || 'default-pv'); // Alterado para valor não vazio
+      setSelectedPV(canonicalizePointOfSale(commissionToEdit.pv) || 'default-pv'); // Alterado para valor não vazio
       setSelectedConsultant(commissionToEdit.consultant || 'default-consultant'); // Alterado para valor não vazio
       setSelectedManager(commissionToEdit.managerName === 'N/A' || !commissionToEdit.managerName ? 'default-manager' : commissionToEdit.managerName); // Alterado para valor não vazio
       setSelectedAngel(commissionToEdit.angelName || 'default-angel'); // Alterado para valor não vazio
@@ -218,7 +223,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
         type: saleType,
         group: group.trim(),
         quota: quota.trim(),
-        pv: selectedPV,
+        pv: canonicalizePointOfSale(selectedPV),
         consultant: selectedConsultant === 'default-consultant' ? '' : selectedConsultant,
         // Ajuste para o Select do Gestor: se for 'default-manager', salve como 'N/A'
         managerName: selectedManager === 'default-manager' ? 'N/A' : selectedManager,
@@ -296,7 +301,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
                     <SelectItem value="default-pv">Selecione o PV</SelectItem> {/* Alterado para valor não vazio */}
-                    {pvs.map(pv => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
+                    {pvOptions.map(pv => <SelectItem key={pv} value={pv}>{pv}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

@@ -24,6 +24,7 @@ import {
   parseCommissionWorkbook,
   parseImportMoney,
 } from '@/lib/commissionImport';
+import { canonicalizePointOfSale } from '@/lib/pointOfSale';
 import CurrencyInput from '@/components/ui/currency-input';
 import DatePicker from '@/components/ui/date-picker';
 import SearchableSelect from '@/components/ui/searchable-select';
@@ -117,7 +118,9 @@ const ImportCommissionsModal = ({
   );
 
   const companyOptions = useMemo(
-    () => Array.from(new Set(rows.map(row => row.company.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    () =>
+      Array.from(new Set(rows.map(row => canonicalizePointOfSale(row.company.trim())).filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b, 'pt-BR')),
     [rows],
   );
 
@@ -186,7 +189,7 @@ const ImportCommissionsModal = ({
         ...row,
         consultant: bulk.consultant.trim() || row.consultant,
         manager: bulk.manager.trim() || row.manager,
-        company: bulk.company.trim() || row.company,
+        company: canonicalizePointOfSale(bulk.company.trim()) || row.company,
         hasAngel: bulk.hasAngel,
         angel: bulk.hasAngel ? bulk.angel.trim() || row.angel : '',
       })),
@@ -547,6 +550,7 @@ const ImportCommissionsModal = ({
                             <Input
                               value={row.company}
                               onChange={event => updateRow(row.id, { company: event.target.value })}
+                              onBlur={event => updateRow(row.id, { company: canonicalizePointOfSale(event.target.value) })}
                               placeholder="Empresa que vendeu"
                               title={row.company || 'Empresa que vendeu (coluna Consultor da planilha)'}
                               className="h-8 w-44"
