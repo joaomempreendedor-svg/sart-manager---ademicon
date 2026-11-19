@@ -359,6 +359,15 @@ export const Commissions = () => {
   const getReportConsultantName = (commission: Commission) =>
     commission.pointOfSale?.trim() || commission.consultant;
 
+  /** Campos opcionais que ficaram em branco na importação (tarja no histórico). */
+  const getMissingCommissionInfo = (commission: Commission): string[] => {
+    const missing = new Set<string>(commission.missingInfo ?? []);
+    if (!commission.consultant?.trim()) missing.add('Consultor');
+    else missing.delete('Consultor');
+    if (commission.angelName?.trim()) missing.delete('Anjo');
+    return Array.from(missing);
+  };
+
   const reportConsultantOptions = useMemo(() => {
     const names = new Set(commissions.map(getReportConsultantName).filter(Boolean));
     return Array.from(names).sort((a, b) => a.localeCompare(b, 'pt-BR')).map(name => ({ value: name, label: name }));
@@ -1612,11 +1621,22 @@ export const Commissions = () => {
                         <React.Fragment key={c.db_id}>
                           <tr className={`${rowBgColor[status]} hover:bg-gray-50 dark:hover:bg-slate-700/30 transition`}>
                             <td className="px-4 py-3 align-top"><div className="text-sm font-medium text-gray-900 dark:text-white">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</div><div className="text-xs text-gray-500">{new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}</div></td>
-                            <td className="px-4 py-3 align-top"><div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName}{c.angelName && <span title={`Anjo: ${c.angelName}`}><Crown className="ml-2 h-3.5 w-3.5 text-yellow-500" /></span>}</div><div className="text-xs text-gray-500">{c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span></div></td>
+                            <td className="px-4 py-3 align-top"><div className="font-bold text-gray-900 dark:text-white flex items-center">{c.clientName}{c.angelName && <span title={`Anjo: ${c.angelName}`}><Crown className="ml-2 h-3.5 w-3.5 text-yellow-500" /></span>}</div>{getMissingCommissionInfo(c).length > 0 && (
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleOpenEditCommissionModal(c);
+                                }}
+                                className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-900/60"
+                                title="Clique para informar os dados faltantes"
+                              >
+                                <AlertTriangle className="h-3 w-3" /> Falta: {getMissingCommissionInfo(c).join(', ')}
+                              </button>
+                            )}<div className="text-xs text-gray-500">{c.group} / {c.quota} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${c.type === 'Imóvel' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'}`}>{c.type === 'Imóvel' ? '🏠' : '🚗'} {c.type}</span></div></td>
                             <td className="px-4 py-3 align-top text-xs space-y-1">
                               <div className="flex items-center" title={`Consultor: ${c.consultant}`}>
                                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 shrink-0"></div>
-                                <span className="truncate">{c.consultant}</span>
+                                <span className="truncate">{c.consultant || 'Não informado'}</span>
                               </div>
                               {c.managerName && c.managerName !== 'N/A' && (
                                 <div className="pt-1">

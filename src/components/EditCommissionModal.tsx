@@ -124,7 +124,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
       setSelectedAngel(commissionToEdit.angelName || 'default-angel'); // Alterado para valor não vazio
       setTaxRateInput(commissionToEdit.taxRate.toString().replace('.', ','));
       setCreditValue(formatCurrencyInput(commissionToEdit.value.toFixed(2).replace('.', ',')));
-      setHasAngel(!!commissionToEdit.angelName);
+      setHasAngel(!!commissionToEdit.angelName || (commissionToEdit.missingInfo ?? []).includes('Anjo'));
       setIsCustomRulesMode(openInRulesMode || (!!commissionToEdit.customRules && commissionToEdit.customRules.length > 0));
 
       if (commissionToEdit.customRules && commissionToEdit.customRules.length > 0) {
@@ -195,8 +195,7 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
     if (selectedPV === 'default-pv') errors.push("Ponto de Venda (PV)"); // Alterado para valor não vazio
     if (!group.trim()) errors.push("Grupo");
     if (!quota.trim()) errors.push("Cota");
-    if (selectedConsultant === 'default-consultant') errors.push("Prévia/Autorizado"); // Alterado para valor não vazio
-    if (hasAngel && selectedAngel === 'default-angel') errors.push("Anjo");
+    // Consultor e Anjo são opcionais: podem ser informados depois pelo Histórico.
 
     if (errors.length > 0) {
       setError(`Por favor, preencha os seguintes campos obrigatórios: ${errors.join(', ')}.`);
@@ -220,10 +219,14 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
         group: group.trim(),
         quota: quota.trim(),
         pv: selectedPV,
-        consultant: selectedConsultant,
+        consultant: selectedConsultant === 'default-consultant' ? '' : selectedConsultant,
         // Ajuste para o Select do Gestor: se for 'default-manager', salve como 'N/A'
         managerName: selectedManager === 'default-manager' ? 'N/A' : selectedManager,
         angelName: hasAngel ? (selectedAngel === 'default-angel' ? undefined : selectedAngel) : undefined,
+        missingInfo: [
+          ...(selectedConsultant === 'default-consultant' ? ['Consultor'] : []),
+          ...(hasAngel && selectedAngel === 'default-angel' ? ['Anjo'] : []),
+        ],
         value: credit,
         taxRate: taxValue,
         customRules: isCustomRulesMode ? customRules : undefined,
@@ -298,13 +301,13 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="selectedConsultant">Prévia/Autorizado *</Label>
+                <Label htmlFor="selectedConsultant">Prévia/Autorizado (opcional)</Label>
                 <Select value={selectedConsultant} onValueChange={setSelectedConsultant} required>
                   <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
                     <SelectValue placeholder="Selecione o Consultor" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                    <SelectItem value="default-consultant">Selecione o Consultor</SelectItem> {/* Alterado para valor não vazio */}
+                    <SelectItem value="default-consultant">Não informado (preencher depois)</SelectItem>
                     {consultants.map(c => <SelectItem key={c.id} value={c.name}>{c.isActive ? c.name : `${c.name} (Inativo)`}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -324,13 +327,13 @@ export const EditCommissionModal: React.FC<EditCommissionModalProps> = ({
 
               {hasAngel && (
                 <div>
-                  <Label htmlFor="selectedAngel">Anjo *</Label>
+                  <Label htmlFor="selectedAngel">Anjo (opcional)</Label>
                   <Select value={selectedAngel} onValueChange={setSelectedAngel} required>
                     <SelectTrigger className="w-full dark:bg-slate-700 dark:text-white dark:border-slate-600">
                       <SelectValue placeholder="Selecione o Anjo" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white dark:border-slate-700">
-                      <SelectItem value="default-angel">Selecione o Anjo</SelectItem>
+                      <SelectItem value="default-angel">Não informado (preencher depois)</SelectItem>
                       {angels.map(a => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
                     </SelectContent>
                   </Select>

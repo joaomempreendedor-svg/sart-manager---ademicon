@@ -215,6 +215,8 @@ export interface Commission {
   pointOfSale?: string;
   /** Condição/plano de venda exportado pela planilha (ex.: PLANO BLACKFRIDAY2026). */
   planCondition?: string;
+  /** Campos opcionais que ficaram em branco na importação e podem ser preenchidos depois. */
+  missingInfo?: string[];
   pv: string;
   value: number;
   taxRate: number;

@@ -157,16 +157,23 @@ const findHeader = (headers: string[], aliases: string[]): string | undefined =>
   return undefined;
 };
 
+/** Campos que impedem a importação. Consultor e Anjo podem ser informados depois. */
 export const getCommissionRowIssues = (row: CommissionImportRow): string[] => {
   const issues: string[] = [];
   if (!row.clientName.trim()) issues.push('Cliente');
   if (!row.date) issues.push('Data');
   if (!(parseImportMoney(row.value) > 0)) issues.push('Valor');
   if (!Number.isFinite(row.taxRate) || row.taxRate < 0 || row.taxRate > 100) issues.push('Imposto');
-  if (!row.consultant.trim()) issues.push('Consultor');
   if (!row.manager.trim()) issues.push('Gestor');
-  if (row.hasAngel && !row.angel.trim()) issues.push('Anjo');
   return issues;
+};
+
+/** Campos opcionais na importação que ficam marcados para preenchimento posterior. */
+export const getCommissionRowOptionalMissing = (row: CommissionImportRow): string[] => {
+  const missing: string[] = [];
+  if (!row.consultant.trim()) missing.push('Consultor');
+  if (row.hasAngel && !row.angel.trim()) missing.push('Anjo');
+  return missing;
 };
 
 export const isCommissionRowUnpaid = (row: CommissionImportRow) =>
@@ -319,6 +326,7 @@ export const buildCommissionPayload = (row: CommissionImportRow): Omit<Commissio
     quota: row.quota.trim(),
     consultant: row.consultant.trim(),
     managerName: row.manager.trim() || 'N/A',
+    missingInfo: getCommissionRowOptionalMissing(row),
     angelName: angel,
     // A planilha traz um PV genérico (mesmo valor para todas as linhas). O ponto de
     // venda real é a empresa que vem na coluna "Consultor" do export.
