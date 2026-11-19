@@ -355,6 +355,10 @@ export const Commissions = () => {
       .toLowerCase()
       .includes('blackfriday2026');
 
+  /** Ponto de venda real (empresa que vendeu), com fallback para o PV genérico. */
+  const getCommissionPointOfSale = (commission: Commission) =>
+    commission.pointOfSale?.trim() || commission.pv;
+
   /** No relatório o consultor exibido é o ponto de venda real da venda. */
   const getReportConsultantName = (commission: Commission) =>
     commission.pointOfSale?.trim() || commission.consultant;
@@ -372,6 +376,11 @@ export const Commissions = () => {
     const names = new Set(commissions.map(getReportConsultantName).filter(Boolean));
     return Array.from(names).sort((a, b) => a.localeCompare(b, 'pt-BR')).map(name => ({ value: name, label: name }));
   }, [commissions]);
+
+  const pvOptions = useMemo(() => {
+    const values = new Set<string>([...pvs, ...commissions.map(getCommissionPointOfSale)].filter(Boolean));
+    return Array.from(values).sort((a, b) => a.localeCompare(b, 'pt-BR')).map(value => ({ value, label: value }));
+  }, [pvs, commissions]);
 
   const reportConsultantSummary = useMemo(() => {
     if (!reportData) return [];
@@ -674,7 +683,7 @@ export const Commissions = () => {
         term === '' ||
         c.clientName.toLowerCase().includes(term) ||
         c.consultant.toLowerCase().includes(term) ||
-        c.pv.toLowerCase().includes(term) ||
+        getCommissionPointOfSale(c).toLowerCase().includes(term) ||
         (c.group || '').toLowerCase().includes(term) ||
         (c.quota || '').toLowerCase().includes(term);
 
@@ -682,7 +691,7 @@ export const Commissions = () => {
       const matchesEnd = !endFilterDate || commissionDate <= endFilterDate;
       const matchesConsultant = filterConsultant.length === 0 || filterConsultant.includes(c.consultant);
       const matchesAngel = filterAngel.length === 0 || (c.angelName && filterAngel.includes(c.angelName));
-      const matchesPV = filterPV.length === 0 || filterPV.includes(c.pv);
+      const matchesPV = filterPV.length === 0 || filterPV.includes(getCommissionPointOfSale(c));
       const matchesStatus = filterStatus.length === 0 || filterStatus.includes(overallStatus);
 
       return matchesSearch && matchesStart && matchesEnd && matchesConsultant && matchesAngel && matchesPV && matchesStatus;
@@ -848,7 +857,7 @@ export const Commissions = () => {
       if (reportConsultant.length > 0 && !reportConsultant.includes(getReportConsultantName(c))) return false;
       if (reportManager.length > 0 && !reportManager.includes(c.managerName)) return false;
       if (reportAngel.length > 0 && (!c.angelName || !reportAngel.includes(c.angelName))) return false;
-      if (reportPV.length > 0 && !reportPV.includes(c.pv)) return false;
+      if (reportPV.length > 0 && !reportPV.includes(getCommissionPointOfSale(c))) return false;
       return true;
     });
 
@@ -1510,7 +1519,7 @@ export const Commissions = () => {
               <div className="col-span-1">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Ponto de Venda (PV)</label>
                 <MultiSelectFilter
-                  options={pvs.map(pv => ({ value: pv, label: pv }))}
+                  options={pvOptions}
                   selected={filterPV}
                   onSelectionChange={setFilterPV}
                   placeholder="Todos"
@@ -1654,7 +1663,7 @@ export const Commissions = () => {
                                 </div>
                               )}
                             </td>
-                            <td className="px-4 py-3 align-top"><div className="text-base font-bold text-gray-900 dark:text-white">{formatCurrency(c.value)}</div><div className="text-xs text-gray-500">PV: {c.pv}</div></td>
+                            <td className="px-4 py-3 align-top"><div className="text-base font-bold text-gray-900 dark:text-white">{formatCurrency(c.value)}</div><div className="text-xs text-gray-500" title={`PV da planilha: ${c.pv}`}>PV: {getCommissionPointOfSale(c)}</div></td>
                             <td className="px-4 py-3 align-top"><div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>{status}</div><div className="mt-2"><div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1"><span>{paidCount}/{totalInstallments}</span><span>{Math.round(progressPercent)}%</span></div><div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5"><div className={`h-1.5 rounded-full ${progressColor}`} style={{ width: `${progressPercent}%` }}></div></div></div></td>
                             <td className="px-4 py-3 text-right align-top">
                               <div className="flex justify-end items-center">
@@ -1803,7 +1812,7 @@ export const Commissions = () => {
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Filtrar por PV:</label>
                 <MultiSelectFilter
-                  options={pvs.map(pv => ({ value: pv, label: pv }))}
+                  options={pvOptions}
                   selected={reportPV}
                   onSelectionChange={setReportPV}
                   placeholder="Todos os PVs"
