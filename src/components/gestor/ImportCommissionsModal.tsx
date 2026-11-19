@@ -29,6 +29,12 @@ import SearchableSelect from '@/components/ui/searchable-select';
 
 const CODE_MAP_STORAGE_KEY = 'commission_import_code_map';
 
+const isBlackFridayCondition = (value: string) =>
+  String(value ?? '')
+    .replace(/\s+/g, '')
+    .toLowerCase()
+    .includes('blackfriday2026');
+
 interface ImportCommissionsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -64,7 +70,7 @@ const ImportCommissionsModal = ({
   const [isImporting, setIsImporting] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
   const [pastedData, setPastedData] = useState('');
-  const [bulk, setBulk] = useState({ consultant: '', manager: '', pv: '', angel: '', hasAngel: false });
+  const [bulk, setBulk] = useState({ consultant: '', manager: '', company: '', angel: '', hasAngel: false });
   const [codeMap, setCodeMap] = useState<Record<string, string>>(readSavedCodeMap);
 
   const updateRow = (id: string, patch: Partial<CommissionImportRow>) => {
@@ -107,6 +113,11 @@ const ImportCommissionsModal = ({
   const mappedCodesCount = useMemo(
     () => rowCodes.filter(code => Boolean(codeMap[code]?.trim())).length,
     [rowCodes, codeMap],
+  );
+
+  const companyOptions = useMemo(
+    () => Array.from(new Set(rows.map(row => row.company.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [rows],
   );
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,7 +185,7 @@ const ImportCommissionsModal = ({
         ...row,
         consultant: bulk.consultant.trim() || row.consultant,
         manager: bulk.manager.trim() || row.manager,
-        pv: bulk.pv.trim() || row.pv,
+        company: bulk.company.trim() || row.company,
         hasAngel: bulk.hasAngel,
         angel: bulk.hasAngel ? bulk.angel.trim() || row.angel : '',
       })),
@@ -237,7 +248,7 @@ const ImportCommissionsModal = ({
     setSkippedUnpaid(0);
     setPastedData('');
     setShowPaste(false);
-    setBulk({ consultant: '', manager: '', pv: '', angel: '', hasAngel: false });
+    setBulk({ consultant: '', manager: '', company: '', angel: '', hasAngel: false });
     setIsImporting(false);
     setIsProcessing(false);
     onClose();
@@ -390,13 +401,13 @@ const ImportCommissionsModal = ({
                       className="mt-1 h-9"
                     />
                   </div>
-                  <div className="min-w-[150px] flex-1">
-                    <Label htmlFor="bulkPv" className="text-xs">PV para todas as linhas</Label>
+                  <div className="min-w-[180px] flex-1">
+                    <Label htmlFor="bulkCompany" className="text-xs">Empresa (Consultor) para todas</Label>
                     <Input
-                      id="bulkPv"
-                      list="import-commission-pvs"
-                      value={bulk.pv}
-                      onChange={event => setBulk(prev => ({ ...prev, pv: event.target.value }))}
+                      id="bulkCompany"
+                      list="import-commission-companies"
+                      value={bulk.company}
+                      onChange={event => setBulk(prev => ({ ...prev, company: event.target.value }))}
                       placeholder="Opcional"
                       className="mt-1 h-9 bg-white dark:bg-slate-900"
                     />
@@ -460,7 +471,7 @@ const ImportCommissionsModal = ({
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-slate-700">
-                <table className="w-full min-w-[1720px] text-xs">
+                <table className="w-full min-w-[1900px] text-xs">
                   <thead className="bg-gray-50 text-left uppercase tracking-wide text-gray-500 dark:bg-slate-700 dark:text-gray-300">
                     <tr>
                       <th className="px-2 py-2">Cliente *</th>
@@ -468,10 +479,11 @@ const ImportCommissionsModal = ({
                       <th className="px-2 py-2">Tipo</th>
                       <th className="px-2 py-2">Grupo</th>
                       <th className="px-2 py-2">Cota</th>
-                      <th className="px-2 py-2">PV</th>
+                      <th className="px-2 py-2">Consultor (empresa)</th>
+                      <th className="px-2 py-2">Condição de Venda</th>
                       <th className="px-2 py-2">Valor *</th>
                       <th className="px-2 py-2 text-center">Imposto %</th>
-                      <th className="px-2 py-2">Consultor *</th>
+                      <th className="px-2 py-2">Consultor (nome) *</th>
                       <th className="px-2 py-2">Gestor *</th>
                       <th className="px-2 py-2">Anjo</th>
                       <th className="px-2 py-2">Pendências</th>
@@ -531,12 +543,26 @@ const ImportCommissionsModal = ({
                           </td>
                           <td className="px-2 py-2">
                             <Input
-                              list="import-commission-pvs"
-                              value={row.pv}
-                              onChange={event => updateRow(row.id, { pv: event.target.value })}
-                              placeholder="PV"
-                              className="h-8 w-40"
+                              value={row.company}
+                              onChange={event => updateRow(row.id, { company: event.target.value })}
+                              placeholder="Empresa que vendeu"
+                              title={row.company || 'Empresa que vendeu (coluna Consultor da planilha)'}
+                              className="h-8 w-44"
                             />
+                          </td>
+                          <td className="px-2 py-2">
+                            <Input
+                              value={row.planCondition}
+                              onChange={event => updateRow(row.id, { planCondition: event.target.value })}
+                              placeholder="Condição de venda"
+                              title={row.planCondition || 'Condição de venda (coluna Plano Venda da planilha)'}
+                              className="h-8 w-44"
+                            />
+                            {isBlackFridayCondition(row.planCondition) && (
+                              <span className="mt-1 inline-flex rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                Plano Black Friday 2026
+                              </span>
+                            )}
                           </td>
                           <td className="px-2 py-2">
                             <CurrencyInput
@@ -647,8 +673,8 @@ const ImportCommissionsModal = ({
               <datalist id="import-commission-angels">
                 {angels.map(name => <option key={name} value={name} />)}
               </datalist>
-              <datalist id="import-commission-pvs">
-                {pvs.map(name => <option key={name} value={name} />)}
+              <datalist id="import-commission-companies">
+                {companyOptions.map(name => <option key={name} value={name} />)}
               </datalist>
             </>
           )}
