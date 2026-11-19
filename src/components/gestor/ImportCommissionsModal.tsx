@@ -26,7 +26,6 @@ import {
 import CurrencyInput from '@/components/ui/currency-input';
 import DatePicker from '@/components/ui/date-picker';
 import SearchableSelect from '@/components/ui/searchable-select';
-import SearchableTextInput from '@/components/ui/searchable-text-input';
 
 const CODE_MAP_STORAGE_KEY = 'commission_import_code_map';
 
@@ -597,12 +596,13 @@ const ImportCommissionsModal = ({
                             </div>
                           </td>
                           <td className="px-2 py-2">
-                            <SearchableTextInput
+                            <SearchableSelect
                               value={row.consultant}
                               onChange={value => updateRow(row.id, { consultant: value })}
                               options={consultants}
-                              placeholder={row.code ? `Cód. ${row.code}` : 'Clique para escolher ou digite'}
-                              title="Clique para escolher um membro da equipe ou digite o nome do consultor"
+                              placeholder={row.code ? `Cód. ${row.code}` : 'Pesquisar consultor'}
+                              searchPlaceholder="Pesquisar consultor..."
+                              emptyLabel="Nenhum consultor encontrado."
                               className="w-40"
                               invalid={!row.consultant.trim()}
                             />
