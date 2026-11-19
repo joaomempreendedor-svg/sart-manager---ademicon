@@ -26,6 +26,7 @@ import {
 import CurrencyInput from '@/components/ui/currency-input';
 import DatePicker from '@/components/ui/date-picker';
 import SearchableSelect from '@/components/ui/searchable-select';
+import SearchableTextInput from '@/components/ui/searchable-text-input';
 
 const CODE_MAP_STORAGE_KEY = 'commission_import_code_map';
 
@@ -596,22 +597,14 @@ const ImportCommissionsModal = ({
                             </div>
                           </td>
                           <td className="px-2 py-2">
-                            <SearchableSelect
+                            <SearchableTextInput
                               value={row.consultant}
                               onChange={value => updateRow(row.id, { consultant: value })}
                               options={consultants}
-                              placeholder={row.code ? `Cód. ${row.code}` : 'Pesquisar consultor'}
-                              searchPlaceholder="Pesquisar consultor..."
-                              emptyLabel="Nenhum consultor encontrado."
+                              placeholder={row.code ? `Cód. ${row.code}` : 'Clique para escolher ou digite'}
+                              title="Clique para escolher um membro da equipe ou digite o nome do consultor"
                               className="w-40"
                               invalid={!row.consultant.trim()}
-                            />
-                            <Input
-                              value={row.consultant}
-                              onChange={event => updateRow(row.id, { consultant: event.target.value })}
-                              placeholder="Ou digite o nome"
-                              title="Digite o nome do consultor mesmo se ele não estiver cadastrado na equipe"
-                              className={`mt-1 h-8 w-40 text-xs ${!row.consultant.trim() ? missingCellClass : ''}`}
                             />
                             {row.code && <p className="mt-0.5 font-mono text-[10px] text-slate-400">Matrícula {row.code}</p>}
                           </td>
