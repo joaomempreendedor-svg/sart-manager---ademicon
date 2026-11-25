@@ -40,12 +40,14 @@ import HiringPipelineConfig from '@/pages/gestor/HiringPipelineConfig';
 import { Processos } from '@/pages/gestor/Processos';
 import { TeamConfig } from '@/pages/TeamConfig';
 import GestorTasksPage from '@/pages/gestor/GestorTasksPage';
+import SecretariaTasksConfig from '@/pages/gestor/SecretariaTasksConfig';
 import Contratos from '@/pages/gestor/Contratos';
 import DailyMetricsConfig from '@/pages/gestor/MetricsConfig';
 import ColdCallMetricsPage from '@/pages/gestor/ColdCallMetricsPage';
 
 import { SecretariaDashboard } from '@/pages/secretaria/SecretariaDashboard';
 import { SecretariaDailyChecklist } from '@/pages/secretaria/SecretariaDailyChecklist';
+import { SecretariaAgenda } from '@/pages/secretaria/SecretariaAgenda';
 
 import ConsultorDashboard from '@/pages/consultor/Dashboard';
 import ConsultorCrm from '@/pages/consultor/Crm';
@@ -88,6 +90,7 @@ const AppRoutes = () => {
           <Route path="daily-metrics-config" element={<DailyMetricsConfig />} />
           <Route path="cold-call" element={<ColdCallMetricsPage />} />
           <Route path="tasks" element={<GestorTasksPage />} />
+          <Route path="secretaria-tasks" element={<SecretariaTasksConfig />} />
           <Route path="hiring-dashboard" element={<Navigate to="../hiring-metrics" replace />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="hiring-metrics" element={<HiringMetrics />} />
@@ -101,6 +104,7 @@ const AppRoutes = () => {
       <Route element={<ProtectedLayout allowedRoles={['SECRETARIA']} />}>
         <Route path="/secretaria" element={<SecretariaLayout />}>
           <Route path="dashboard" element={<SecretariaDashboard />} />
+          <Route path="agenda" element={<SecretariaAgenda />} />
           <Route path="wallet-clients" element={<WalletClients />} />
           <Route path="checklists" element={<SecretariaDailyChecklist />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />

@@ -95,8 +95,13 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
     });
   };
 
+  const ownTasks = useMemo(
+    () => gestorTasks.filter(task => task.user_id === user?.id),
+    [gestorTasks, user?.id],
+  );
+
   const sortedTasks = useMemo(() => {
-    return [...gestorTasks].sort((a, b) => {
+    return [...ownTasks].sort((a, b) => {
       const aIsRecurring = a.recurrence_pattern && a.recurrence_pattern.type !== 'none';
       const bIsRecurring = b.recurrence_pattern && b.recurrence_pattern.type !== 'none';
 
@@ -117,7 +122,7 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
       if (!b.due_date) return -1;
       return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
     });
-  }, [gestorTasks, gestorTaskCompletions, user?.id, today, isGestorTaskDueOnDate]);
+  }, [ownTasks, gestorTaskCompletions, user?.id, today, isGestorTaskDueOnDate]);
 
   const dashboardTasks = useMemo(() => {
     return sortedTasks.filter(task => {
@@ -165,7 +170,6 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
         title: newTaskTitle.trim(),
         description: newTaskDescription.trim() || undefined,
         due_date: newTaskDueDate || undefined,
-        is_completed: false,
         recurrence_pattern,
       });
 
@@ -330,7 +334,7 @@ export const GestorTasksSection: React.FC<GestorTasksSectionProps> = ({
             </div>
           ) : (
             <h2 className="text-lg font-semibold text-brand-800 dark:text-brand-300">
-              Configurar tarefas ({gestorTasks.length})
+              Configurar tarefas ({ownTasks.length})
             </h2>
           )}
         </div>

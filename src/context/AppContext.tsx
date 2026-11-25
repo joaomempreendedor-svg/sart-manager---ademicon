@@ -321,7 +321,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           safeFetch('daily_checklist_completions'),
           safeFetch('support_materials_v2', { filters: { user_id: effectiveGestorId } }),
           safeFetch('support_material_assignments'),
-          safeFetch('gestor_tasks', { filters: { user_id: effectiveGestorId } }),
+          // Tarefas do gestor e das secretarias precisam ser carregadas juntas:
+          // cada tela filtra apenas as tarefas do usuário correspondente.
+          safeFetch('gestor_tasks'),
           safeFetch('gestor_task_completions', { filters: { user_id: effectiveGestorId } }),
           safeFetch('financial_entries', { filters: { user_id: userId } }),
           safeFetch('form_submissions', { select: 'id, submission_date, data, internal_notes, is_complete', filters: { user_id: effectiveGestorId }, orderBy: 'submission_date', ascending: false }),
