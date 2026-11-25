@@ -27,6 +27,7 @@ import PublicColdCallTV from '@/pages/PublicColdCallTV';
 import { Dashboard } from '@/pages/Dashboard';
 import { CandidateDetail } from '@/pages/CandidateDetail';
 import { Commissions } from '@/pages/Commissions';
+import { WalletClients } from '@/pages/WalletClients';
 import { Feedbacks } from '@/pages/Feedbacks';
 import { OnlineOnboarding } from '@/pages/OnlineOnboarding';
 import { FinancialPanel } from '@/pages/FinancialPanel';
@@ -78,6 +79,7 @@ const AppRoutes = () => {
           <Route path="candidate/:id" element={<CandidateDetail />} />
           <Route path="team-config" element={<TeamConfig />} />
           <Route path="commissions" element={<Commissions />} />
+          <Route path="wallet-clients" element={<WalletClients />} />
           <Route path="financial-panel" element={<FinancialPanel />} />
           <Route path="feedbacks" element={<Feedbacks />} />
           <Route path="onboarding-admin" element={<OnlineOnboarding />} />
@@ -98,6 +100,7 @@ const AppRoutes = () => {
       <Route element={<ProtectedLayout allowedRoles={['SECRETARIA']} />}>
         <Route path="/secretaria" element={<SecretariaLayout />}>
           <Route path="dashboard" element={<SecretariaDashboard />} />
+          <Route path="wallet-clients" element={<WalletClients />} />
           <Route path="checklists" element={<SecretariaDailyChecklist />} />
           <Route path="hiring-pipeline" element={<HiringPipeline />} />
           <Route path="hiring-metrics" element={<HiringMetrics />} />

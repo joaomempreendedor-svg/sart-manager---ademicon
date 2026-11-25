@@ -1,0 +1,260 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Search, Users, AlertTriangle } from 'lucide-react';
+import { useApp } from '@/context/AppContext';
+import { normalizeImportKey } from '@/lib/commissionImport';
+import { WalletClient } from '@/types';
+import { Input } from '@/components/ui/input';
+
+const onlyDigits = (value: string) => value.replace(/\D/g, '');
+
+const formatCpf = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 11);
+  return digits
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '-$1$2');
+};
+
+const formatPhone = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (digits.length <= 10) {
+    return digits.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return digits.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
+};
+
+const isClientDataComplete = (client: WalletClient) =>
+  Boolean(client.cpf?.trim() && client.email?.trim() && client.phone?.trim());
+
+type ClientRowProps = {
+  client: WalletClient;
+  onSave: (client: WalletClient) => void;
+};
+
+const ClientRow: React.FC<ClientRowProps> = ({ client, onSave }) => {
+  const [cpf, setCpf] = useState(client.cpf || '');
+  const [email, setEmail] = useState(client.email || '');
+  const [phone, setPhone] = useState(client.phone || '');
+
+  useEffect(() => {
+    setCpf(client.cpf || '');
+    setEmail(client.email || '');
+    setPhone(client.phone || '');
+  }, [client.key, client.cpf, client.email, client.phone]);
+
+  const save = (field: 'cpf' | 'email' | 'phone', value: string) => {
+    const next = { ...client, [field]: value, updatedAt: new Date().toISOString() };
+    onSave(next);
+  };
+
+  const cpfInvalid = onlyDigits(cpf).length > 0 && onlyDigits(cpf).length !== 11;
+  const emailInvalid = Boolean(email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const phoneInvalid = onlyDigits(phone).length > 0 && ![10, 11].includes(onlyDigits(phone).length);
+
+  return (
+    <tr className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50/60 dark:hover:bg-slate-700/30 transition">
+      <td className="px-4 py-3">
+        <div className="font-semibold text-gray-900 dark:text-white">{client.clientName}</div>
+        {client.lastSaleDate && (
+          <div className="text-[11px] text-gray-400">
+            Última venda: {new Date(`${client.lastSaleDate}T00:00:00`).toLocaleDateString('pt-BR')}
+          </div>
+        )}
+      </td>
+      <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{client.group || '—'}</td>
+      <td className="px-4 py-3 text-gray-700 dark:text-gray-200">{client.quota || '—'}</td>
+      <td className="px-4 py-3">
+        <Input
+          value={cpf}
+          onChange={event => setCpf(formatCpf(event.target.value))}
+          onBlur={() => save('cpf', cpf)}
+          onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+          placeholder="000.000.000-00"
+          title={cpfInvalid ? 'CPF deve ter 11 dígitos' : 'CPF (salvo automaticamente)'}
+          className={`h-9 w-40 text-sm ${cpfInvalid ? 'border-red-400' : ''}`}
+        />
+      </td>
+      <td className="px-4 py-3">
+        <Input
+          type="email"
+          value={email}
+          onChange={event => setEmail(event.target.value)}
+          onBlur={() => save('email', email.trim())}
+          onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+          placeholder="email@exemplo.com"
+          title={emailInvalid ? 'E-mail inválido' : 'E-mail (salvo automaticamente)'}
+          className={`h-9 w-56 text-sm ${emailInvalid ? 'border-red-400' : ''}`}
+        />
+      </td>
+      <td className="px-4 py-3">
+        <Input
+          value={phone}
+          onChange={event => setPhone(formatPhone(event.target.value))}
+          onBlur={() => save('phone', phone)}
+          onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+          placeholder="(00) 00000-0000"
+          title={phoneInvalid ? 'Telefone deve ter 10 ou 11 dígitos' : 'Telefone (salvo automaticamente)'}
+          className={`h-9 w-44 text-sm ${phoneInvalid ? 'border-red-400' : ''}`}
+        />
+      </td>
+      <td className="px-4 py-3 text-center">
+        {isClientDataComplete(client) ? (
+          <span title="Cadastro completo">
+            <CheckCircle2 className="mx-auto h-5 w-5 text-green-500" />
+          </span>
+        ) : (
+          <span title="Falta CPF, e-mail ou telefone">
+            <AlertTriangle className="mx-auto h-5 w-5 text-amber-500" />
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+};
+
+export const WalletClients = () => {
+  const { commissions, walletClients, updateWalletClient, isDataLoading } = useApp();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [onlyIncomplete, setOnlyIncomplete] = useState(false);
+
+  const clients = useMemo(() => {
+    const fromHistory = new Map<string, WalletClient>();
+
+    commissions.forEach(commission => {
+      const consultantName = normalizeImportKey(commission.consultant || '');
+      if (!consultantName.includes('joao muller')) return;
+
+      const clientName = (commission.clientName || '').trim();
+      if (!clientName) return;
+
+      const group = (commission.group || '').trim();
+      const quota = (commission.quota || '').trim();
+      const key = `${normalizeImportKey(clientName)}|${normalizeImportKey(group)}|${normalizeImportKey(quota)}`;
+      const existing = fromHistory.get(key);
+      const saleDate = commission.date || '';
+
+      if (!existing) {
+        fromHistory.set(key, { key, clientName, group, quota, lastSaleDate: saleDate });
+      } else if (saleDate && (!existing.lastSaleDate || saleDate > existing.lastSaleDate)) {
+        fromHistory.set(key, { ...existing, lastSaleDate: saleDate });
+      }
+    });
+
+    return Array.from(fromHistory.values())
+      .map(client => {
+        const saved = walletClients.find(item => item.key === client.key);
+        return {
+          ...client,
+          cpf: saved?.cpf || '',
+          email: saved?.email || '',
+          phone: saved?.phone || '',
+        };
+      })
+      .sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'));
+  }, [commissions, walletClients]);
+
+  const completeCount = clients.filter(isClientDataComplete).length;
+
+  const visibleClients = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return clients.filter(client => {
+      if (onlyIncomplete && isClientDataComplete(client)) return false;
+      if (!term) return true;
+      return [client.clientName, client.group, client.quota, client.cpf, client.email, client.phone]
+        .some(value => (value || '').toLowerCase().includes(term));
+    });
+  }, [clients, searchTerm, onlyIncomplete]);
+
+  return (
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Clientes da Carteira — João Müller</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Clientes extraídos automaticamente do histórico de comissões onde o consultor é João Müller.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg bg-brand-50 px-4 py-2 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300">
+          <Users className="h-5 w-5" />
+          <span className="text-sm font-bold">{clients.length} clientes</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Total na carteira</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{clients.length}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Cadastros completos</p>
+          <p className="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{completeCount}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Faltando dados</p>
+          <p className="mt-1 text-2xl font-bold text-amber-600 dark:text-amber-400">{clients.length - completeCount}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              value={searchTerm}
+              onChange={event => setSearchTerm(event.target.value)}
+              placeholder="Buscar por nome, grupo, cota, CPF, e-mail ou telefone..."
+              className="pl-9"
+            />
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={onlyIncomplete}
+              onChange={event => setOnlyIncomplete(event.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            Mostrar apenas com dados faltando
+          </label>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+            <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-700/50 dark:text-gray-400">
+              <tr>
+                <th className="px-4 py-3">Cliente</th>
+                <th className="px-4 py-3">Grupo</th>
+                <th className="px-4 py-3">Cota</th>
+                <th className="px-4 py-3">CPF</th>
+                <th className="px-4 py-3">E-mail</th>
+                <th className="px-4 py-3">Telefone</th>
+                <th className="px-4 py-3 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isDataLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-400">Carregando carteira...</td>
+                </tr>
+              ) : visibleClients.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                    Nenhum cliente encontrado. Importe comissões com o consultor João Müller para popular a carteira.
+                  </td>
+                </tr>
+              ) : (
+                visibleClients.map(client => (
+                  <ClientRow key={client.key} client={client} onSave={updateWalletClient} />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <p className="border-t border-gray-100 px-4 py-3 text-xs text-gray-400 dark:border-slate-700">
+          CPF, e-mail e telefone são salvos automaticamente ao sair do campo.
+        </p>
+      </div>
+    </div>
+  );
+};

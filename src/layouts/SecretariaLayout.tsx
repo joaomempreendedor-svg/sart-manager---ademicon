@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import {
   CalendarDays,
   CheckSquare,
+  Contact,
   FileStack,
   LayoutDashboard,
   LogOut,
@@ -16,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 
 const navItems = [
   { to: '/secretaria/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/secretaria/wallet-clients', label: 'Carteira João Müller', icon: Contact },
   { to: '/secretaria/checklists', label: 'Checklists', icon: CheckSquare },
   { to: '/secretaria/hiring-pipeline', label: 'Contratação', icon: UserSearch },
   { to: '/secretaria/onboarding-admin', label: 'Onboarding', icon: Video },

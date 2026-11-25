@@ -308,6 +308,20 @@ export interface CommissionReport {
   commissions: Commission[];
 }
 
+/** Cliente da carteira de pós-venda do João Müller, originado do histórico de comissões. */
+export interface WalletClient {
+  /** Chave estável: nome + grupo + cota (normalizados). */
+  key: string;
+  clientName: string;
+  group: string;
+  quota: string;
+  cpf?: string;
+  email?: string;
+  phone?: string;
+  updatedAt?: string;
+  lastSaleDate?: string;
+}
+
 export interface CutoffPeriod {
   id: string;
   db_id?: string;
@@ -687,6 +701,8 @@ export interface AppContextType {
   setCandidates: React.Dispatch<React.SetStateAction<Candidate[]>>;
   teamMembers: TeamMember[];
   commissions: Commission[];
+  walletClients: WalletClient[];
+  updateWalletClient: (client: WalletClient) => void;
   supportMaterials: SupportMaterial[];
   cutoffPeriods: CutoffPeriod[];
   onboardingSessions: OnboardingSession[];

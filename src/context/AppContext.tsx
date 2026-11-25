@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ColdCallConsultant, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn, Contrato, DailyMetricConfig, ColdCallGoals } from '@/types';
+import { Candidate, CommunicationTemplate, AppContextType, ChecklistStage, InterviewSection, Commission, SupportMaterial, GoalStage, TeamMember, InstallmentStatus, InstallmentInfo, CutoffPeriod, OnboardingSession, OnboardingVideoTemplate, CrmPipeline, CrmStage, CrmField, CrmLead, DailyChecklist, DailyChecklistItem, DailyChecklistAssignment, DailyChecklistCompletion, WeeklyTarget, WeeklyTargetItem, WeeklyTargetAssignment, MetricLog, SupportMaterialV2, SupportMaterialAssignment, LeadTask, DailyChecklistItemResource, GestorTask, GestorTaskCompletion, FinancialEntry, FormCadastro, FormFile, Notification, TeamProductionGoal, ColdCallLead, ColdCallLog, ColdCallConsultant, ChecklistItem, Process, ProcessAttachment, Feedback, InterviewQuestion, HiringPipelineColumn, Contrato, DailyMetricConfig, ColdCallGoals, WalletClient } from '@/types';
 import { CHECKLIST_STAGES as DEFAULT_STAGES } from '@/data/checklistData';
 import { CONSULTANT_GOALS as DEFAULT_GOALS } from '@/data/consultantGoals';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
@@ -56,6 +56,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [walletClients, setWalletClients] = useState<WalletClient[]>([]);
   const [supportMaterials, setSupportMaterials] = useState<SupportMaterial[]>([]);
   const [cutoffPeriods, setCutoffPeriods] = useState<CutoffPeriod[]>([]);
   const [onboardingSessions, setOnboardingSessions] = useState<OnboardingSession[]>([]);
@@ -164,12 +165,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateConfig = useCallback((updates: any) => {
     if (!user) return;
-    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals, coldCallConsultantGoals, coldCallTutorial };
+    const currentConfig = { checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals, coldCallConsultantGoals, coldCallTutorial, walletClients };
     debouncedUpdateConfig({ ...currentConfig, ...updates });
-  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals, coldCallConsultantGoals, coldCallTutorial, debouncedUpdateConfig]);
+  }, [user, checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs, hiringPipelineColumns, coldCallGoals, coldCallConsultantGoals, coldCallTutorial, walletClients, debouncedUpdateConfig]);
 
   const resetLocalState = useCallback(() => {
-    setCandidates([]); setTeamMembers([]); setCommissions([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
+    setCandidates([]); setTeamMembers([]); setCommissions([]); setWalletClients([]); setSupportMaterials([]); setCutoffPeriods([]); setOnboardingSessions([]); setOnboardingTemplateVideos([]);
     setChecklistStructure(DEFAULT_STAGES); setConsultantGoalsStructure(DEFAULT_GOALS); setInterviewStructure(INITIAL_INTERVIEW_STRUCTURE); setTemplates({});
     setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setInterviewers(DEFAULT_APP_CONFIG_DATA.interviewers); setPvs(DEFAULT_APP_CONFIG_DATA.pvs);
     setHiringPipelineColumns(DEFAULT_HIRING_PIPELINE_COLUMNS);
@@ -275,6 +276,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setColdCallGoals(appConfigData.coldCallGoals || DEFAULT_COLD_CALL_GOALS);
       setColdCallConsultantGoals(appConfigData.coldCallConsultantGoals || {});
       setColdCallTutorial(appConfigData.coldCallTutorial || '');
+      setWalletClients(Array.isArray(appConfigData.walletClients) ? appConfigData.walletClients : []);
     }
   }, []);
 
@@ -1334,7 +1336,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
   }, [checklistStructure]);
 
   const value: AppContextType = useMemo(() => ({
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
+    isDataLoading, candidates, teamMembers, commissions, walletClients, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, setChecklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
     crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
@@ -1427,6 +1429,11 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     },
     resetOriginsToDefault: () => { setSalesOrigins(DEFAULT_APP_CONFIG_DATA.salesOrigins); setHiringOrigins(DEFAULT_APP_CONFIG_DATA.hiringOrigins); updateConfig({ salesOrigins: DEFAULT_APP_CONFIG_DATA.salesOrigins, hiringOrigins: DEFAULT_APP_CONFIG_DATA.hiringOrigins }); },
     addPV: (newPV: string) => { const newPvsList = [...pvs, newPV]; setPvs(newPvsList); updateConfig({ pvs: newPvsList }); },
+    updateWalletClient: (client: WalletClient) => {
+      const next = [...walletClients.filter(item => item.key !== client.key), client];
+      setWalletClients(next);
+      updateConfig({ walletClients: next });
+    },
     addCommission: async (commission: any) => {
       const { error } = await supabase.from('commissions').insert({ user_id: JOAO_GESTOR_AUTH_ID, data: commission }).select().single();
       if (error) throw error; refetchCommissions(); return { success: true };
@@ -1531,7 +1538,7 @@ const updateProcess = useCallback(async (id: string, updates: Partial<Process>, 
     addHiringPipelineColumn, updateHiringPipelineColumn, deleteHiringPipelineColumn, moveHiringPipelineColumn,
     resetHiringPipelineColumnsToDefault,
   }), [
-    isDataLoading, candidates, teamMembers, commissions, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
+    isDataLoading, candidates, teamMembers, commissions, walletClients, supportMaterials, cutoffPeriods, onboardingSessions, onboardingTemplateVideos,
     checklistStructure, consultantGoalsStructure, interviewStructure, templates, hiringOrigins, salesOrigins, interviewers, pvs,
     crmPipelines, crmStages, crmFields, crmLeads, crmOwnerUserId,
     dailyChecklists, dailyChecklistItems, dailyChecklistAssignments, dailyChecklistCompletions,
