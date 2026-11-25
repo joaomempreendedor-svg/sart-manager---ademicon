@@ -4,6 +4,7 @@ import { AppProvider } from '@/context/AppContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 import ToastProvider from '@/components/ToastProvider';
+import { BirthdayReminderModal } from '@/components/BirthdayReminderModal';
 
 import { GestorLayout } from '@/components/GestorLayout';
 import { ProtectedLayout } from '@/layouts/ProtectedLayout';
@@ -135,6 +136,7 @@ const App = () => {
         <AppProvider>
           <Toaster />
           <ToastProvider />
+          <BirthdayReminderModal />
           <AppRoutes />
         </AppProvider>
       </AuthProvider>
