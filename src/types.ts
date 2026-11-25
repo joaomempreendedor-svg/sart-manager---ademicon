@@ -321,6 +321,8 @@ export interface WalletClient {
   birthDate?: string;
   updatedAt?: string;
   lastSaleDate?: string;
+  /** Origem do cadastro: histórico de comissões ou inclusão manual. */
+  source?: 'commission' | 'manual';
 }
 
 export interface CutoffPeriod {

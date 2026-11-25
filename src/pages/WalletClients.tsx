@@ -1,9 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Search, Users, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Plus, Search, Users } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useApp } from '@/context/AppContext';
 import { normalizeImportKey } from '@/lib/commissionImport';
 import { WalletClient } from '@/types';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const onlyDigits = (value: string) => value.replace(/\D/g, '');
 
@@ -41,6 +52,167 @@ const getMissingClientInfo = (client: WalletClient) => {
 
 const isClientDataComplete = (client: WalletClient) => getMissingClientInfo(client).length === 0;
 
+type AddClientDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdd: (client: WalletClient) => void;
+  existingKeys: Set<string>;
+};
+
+const AddClientDialog: React.FC<AddClientDialogProps> = ({ open, onOpenChange, onAdd, existingKeys }) => {
+  const [clientName, setClientName] = useState('');
+  const [group, setGroup] = useState('');
+  const [quota, setQuota] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+
+  const reset = () => {
+    setClientName('');
+    setGroup('');
+    setQuota('');
+    setCpf('');
+    setEmail('');
+    setPhone('');
+    setBirthDate('');
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) reset();
+    onOpenChange(next);
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const name = clientName.trim();
+    if (!name) {
+      toast.error('Informe o nome do cliente.');
+      return;
+    }
+
+    const normalizedGroup = group.trim();
+    const normalizedQuota = quota.trim();
+    const key = `${normalizeImportKey(name)}|${normalizeImportKey(normalizedGroup)}|${normalizeImportKey(normalizedQuota)}`;
+
+    if (existingKeys.has(key)) {
+      toast.error('Já existe um cliente com esse nome, grupo e cota.');
+      return;
+    }
+
+    onAdd({
+      key,
+      clientName: name,
+      group: normalizedGroup,
+      quota: normalizedQuota,
+      cpf,
+      email: email.trim(),
+      phone,
+      birthDate,
+      source: 'manual',
+      updatedAt: new Date().toISOString(),
+    });
+
+    toast.success('Cliente adicionado à carteira.');
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Adicionar cliente à carteira</DialogTitle>
+          <DialogDescription>
+            Use este formulário para clientes que ainda não aparecem no histórico de comissões.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-2 sm:col-span-3">
+              <Label htmlFor="new-client-name">Nome do cliente *</Label>
+              <Input
+                id="new-client-name"
+                value={clientName}
+                onChange={event => setClientName(event.target.value)}
+                placeholder="Nome completo"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-client-group">Grupo</Label>
+              <Input
+                id="new-client-group"
+                value={group}
+                onChange={event => setGroup(event.target.value)}
+                placeholder="Ex.: 12345"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-client-quota">Cota</Label>
+              <Input
+                id="new-client-quota"
+                value={quota}
+                onChange={event => setQuota(event.target.value)}
+                placeholder="Ex.: 01"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-client-birth-date">Aniversário</Label>
+              <Input
+                id="new-client-birth-date"
+                type="date"
+                value={birthDate}
+                onChange={event => setBirthDate(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="new-client-cpf">CPF</Label>
+              <Input
+                id="new-client-cpf"
+                value={cpf}
+                onChange={event => setCpf(formatCpf(event.target.value))}
+                placeholder="000.000.000-00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-client-email">E-mail</Label>
+              <Input
+                id="new-client-email"
+                type="email"
+                value={email}
+                onChange={event => setEmail(event.target.value)}
+                placeholder="email@exemplo.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-client-phone">Telefone</Label>
+              <Input
+                id="new-client-phone"
+                value={phone}
+                onChange={event => setPhone(formatPhone(event.target.value))}
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit">Adicionar cliente</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 type ClientRowProps = {
   client: WalletClient;
   onSave: (client: WalletClient) => void;
@@ -72,6 +244,11 @@ const ClientRow: React.FC<ClientRowProps> = ({ client, onSave }) => {
     <tr className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50/60 dark:hover:bg-slate-700/30 transition">
       <td className="px-4 py-3">
         <div className="font-semibold text-gray-900 dark:text-white">{client.clientName}</div>
+        {client.source === 'manual' && (
+          <div className="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+            Adicionado manualmente
+          </div>
+        )}
         {client.lastSaleDate && (
           <div className="text-[11px] text-gray-400">
             Última venda: {new Date(`${client.lastSaleDate}T00:00:00`).toLocaleDateString('pt-BR')}
@@ -154,6 +331,7 @@ export const WalletClients = () => {
   const { commissions, walletClients, updateWalletClient, isDataLoading } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const clients = useMemo(() => {
     const fromHistory = new Map<string, WalletClient>();
@@ -171,9 +349,22 @@ export const WalletClients = () => {
       const saleDate = commission.date || '';
 
       if (!existing) {
-        fromHistory.set(key, { key, clientName, group, quota, lastSaleDate: saleDate });
+        fromHistory.set(key, { key, clientName, group, quota, lastSaleDate: saleDate, source: 'commission' });
       } else if (saleDate && (!existing.lastSaleDate || saleDate > existing.lastSaleDate)) {
         fromHistory.set(key, { ...existing, lastSaleDate: saleDate });
+      }
+    });
+
+    // Clientes adicionados manualmente também fazem parte da carteira.
+    walletClients.forEach(saved => {
+      if (!fromHistory.has(saved.key) && saved.clientName?.trim()) {
+        fromHistory.set(saved.key, {
+          ...saved,
+          clientName: saved.clientName.trim(),
+          group: saved.group || '',
+          quota: saved.quota || '',
+          source: saved.source || 'manual',
+        });
       }
     });
 
@@ -192,6 +383,7 @@ export const WalletClients = () => {
   }, [commissions, walletClients]);
 
   const completeCount = clients.filter(isClientDataComplete).length;
+  const clientKeys = useMemo(() => new Set(clients.map(client => client.key)), [clients]);
 
   const visibleClients = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -213,9 +405,15 @@ export const WalletClients = () => {
             (incluindo variações como João B. Müller).
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg bg-brand-50 px-4 py-2 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300">
-          <Users className="h-5 w-5" />
-          <span className="text-sm font-bold">{clients.length} clientes</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => setIsAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar cliente
+          </Button>
+          <div className="flex items-center gap-2 rounded-lg bg-brand-50 px-4 py-2 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300">
+            <Users className="h-5 w-5" />
+            <span className="text-sm font-bold">{clients.length} clientes</span>
+          </div>
         </div>
       </div>
 
@@ -295,6 +493,13 @@ export const WalletClients = () => {
           CPF, e-mail, telefone e aniversário são salvos automaticamente ao sair do campo.
         </p>
       </div>
+
+      <AddClientDialog
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        onAdd={updateWalletClient}
+        existingKeys={clientKeys}
+      />
     </div>
   );
 };
