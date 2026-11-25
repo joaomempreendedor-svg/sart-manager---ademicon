@@ -23,8 +23,23 @@ const formatPhone = (value: string) => {
   return digits.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
 };
 
-const isClientDataComplete = (client: WalletClient) =>
-  Boolean(client.cpf?.trim() && client.email?.trim() && client.phone?.trim());
+/** Reconhece variações como João Müller, João M. Müller e JOAO MULLER. */
+const isJoaoMullerConsultant = (value: string) => {
+  const tokens = normalizeImportKey(value).split(' ').filter(Boolean);
+  if (!tokens.includes('joao') || !tokens.includes('muller')) return false;
+  return tokens[0] === 'joao' || tokens[tokens.length - 1] === 'joao';
+};
+
+const getMissingClientInfo = (client: WalletClient) => {
+  const missing: string[] = [];
+  if (!client.cpf?.trim()) missing.push('CPF');
+  if (!client.email?.trim()) missing.push('E-mail');
+  if (!client.phone?.trim()) missing.push('Telefone');
+  if (!client.birthDate?.trim()) missing.push('Aniversário');
+  return missing;
+};
+
+const isClientDataComplete = (client: WalletClient) => getMissingClientInfo(client).length === 0;
 
 type ClientRowProps = {
   client: WalletClient;
@@ -35,14 +50,16 @@ const ClientRow: React.FC<ClientRowProps> = ({ client, onSave }) => {
   const [cpf, setCpf] = useState(client.cpf || '');
   const [email, setEmail] = useState(client.email || '');
   const [phone, setPhone] = useState(client.phone || '');
+  const [birthDate, setBirthDate] = useState(client.birthDate || '');
 
   useEffect(() => {
     setCpf(client.cpf || '');
     setEmail(client.email || '');
     setPhone(client.phone || '');
-  }, [client.key, client.cpf, client.email, client.phone]);
+    setBirthDate(client.birthDate || '');
+  }, [client.key, client.cpf, client.email, client.phone, client.birthDate]);
 
-  const save = (field: 'cpf' | 'email' | 'phone', value: string) => {
+  const save = (field: 'cpf' | 'email' | 'phone' | 'birthDate', value: string) => {
     const next = { ...client, [field]: value, updatedAt: new Date().toISOString() };
     onSave(next);
   };
@@ -97,14 +114,35 @@ const ClientRow: React.FC<ClientRowProps> = ({ client, onSave }) => {
           className={`h-9 w-44 text-sm ${phoneInvalid ? 'border-red-400' : ''}`}
         />
       </td>
+      <td className="px-4 py-3">
+        <Input
+          type="date"
+          value={birthDate}
+          onChange={event => setBirthDate(event.target.value)}
+          onBlur={() => save('birthDate', birthDate)}
+          onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+          title="Data de aniversário (salva automaticamente)"
+          className="h-9 w-40 text-sm"
+        />
+      </td>
       <td className="px-4 py-3 text-center">
         {isClientDataComplete(client) ? (
-          <span title="Cadastro completo">
-            <CheckCircle2 className="mx-auto h-5 w-5 text-green-500" />
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-300">
+            <CheckCircle2 className="h-4 w-4" />
+            Completo
           </span>
         ) : (
-          <span title="Falta CPF, e-mail ou telefone">
-            <AlertTriangle className="mx-auto h-5 w-5 text-amber-500" />
+          <span
+            className="inline-flex flex-col items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            title={`Falta: ${getMissingClientInfo(client).join(', ')}`}
+          >
+            <span className="inline-flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4" />
+              Falta informações
+            </span>
+            <span className="text-[10px] font-normal">
+              {getMissingClientInfo(client).join(', ')}
+            </span>
           </span>
         )}
       </td>
@@ -121,8 +159,7 @@ export const WalletClients = () => {
     const fromHistory = new Map<string, WalletClient>();
 
     commissions.forEach(commission => {
-      const consultantName = normalizeImportKey(commission.consultant || '');
-      if (!consultantName.includes('joao muller')) return;
+      if (!isJoaoMullerConsultant(commission.consultant || '')) return;
 
       const clientName = (commission.clientName || '').trim();
       if (!clientName) return;
@@ -148,6 +185,7 @@ export const WalletClients = () => {
           cpf: saved?.cpf || '',
           email: saved?.email || '',
           phone: saved?.phone || '',
+          birthDate: saved?.birthDate || '',
         };
       })
       .sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'));
@@ -160,7 +198,7 @@ export const WalletClients = () => {
     return clients.filter(client => {
       if (onlyIncomplete && isClientDataComplete(client)) return false;
       if (!term) return true;
-      return [client.clientName, client.group, client.quota, client.cpf, client.email, client.phone]
+      return [client.clientName, client.group, client.quota, client.cpf, client.email, client.phone, client.birthDate]
         .some(value => (value || '').toLowerCase().includes(term));
     });
   }, [clients, searchTerm, onlyIncomplete]);
@@ -171,7 +209,8 @@ export const WalletClients = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Clientes da Carteira — João Müller</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Clientes extraídos automaticamente do histórico de comissões onde o consultor é João Müller.
+            Clientes extraídos automaticamente do histórico de comissões onde o consultor é João Müller
+            (incluindo variações como João B. Müller).
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-lg bg-brand-50 px-4 py-2 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300">
@@ -229,17 +268,18 @@ export const WalletClients = () => {
                 <th className="px-4 py-3">CPF</th>
                 <th className="px-4 py-3">E-mail</th>
                 <th className="px-4 py-3">Telefone</th>
+                <th className="px-4 py-3">Aniversário</th>
                 <th className="px-4 py-3 text-center">Status</th>
               </tr>
             </thead>
             <tbody>
               {isDataLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-400">Carregando carteira...</td>
+                  <td colSpan={8} className="px-4 py-10 text-center text-gray-400">Carregando carteira...</td>
                 </tr>
               ) : visibleClients.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                  <td colSpan={8} className="px-4 py-10 text-center text-gray-400">
                     Nenhum cliente encontrado. Importe comissões com o consultor João Müller para popular a carteira.
                   </td>
                 </tr>
@@ -252,7 +292,7 @@ export const WalletClients = () => {
           </table>
         </div>
         <p className="border-t border-gray-100 px-4 py-3 text-xs text-gray-400 dark:border-slate-700">
-          CPF, e-mail e telefone são salvos automaticamente ao sair do campo.
+          CPF, e-mail, telefone e aniversário são salvos automaticamente ao sair do campo.
         </p>
       </div>
     </div>

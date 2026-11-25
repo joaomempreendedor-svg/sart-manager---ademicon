@@ -318,6 +318,7 @@ export interface WalletClient {
   cpf?: string;
   email?: string;
   phone?: string;
+  birthDate?: string;
   updatedAt?: string;
   lastSaleDate?: string;
 }
